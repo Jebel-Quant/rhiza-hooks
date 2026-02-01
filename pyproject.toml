@@ -51,3 +51,8 @@ pyyaml = "yaml"
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["tomli"]  # tomli is a backport for Python < 3.11
+
+[dependency-groups]
+dev = [
+    "types-pyyaml>=6.0.12.20250915",
+]
