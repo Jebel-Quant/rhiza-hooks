@@ -59,7 +59,7 @@ wheels = [
 
 [[package]]
 name = "rhiza-hooks"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "pyyaml" },
