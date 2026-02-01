@@ -1,0 +1,48 @@
+# Pre-commit hooks for rhiza projects
+# These hooks are extracted from rhiza's local hooks for use as an external repository.
+# See: https://github.com/Jebel-Quant/rhiza
+
+##@ Migrated from Rhiza
+
+- id: check-rhiza-workflow-names
+  name: Check and Fix Rhiza workflow names
+  description: Ensures GitHub Actions workflow names have the (RHIZA) prefix in uppercase
+  entry: check-rhiza-workflow-names
+  language: python
+  files: ^\.github/workflows/rhiza_.*\.ya?ml$
+  types: [yaml]
+
+- id: update-readme-help
+  name: Update README with Makefile help output
+  description: Embeds the output of 'make help' into README.md
+  entry: update-readme-help
+  language: python
+  files: ^Makefile$
+  pass_filenames: false
+
+##@ Additional Utility Hooks
+
+- id: check-rhiza-config
+  name: Check rhiza configuration
+  description: Validates the .rhiza/template.yml configuration file
+  entry: check-rhiza-config
+  language: python
+  files: ^\.rhiza/template\.yml$
+  types: [yaml]
+
+- id: check-makefile-targets
+  name: Check Makefile targets
+  description: Ensures required Makefile targets exist
+  entry: check-makefile-targets
+  language: python
+  files: (^Makefile$|^\.rhiza/.*\.mk$)
+  types: [makefile]
+
+- id: check-python-version-consistency
+  name: Check Python version consistency
+  description: Ensures Python version is consistent across .python-version and pyproject.toml
+  entry: check-python-version-consistency
+  language: python
+  files: (^\.python-version$|^pyproject\.toml$)
+  pass_filenames: false
+  always_run: true

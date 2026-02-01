@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rhiza-hooks"
+version = "0.1.0"
+description = "Pre-commit hooks for rhiza projects"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Harry Campion" },
+    { name = "Thomas Schmelzer" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "tomli>=2.0; python_version < '3.11'",
+]
+
+[project.urls]
+Homepage = "https://github.com/Jebel-Quant/rhiza-hooks"
+Repository = "https://github.com/Jebel-Quant/rhiza-hooks"
+
+[project.scripts]
+# Migrated from rhiza
+check-rhiza-workflow-names = "rhiza_hooks.check_workflow_names:main"
+update-readme-help = "rhiza_hooks.update_readme_help:main"
+# Additional utility hooks
+check-rhiza-config = "rhiza_hooks.check_rhiza_config:main"
+check-makefile-targets = "rhiza_hooks.check_makefile_targets:main"
+check-python-version-consistency = "rhiza_hooks.check_python_version:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["rhiza_hooks"]

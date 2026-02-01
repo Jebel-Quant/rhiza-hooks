@@ -1,0 +1,31 @@
+template-repository: jebel-quant/rhiza
+template-branch: main
+include:
+- .rhiza/
+- .github/
+- .editorconfig
+- .gitignore
+- .pre-commit-config.yaml
+- ruff.toml
+- Makefile
+- pytest.ini
+- LICENSE
+- CODE_OF_CONDUCT.md
+- CONTRIBUTING.md
+- renovate.json
+- .python-version
+- tests/tests.mk
+- book/
+
+exclude:
+  - .github/workflows/rhiza_devcontainer.yml
+  - .github/workflows/rhiza_release.yml
+  - .github/workflows/rhiza_docker.yml
+  - .github/workflows/rhiza_marimo.yml
+  - .github/workflows/rhiza_mypy.yml
+  - .github/workflows/rhiza_release.yml
+  - .github/copilot-instructions.yml
+  - .github/agents/*
+  - .github/github.mk
+  - book/marimo/*
+  - book/README.md
