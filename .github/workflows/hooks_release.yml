@@ -34,7 +34,7 @@ jobs:
 
       - name: Extract version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
 
       - name: Generate release notes
         id: release_notes
@@ -55,7 +55,7 @@ jobs:
           
           # Also create a summary
           COMMIT_COUNT=$(echo "$CHANGES" | wc -l)
-          echo "COMMIT_COUNT=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+          echo "COMMIT_COUNT=$COMMIT_COUNT" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
