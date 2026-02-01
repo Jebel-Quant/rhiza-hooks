@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from rhiza_hooks.check_python_version import (
     check_version_consistency,
+    find_repo_root,
     get_pyproject_requires_python,
     get_python_version_file,
+    main,
     parse_version,
     version_satisfies_constraint,
 )
@@ -202,3 +207,71 @@ class TestCheckVersionConsistency:
         errors = check_version_consistency(tmp_path)
 
         assert errors == []
+
+
+class TestFindRepoRoot:
+    """Tests for find_repo_root function."""
+
+    def test_finds_git_dir(self, tmp_path: Path) -> None:
+        """Returns directory containing .git."""
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+        subdir = tmp_path / "src" / "package"
+        subdir.mkdir(parents=True)
+
+        with patch("rhiza_hooks.check_python_version.Path.cwd", return_value=subdir):
+            result = find_repo_root()
+            assert result == tmp_path
+
+    def test_no_git_dir_returns_cwd(self, tmp_path: Path) -> None:
+        """Returns cwd when no .git found."""
+        subdir = tmp_path / "src" / "package"
+        subdir.mkdir(parents=True)
+
+        with patch("rhiza_hooks.check_python_version.Path.cwd", return_value=subdir):
+            result = find_repo_root()
+            assert result == subdir
+
+
+class TestMain:
+    """Tests for main function."""
+
+    def test_main_consistent_returns_zero(self, tmp_path: Path) -> None:
+        """Returns 0 when versions are consistent."""
+        (tmp_path / ".python-version").write_text("3.12\n")
+        (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11"\n')
+        (tmp_path / ".git").mkdir()
+
+        with patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path):
+            result = main([])
+            assert result == 0
+
+    def test_main_inconsistent_returns_one(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Returns 1 when versions are inconsistent."""
+        (tmp_path / ".python-version").write_text("3.10\n")
+        (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11"\n')
+        (tmp_path / ".git").mkdir()
+
+        with patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path):
+            result = main([])
+            assert result == 1
+            captured = capsys.readouterr()
+            assert "ERROR" in captured.out
+
+    def test_main_no_files_returns_zero(self, tmp_path: Path) -> None:
+        """Returns 0 when no version files exist."""
+        (tmp_path / ".git").mkdir()
+
+        with patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path):
+            result = main([])
+            assert result == 0
+
+    def test_main_accepts_filenames_argument(self, tmp_path: Path) -> None:
+        """Main accepts filenames argument (ignored)."""
+        (tmp_path / ".git").mkdir()
+
+        with patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path):
+            result = main(["some_file.py", "another.py"])
+            assert result == 0

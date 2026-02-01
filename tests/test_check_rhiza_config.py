@@ -7,7 +7,7 @@ from textwrap import dedent
 
 import pytest
 
-from rhiza_hooks.check_rhiza_config import validate_rhiza_config
+from rhiza_hooks.check_rhiza_config import main, validate_rhiza_config
 
 
 @pytest.fixture
@@ -103,3 +103,100 @@ class TestValidateRhizaConfig:
         missing = tmp_path / "nonexistent.yml"
         errors = validate_rhiza_config(missing)
         assert any("not found" in e.lower() for e in errors)
+
+    def test_invalid_yaml(self, temp_config):
+        """Test that invalid YAML is reported."""
+        config = temp_config("invalid: yaml: syntax:")
+        errors = validate_rhiza_config(config)
+        assert any("yaml" in e.lower() for e in errors)
+
+    def test_non_dict_config(self, temp_config):
+        """Test that non-dict config is reported."""
+        config = temp_config("- item1\n- item2")
+        errors = validate_rhiza_config(config)
+        assert any("mapping" in e.lower() for e in errors)
+
+    def test_template_repository_not_string(self, temp_config):
+        """Test that non-string template-repository is reported."""
+        config = temp_config("""
+            template-repository: 123
+            template-branch: main
+            include:
+              - Makefile
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("string" in e.lower() for e in errors)
+
+    def test_template_branch_not_string(self, temp_config):
+        """Test that non-string template-branch is reported."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: 123
+            include:
+              - Makefile
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("string" in e.lower() for e in errors)
+
+    def test_empty_template_branch(self, temp_config):
+        """Test that empty template-branch is reported."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: ""
+            include:
+              - Makefile
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("empty" in e.lower() for e in errors)
+
+    def test_include_not_list(self, temp_config):
+        """Test that non-list include is reported."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+            include: just-a-string
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("list" in e.lower() for e in errors)
+
+    def test_exclude_not_list(self, temp_config):
+        """Test that non-list exclude is reported."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+            include:
+              - Makefile
+            exclude: just-a-string
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("list" in e.lower() for e in errors)
+
+
+class TestMain:
+    """Tests for main function."""
+
+    def test_main_valid_config(self, temp_config) -> None:
+        """Main returns 0 for valid config."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+            include:
+              - Makefile
+        """)
+        result = main([str(config)])
+        assert result == 0
+
+    def test_main_invalid_config(
+        self, temp_config, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Main returns 1 for invalid config."""
+        config = temp_config("invalid")
+        result = main([str(config)])
+        assert result == 1
+        captured = capsys.readouterr()
+        assert len(captured.out) > 0
+
+    def test_main_no_files(self) -> None:
+        """Main returns 0 when no files provided."""
+        result = main([])
+        assert result == 0
