@@ -55,18 +55,14 @@ def check_makefile(filepath: Path) -> list[str]:
     if filepath.name == "Makefile":
         missing = RECOMMENDED_TARGETS - targets
         if missing:
-            warnings.append(
-                f"Missing recommended targets: {', '.join(sorted(missing))}"
-            )
+            warnings.append(f"Missing recommended targets: {', '.join(sorted(missing))}")
 
     return warnings
 
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for the hook."""
-    parser = argparse.ArgumentParser(
-        description="Check Makefile for recommended targets"
-    )
+    parser = argparse.ArgumentParser(description="Check Makefile for recommended targets")
     parser.add_argument(
         "filenames",
         nargs="*",

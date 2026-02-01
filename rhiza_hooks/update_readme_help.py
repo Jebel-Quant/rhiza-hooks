@@ -11,7 +11,7 @@ This is a Python wrapper that provides the same functionality.
 from __future__ import annotations
 
 import re
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -27,14 +27,13 @@ def get_make_help_output() -> str | None:
         The output from 'make help', or None if the command fails.
     """
     try:
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603 B607
             ["make", "help"],
             capture_output=True,
             text=True,
             check=True,
             timeout=30,
         )
-        return result.stdout
     except subprocess.CalledProcessError as e:
         print(f"Error running 'make help': {e}")
         return None
@@ -44,6 +43,8 @@ def get_make_help_output() -> str | None:
     except FileNotFoundError:
         print("Error: 'make' command not found")
         return None
+    else:
+        return result.stdout
 
 
 def update_readme_with_help(readme_path: Path, help_output: str) -> bool:

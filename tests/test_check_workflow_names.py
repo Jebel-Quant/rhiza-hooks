@@ -33,9 +33,7 @@ class TestCheckFile:
         content = workflow.read_text()
         assert "(RHIZA) MY WORKFLOW" in content
 
-    def test_missing_name_field_returns_false(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_missing_name_field_returns_false(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """File without name field returns False with error message."""
         workflow = tmp_path / "workflow.yml"
         workflow.write_text("on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n")
@@ -46,9 +44,7 @@ class TestCheckFile:
         captured = capsys.readouterr()
         assert "missing 'name' field" in captured.out
 
-    def test_invalid_yaml_returns_false(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_invalid_yaml_returns_false(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Invalid YAML returns False with error message."""
         workflow = tmp_path / "workflow.yml"
         workflow.write_text("name: test\n  invalid: yaml: syntax:\n")

@@ -42,3 +42,12 @@ check-python-version-consistency = "rhiza_hooks.check_python_version:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["rhiza_hooks"]
+
+[tool.deptry]
+extend_exclude = ["book"]
+
+[tool.deptry.package_module_name_map]
+pyyaml = "yaml"
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["tomli"]  # tomli is a backport for Python < 3.11

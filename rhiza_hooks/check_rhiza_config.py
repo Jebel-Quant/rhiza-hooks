@@ -55,9 +55,7 @@ def validate_rhiza_config(filepath: Path) -> list[str]:
         if not isinstance(repo, str):
             errors.append("template-repository must be a string")
         elif "/" not in repo:
-            errors.append(
-                f"template-repository should be in 'owner/repo' format, got: {repo}"
-            )
+            errors.append(f"template-repository should be in 'owner/repo' format, got: {repo}")
 
     # Validate template-branch
     if "template-branch" in config:
@@ -86,9 +84,7 @@ def validate_rhiza_config(filepath: Path) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point for the hook."""
-    parser = argparse.ArgumentParser(
-        description="Validate .rhiza/template.yml configuration"
-    )
+    parser = argparse.ArgumentParser(description="Validate .rhiza/template.yml configuration")
     parser.add_argument(
         "filenames",
         nargs="*",

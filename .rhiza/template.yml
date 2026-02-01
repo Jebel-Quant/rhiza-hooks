@@ -29,3 +29,4 @@ exclude:
   - .github/github.mk
   - book/marimo/*
   - book/README.md
+  - Makefile

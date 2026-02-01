@@ -43,7 +43,6 @@
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 LICENSE
-Makefile
 book/book.mk
 book/marimo/README.md
 book/marimo/marimo.mk

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
 
 from rhiza_hooks.update_readme_help import update_readme_with_help
 
@@ -15,11 +14,7 @@ class TestUpdateReadmeWithHelp:
         """Content between markers is replaced with help output."""
         readme = tmp_path / "README.md"
         readme.write_text(
-            "# My Project\n\n"
-            "<!-- MAKE_HELP_START -->\n"
-            "old content\n"
-            "<!-- MAKE_HELP_END -->\n\n"
-            "Footer text"
+            "# My Project\n\n<!-- MAKE_HELP_START -->\nold content\n<!-- MAKE_HELP_END -->\n\nFooter text"
         )
 
         result = update_readme_with_help(readme, "new help output\n")
@@ -52,13 +47,7 @@ class TestUpdateReadmeWithHelp:
     def test_no_change_returns_false(self, tmp_path: Path) -> None:
         """Returns False when content hasn't changed."""
         readme = tmp_path / "README.md"
-        readme.write_text(
-            "<!-- MAKE_HELP_START -->\n"
-            "```\n"
-            "same content\n"
-            "```\n"
-            "<!-- MAKE_HELP_END -->"
-        )
+        readme.write_text("<!-- MAKE_HELP_START -->\n```\nsame content\n```\n<!-- MAKE_HELP_END -->")
 
         result = update_readme_with_help(readme, "same content\n")
 
