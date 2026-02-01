@@ -186,9 +186,7 @@ class TestMain:
         result = main([str(config)])
         assert result == 0
 
-    def test_main_invalid_config(
-        self, temp_config, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_main_invalid_config(self, temp_config, capsys: pytest.CaptureFixture[str]) -> None:
         """Main returns 1 for invalid config."""
         config = temp_config("invalid")
         result = main([str(config)])

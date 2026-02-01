@@ -246,9 +246,7 @@ class TestMain:
             result = main([])
             assert result == 0
 
-    def test_main_inconsistent_returns_one(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_main_inconsistent_returns_one(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Returns 1 when versions are inconsistent."""
         (tmp_path / ".python-version").write_text("3.10\n")
         (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11"\n')

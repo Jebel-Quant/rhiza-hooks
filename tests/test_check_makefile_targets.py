@@ -142,9 +142,7 @@ help:
         result = main([str(makefile)])
         assert result == 0
 
-    def test_main_with_missing_targets_no_strict(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_main_with_missing_targets_no_strict(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Main returns 0 without --strict even with warnings."""
         makefile = tmp_path / "Makefile"
         makefile.write_text("install:\n")
@@ -155,9 +153,7 @@ help:
         captured = capsys.readouterr()
         assert "Missing recommended targets" in captured.out
 
-    def test_main_with_missing_targets_strict(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_main_with_missing_targets_strict(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Main returns 1 with --strict when targets missing."""
         makefile = tmp_path / "Makefile"
         makefile.write_text("install:\n")
