@@ -30,3 +30,4 @@ exclude:
   - book/marimo/*
   - book/README.md
   - Makefile
+  - .rhiza/.cfg.toml
