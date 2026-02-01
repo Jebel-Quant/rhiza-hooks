@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from rhiza_hooks.check_python_version import (
     check_version_consistency,
     get_pyproject_requires_python,
@@ -148,9 +146,7 @@ class TestCheckVersionConsistency:
     def test_gte_constraint_satisfied(self, tmp_path: Path) -> None:
         """No error when .python-version satisfies >=constraint."""
         (tmp_path / ".python-version").write_text("3.12\n")
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nrequires-python = ">=3.11"\n'
-        )
+        (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11"\n')
 
         errors = check_version_consistency(tmp_path)
 
@@ -159,9 +155,7 @@ class TestCheckVersionConsistency:
     def test_gte_constraint_exact_match(self, tmp_path: Path) -> None:
         """No error when .python-version equals minimum."""
         (tmp_path / ".python-version").write_text("3.11\n")
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nrequires-python = ">=3.11"\n'
-        )
+        (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11"\n')
 
         errors = check_version_consistency(tmp_path)
 
@@ -170,9 +164,7 @@ class TestCheckVersionConsistency:
     def test_gte_constraint_not_satisfied(self, tmp_path: Path) -> None:
         """Error when .python-version is below minimum."""
         (tmp_path / ".python-version").write_text("3.10\n")
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nrequires-python = ">=3.11"\n'
-        )
+        (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11"\n')
 
         errors = check_version_consistency(tmp_path)
 
@@ -183,9 +175,7 @@ class TestCheckVersionConsistency:
     def test_eq_constraint_not_satisfied(self, tmp_path: Path) -> None:
         """Error when .python-version doesn't match exact constraint."""
         (tmp_path / ".python-version").write_text("3.12\n")
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nrequires-python = "==3.11"\n'
-        )
+        (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = "==3.11"\n')
 
         errors = check_version_consistency(tmp_path)
 
@@ -193,9 +183,7 @@ class TestCheckVersionConsistency:
 
     def test_no_python_version_file(self, tmp_path: Path) -> None:
         """No error when .python-version doesn't exist."""
-        (tmp_path / "pyproject.toml").write_text(
-            '[project]\nrequires-python = ">=3.11"\n'
-        )
+        (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11"\n')
 
         errors = check_version_consistency(tmp_path)
 

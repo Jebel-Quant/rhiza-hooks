@@ -119,10 +119,20 @@ git clone https://github.com/Jebel-Quant/rhiza-hooks.git
 cd rhiza-hooks
 
 # Install dependencies
-uv sync
+make install
 
 # Install pre-commit hooks
 pre-commit install
+```
+
+### Common Commands
+
+```bash
+make install    # Install dependencies
+make test       # Run tests with coverage
+make fmt        # Format and lint code
+make deptry     # Check for unused/missing dependencies
+make help       # Show all available targets
 ```
 
 ### Testing hooks locally
@@ -135,12 +145,6 @@ pre-commit try-repo . --all-files
 
 # Test a specific hook
 pre-commit try-repo . check-rhiza-config --files .rhiza/template.yml
-```
-
-### Running tests
-
-```bash
-uv run pytest
 ```
 
 ## 📄 License
