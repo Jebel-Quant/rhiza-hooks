@@ -5,10 +5,6 @@
 #
 # Files under template control:
 .editorconfig
-.github/agents/agentic.mk
-.github/agents/analyser.md
-.github/agents/summarise.md
-.github/copilot-instructions.md
 .github/dependabot.yml
 .github/workflows/rhiza_benchmarks.yml
 .github/workflows/rhiza_book.yml

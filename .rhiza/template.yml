@@ -24,8 +24,8 @@ exclude:
   - .github/workflows/rhiza_marimo.yml
   - .github/workflows/rhiza_mypy.yml
   - .github/workflows/rhiza_release.yml
-  - .github/copilot-instructions.yml
-  - .github/agents/*
+  - .github/copilot-instructions.md
+  - .github/agents
   - .github/github.mk
   - book/marimo/*
   - book/README.md
