@@ -206,18 +206,15 @@ class TestMain:
 class TestModuleExecution:
     """Tests for module execution via if __name__ == '__main__'."""
 
-    def test_module_executes_main(self, tmp_path: Path) -> None:
+    def test_module_executes_main(self) -> None:
         """Module execution calls main and exits with its return value."""
         import runpy
 
-        (tmp_path / ".git").mkdir()
-        readme = tmp_path / "README.md"
-        readme.write_text("# Test README\n")
-
+        # Patch subprocess.run to raise FileNotFoundError so get_make_help_output returns None
+        # This needs to be patched at subprocess level since runpy creates a fresh module namespace
         with (
-            patch("rhiza_hooks.update_readme_help.get_make_help_output", return_value=None),
-            patch("rhiza_hooks.update_readme_help.find_repo_root", return_value=tmp_path),
-            patch("rhiza_hooks.update_readme_help.sys.exit") as mock_exit,
+            patch("subprocess.run", side_effect=FileNotFoundError()),
+            patch("sys.exit") as mock_exit,
         ):
             runpy.run_module("rhiza_hooks.update_readme_help", run_name="__main__")
             mock_exit.assert_called_once_with(0)
