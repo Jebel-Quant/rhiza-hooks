@@ -201,3 +201,23 @@ class TestMain:
         ):
             result = main([])
             assert result == 0
+
+
+class TestModuleExecution:
+    """Tests for module execution via if __name__ == '__main__'."""
+
+    def test_module_executes_main(self, tmp_path: Path) -> None:
+        """Module execution calls main and exits with its return value."""
+        import runpy
+
+        (tmp_path / ".git").mkdir()
+        readme = tmp_path / "README.md"
+        readme.write_text("# Test README\n")
+
+        with (
+            patch("rhiza_hooks.update_readme_help.get_make_help_output", return_value=None),
+            patch("rhiza_hooks.update_readme_help.find_repo_root", return_value=tmp_path),
+            patch("rhiza_hooks.update_readme_help.sys.exit") as mock_exit,
+        ):
+            runpy.run_module("rhiza_hooks.update_readme_help", run_name="__main__")
+            mock_exit.assert_called_once_with(0)

@@ -198,3 +198,19 @@ class TestMain:
         """Main returns 0 when no files provided."""
         result = main([])
         assert result == 0
+
+
+class TestModuleExecution:
+    """Tests for module execution via if __name__ == '__main__'."""
+
+    def test_module_executes_main(self) -> None:
+        """Module execution calls main and exits with its return value."""
+        import runpy
+        from unittest.mock import patch
+
+        with (
+            patch("rhiza_hooks.check_rhiza_config.sys.argv", ["check_rhiza_config"]),
+            patch("rhiza_hooks.check_rhiza_config.sys.exit") as mock_exit,
+        ):
+            runpy.run_module("rhiza_hooks.check_rhiza_config", run_name="__main__")
+            mock_exit.assert_called_once_with(0)

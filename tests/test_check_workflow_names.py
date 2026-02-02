@@ -152,3 +152,16 @@ class TestMain:
         with pytest.raises(SystemExit) as exc_info:
             main([str(w1), str(w2)])
         assert exc_info.value.code == 1
+
+
+class TestModuleExecution:
+    """Tests for module execution via if __name__ == '__main__'."""
+
+    def test_module_executes_main(self) -> None:
+        """Module execution calls main."""
+        import runpy
+        from unittest.mock import patch
+
+        with patch("rhiza_hooks.check_workflow_names.sys.argv", ["check_workflow_names"]):
+            # main() returns 0 when no files provided, doesn't call sys.exit
+            runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")

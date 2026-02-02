@@ -94,6 +94,10 @@ class TestVersionSatisfiesConstraint:
         """Version 3.10 does not satisfy ~=3.11."""
         assert version_satisfies_constraint("3.10", "~=", "3.11") is False
 
+    def test_unknown_operator_returns_true(self) -> None:
+        """Unknown operator is permissive and returns True."""
+        assert version_satisfies_constraint("3.12", "???", "3.11") is True
+
 
 class TestGetPythonVersionFile:
     """Tests for get_python_version_file function."""
@@ -142,6 +146,18 @@ class TestGetPyprojectRequiresPython:
         """Returns None if requires-python not specified."""
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\nname = "test"\n')
+        assert get_pyproject_requires_python(tmp_path) is None
+
+    def test_invalid_toml_returns_none(self, tmp_path: Path) -> None:
+        """Returns None if pyproject.toml is invalid."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("this is not valid toml {{{{")
+        assert get_pyproject_requires_python(tmp_path) is None
+
+    def test_invalid_version_format_returns_none(self, tmp_path: Path) -> None:
+        """Returns None if requires-python has invalid format."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nrequires-python = "invalid-version"\n')
         assert get_pyproject_requires_python(tmp_path) is None
 
 
@@ -273,3 +289,21 @@ class TestMain:
         with patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path):
             result = main(["some_file.py", "another.py"])
             assert result == 0
+
+
+class TestModuleExecution:
+    """Tests for module execution via if __name__ == '__main__'."""
+
+    def test_module_executes_main(self, tmp_path: Path) -> None:
+        """Module execution calls main and exits with its return value."""
+        (tmp_path / ".git").mkdir()
+
+        with (
+            patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path),
+            patch("rhiza_hooks.check_python_version.sys.argv", ["check_python_version"]),
+            patch("rhiza_hooks.check_python_version.sys.exit") as mock_exit,
+        ):
+            import runpy
+
+            runpy.run_module("rhiza_hooks.check_python_version", run_name="__main__")
+            mock_exit.assert_called_once_with(0)
