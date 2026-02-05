@@ -421,30 +421,27 @@ class TestMain:
         result = main([str(bundles_file)])
         assert result == 1
 
-    def test_main_with_cwd_default(self, tmp_path, monkeypatch, valid_bundles_content):
-        """Test main function uses current working directory when no filename provided."""
+    def test_main_with_no_files(self):
+        """Test main function returns success when no files provided."""
         from rhiza_hooks.check_template_bundles import main
 
-        # Create the .rhiza directory structure in tmp_path
-        rhiza_dir = tmp_path / ".rhiza"
-        rhiza_dir.mkdir()
-        bundles_file = rhiza_dir / "template-bundles.yml"
-        bundles_file.write_text(dedent(valid_bundles_content))
-
-        # Change to the tmp_path directory
-        monkeypatch.chdir(tmp_path)
-
-        # Test with no arguments (should use cwd)
+        # Test with no arguments (file is optional, should return success)
         result = main([])
         assert result == 0
 
-    def test_main_with_nonexistent_default_path(self, tmp_path, monkeypatch):
-        """Test main function when default path doesn't exist."""
+    def test_main_with_multiple_files(self, temp_bundles_file, valid_bundles_content):
+        """Test main function with multiple files."""
         from rhiza_hooks.check_template_bundles import main
 
-        # Change to a directory without .rhiza/template-bundles.yml
-        monkeypatch.chdir(tmp_path)
+        bundles_file1 = temp_bundles_file(valid_bundles_content)
 
-        # Test with no arguments (file doesn't exist)
-        result = main([])
-        assert result == 1
+        # Create a second file in a different location
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmppath = Path(tmpdir)
+            bundles_file2 = tmppath / "template-bundles.yml"
+            bundles_file2.write_text(dedent(valid_bundles_content))
+
+            # Test with multiple valid files
+            result = main([str(bundles_file1), str(bundles_file2)])
+            assert result == 0
