@@ -15,6 +15,7 @@ Exit codes:
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 from typing import Any
@@ -183,8 +184,6 @@ def validate_template_bundles(bundles_path: Path) -> tuple[bool, list[str]]:
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
-    import argparse
-
     parser = argparse.ArgumentParser(description="Validate template-bundles.yml configuration")
     parser.add_argument(
         "filenames",

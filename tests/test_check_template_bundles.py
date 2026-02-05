@@ -29,6 +29,19 @@ def temp_bundles_file(tmp_path: Path):
     return _create
 
 
+@pytest.fixture
+def valid_bundles_content() -> str:
+    """Return valid bundles content for testing."""
+    return """
+version: 1.0
+bundles:
+  core:
+    description: Core files
+    files:
+      - .gitignore
+"""
+
+
 class TestLoadYamlFile:
     """Tests for _load_yaml_file function."""
 
@@ -383,18 +396,11 @@ class TestValidateTemplateBundles:
 class TestMain:
     """Tests for main function."""
 
-    def test_main_with_filename_argument(self, temp_bundles_file):
+    def test_main_with_filename_argument(self, temp_bundles_file, valid_bundles_content):
         """Test main function with filename passed as argument."""
         from rhiza_hooks.check_template_bundles import main
 
-        bundles_file = temp_bundles_file("""
-            version: 1.0
-            bundles:
-              core:
-                description: Core files
-                files:
-                  - .gitignore
-        """)
+        bundles_file = temp_bundles_file(valid_bundles_content)
 
         # Test with valid file
         result = main([str(bundles_file)])
@@ -415,7 +421,7 @@ class TestMain:
         result = main([str(bundles_file)])
         assert result == 1
 
-    def test_main_with_cwd_default(self, tmp_path, monkeypatch):
+    def test_main_with_cwd_default(self, tmp_path, monkeypatch, valid_bundles_content):
         """Test main function uses current working directory when no filename provided."""
         from rhiza_hooks.check_template_bundles import main
 
@@ -423,14 +429,7 @@ class TestMain:
         rhiza_dir = tmp_path / ".rhiza"
         rhiza_dir.mkdir()
         bundles_file = rhiza_dir / "template-bundles.yml"
-        bundles_file.write_text("""
-version: 1.0
-bundles:
-  core:
-    description: Core files
-    files:
-      - .gitignore
-""")
+        bundles_file.write_text(dedent(valid_bundles_content))
 
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
