@@ -408,7 +408,7 @@ class TestMain:
         assert result == 0
 
     def test_main_with_invalid_file(self, temp_bundles_file):
-        """Test main function with invalid file."""
+        """Test main function with invalid file - skips validation without templates field."""
         from rhiza_hooks.check_template_bundles import main
 
         bundles_file = temp_bundles_file("""
@@ -418,7 +418,31 @@ class TestMain:
                   - .gitignore
         """)
 
-        # Test with invalid file (missing version)
+        # Test with invalid file (missing version) - but no templates field, so skips validation
+        result = main([str(bundles_file)])
+        assert result == 0
+
+    def test_main_with_invalid_file_and_templates(self, temp_bundles_file, tmp_path):
+        """Test main function with invalid file when templates field exists."""
+        from rhiza_hooks.check_template_bundles import main
+
+        bundles_file = temp_bundles_file("""
+            bundles:
+              core:
+                files:
+                  - .gitignore
+        """)
+
+        # Create template.yml with templates field in the same directory
+        template_file = bundles_file.parent / "template.yml"
+        template_file.write_text("""
+template-repository: test/repo
+template-branch: main
+templates:
+  - core
+""")
+
+        # Test with invalid file (missing version) - should fail validation
         result = main([str(bundles_file)])
         assert result == 1
 
@@ -431,6 +455,15 @@ class TestMain:
         rhiza_dir.mkdir()
         bundles_file = rhiza_dir / "template-bundles.yml"
         bundles_file.write_text(dedent(valid_bundles_content))
+
+        # Create template.yml with templates field
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(dedent("""
+            template-repository: test/repo
+            template-branch: main
+            templates:
+              - core
+        """))
 
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
@@ -446,9 +479,36 @@ class TestMain:
         # Change to a directory without .rhiza/template-bundles.yml
         monkeypatch.chdir(tmp_path)
 
-        # Test with no arguments (file doesn't exist)
+        # Test with no arguments (no templates field, should skip validation)
         result = main([])
-        assert result == 1
+        assert result == 0
+
+    def test_main_skips_validation_without_templates_field(self, tmp_path, monkeypatch, valid_bundles_content):
+        """Test main function skips validation when no templates field in template.yml."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Create the .rhiza directory structure in tmp_path
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+        bundles_file = rhiza_dir / "template-bundles.yml"
+        bundles_file.write_text(dedent(valid_bundles_content))
+
+        # Create template.yml WITHOUT templates field (uses include instead)
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(dedent("""
+            template-repository: test/repo
+            template-branch: main
+            include:
+              - file1
+              - file2
+        """))
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Test with no arguments (should skip validation since no templates field)
+        result = main([])
+        assert result == 0
 
 
 class TestGetTemplatesFromConfig:

@@ -245,12 +245,13 @@ def main(argv: list[str] | None = None) -> int:
     config_path = bundles_path.parent / "template.yml"
     templates_to_check = _get_templates_from_config(config_path)
 
-    if templates_to_check is not None:
-        print(f"Validating template bundles: {bundles_path}")
-        print(f"Checking only templates specified in {config_path}: {', '.join(sorted(templates_to_check))}")
-    else:
-        print(f"Validating template bundles: {bundles_path}")
-        print("No templates field in .rhiza/template.yml, validating all bundles")
+    # If no templates field in .rhiza/template.yml, skip validation
+    if templates_to_check is None:
+        print(f"No templates field in {config_path}, skipping bundle validation")
+        return 0
+
+    print(f"Validating template bundles: {bundles_path}")
+    print(f"Checking templates specified in {config_path}: {', '.join(sorted(templates_to_check))}")
 
     success, errors = validate_template_bundles(bundles_path, templates_to_check)
 
