@@ -15,6 +15,7 @@ Exit codes:
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 from typing import Any
@@ -134,11 +135,57 @@ def _validate_metadata(metadata: dict[Any, Any], bundles: dict[Any, Any]) -> lis
     return errors
 
 
-def validate_template_bundles(bundles_path: Path) -> tuple[bool, list[str]]:
+def find_repo_root() -> Path:
+    """Find the repository root directory.
+
+    Returns:
+        Path to the repository root
+    """
+    current = Path.cwd()
+    while current != current.parent:
+        if (current / ".git").exists():
+            return current
+        current = current.parent
+    return Path.cwd()
+
+
+def _get_templates_from_config(config_path: Path) -> set[str] | None:
+    """Get the list of templates from .rhiza/template.yml.
+
+    Args:
+        config_path: Path to .rhiza/template.yml
+
+    Returns:
+        Set of template names, or None if templates field doesn't exist or file not found
+    """
+    if not config_path.exists():
+        return None
+
+    try:
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+    except yaml.YAMLError:
+        return None
+
+    if not isinstance(config, dict):
+        return None
+
+    templates = config.get("templates")
+    if templates is None:
+        return None
+
+    if not isinstance(templates, list):
+        return None
+
+    return set(templates)
+
+
+def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] | None = None) -> tuple[bool, list[str]]:
     """Validate template bundles configuration.
 
     Args:
         bundles_path: Path to template-bundles.yml
+        templates_to_check: Optional set of template names to validate. If None, validate all.
 
     Returns:
         Tuple of (success, error_messages)
@@ -166,30 +213,62 @@ def validate_template_bundles(bundles_path: Path) -> tuple[bool, list[str]]:
 
     bundle_names = set(bundles.keys())
 
-    # Validate each bundle
-    for bundle_name, bundle_config in bundles.items():
-        errors.extend(_validate_bundle_structure(bundle_name, bundle_config, bundle_names))
+    # If templates_to_check is specified, verify they exist
+    if templates_to_check is not None:
+        for template in templates_to_check:
+            if template not in bundle_names:
+                errors.append(f"Template '{template}' specified in .rhiza/template.yml not found in bundles")
 
-    # Validate examples section
-    if "examples" in data:
+    # Determine which bundles to validate
+    bundles_to_validate = templates_to_check if templates_to_check is not None else bundle_names
+
+    # Validate each bundle
+    for bundle_name in bundles_to_validate:
+        if bundle_name in bundles:
+            bundle_config = bundles[bundle_name]
+            errors.extend(_validate_bundle_structure(bundle_name, bundle_config, bundle_names))
+
+    # Validate examples section (only if validating all bundles)
+    if templates_to_check is None and "examples" in data:
         errors.extend(_validate_examples(data["examples"], bundle_names))
 
-    # Validate metadata if present
-    if "metadata" in data:
+    # Validate metadata if present (only if validating all bundles)
+    if templates_to_check is None and "metadata" in data:
         errors.extend(_validate_metadata(data["metadata"], bundles))
 
     return len(errors) == 0, errors
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
-    # Find template-bundles.yml
-    script_dir = Path(__file__).parent.parent
-    bundles_path = script_dir / ".rhiza" / "template-bundles.yml"
+    parser = argparse.ArgumentParser(description="Validate template-bundles.yml configuration")
+    parser.add_argument(
+        "filenames",
+        nargs="*",
+        help="Filenames to check (defaults to .rhiza/template-bundles.yml in current directory)",
+    )
+    args = parser.parse_args(argv)
+
+    # If filenames provided, use them; otherwise use default path from repository root
+    if args.filenames:
+        bundles_path = Path(args.filenames[0])
+    else:
+        repo_root = find_repo_root()
+        bundles_path = repo_root / ".rhiza" / "template-bundles.yml"
+
+    # Try to load templates from .rhiza/template.yml
+    config_path = bundles_path.parent / "template.yml"
+    templates_to_check = _get_templates_from_config(config_path)
+
+    # If no templates field in .rhiza/template.yml, skip validation
+    if templates_to_check is None:
+        print(f"No templates field in {config_path}, skipping bundle validation")
+        return 0
 
     print(f"Validating template bundles: {bundles_path}")
+    print(f"Checking templates specified in {config_path}: {', '.join(sorted(templates_to_check))}")
 
-    success, errors = validate_template_bundles(bundles_path)
+    success, errors = validate_template_bundles(bundles_path, templates_to_check)
 
     if success:
         print("✓ Template bundles validation passed!")

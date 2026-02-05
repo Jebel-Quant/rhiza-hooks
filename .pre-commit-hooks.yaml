@@ -54,4 +54,3 @@
   language: python
   files: ^\.rhiza/template-bundles\.yml$
   types: [yaml]
-  pass_filenames: false

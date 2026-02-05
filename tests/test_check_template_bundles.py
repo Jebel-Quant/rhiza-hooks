@@ -8,6 +8,7 @@ from textwrap import dedent
 import pytest
 
 from rhiza_hooks.check_template_bundles import (
+    _get_templates_from_config,
     _load_yaml_file,
     _validate_bundle_structure,
     _validate_examples,
@@ -27,6 +28,19 @@ def temp_bundles_file(tmp_path: Path):
         return bundles_file
 
     return _create
+
+
+@pytest.fixture
+def valid_bundles_content() -> str:
+    """Return valid bundles content for testing."""
+    return """
+version: 1.0
+bundles:
+  core:
+    description: Core files
+    files:
+      - .gitignore
+"""
 
 
 class TestLoadYamlFile:
@@ -378,3 +392,264 @@ class TestValidateTemplateBundles:
         success, errors = validate_template_bundles(bundles_file)
         assert success is False
         assert any("doesn't match" in e.lower() for e in errors)
+
+
+class TestMain:
+    """Tests for main function."""
+
+    def test_main_with_filename_argument(self, temp_bundles_file, valid_bundles_content):
+        """Test main function with filename passed as argument."""
+        from rhiza_hooks.check_template_bundles import main
+
+        bundles_file = temp_bundles_file(valid_bundles_content)
+
+        # Test with valid file
+        result = main([str(bundles_file)])
+        assert result == 0
+
+    def test_main_with_invalid_file(self, temp_bundles_file):
+        """Test main function with invalid file - skips validation without templates field."""
+        from rhiza_hooks.check_template_bundles import main
+
+        bundles_file = temp_bundles_file("""
+            bundles:
+              core:
+                files:
+                  - .gitignore
+        """)
+
+        # Test with invalid file (missing version) - but no templates field, so skips validation
+        result = main([str(bundles_file)])
+        assert result == 0
+
+    def test_main_with_invalid_file_and_templates(self, temp_bundles_file, tmp_path):
+        """Test main function with invalid file when templates field exists."""
+        from rhiza_hooks.check_template_bundles import main
+
+        bundles_file = temp_bundles_file("""
+            bundles:
+              core:
+                files:
+                  - .gitignore
+        """)
+
+        # Create template.yml with templates field in the same directory
+        template_file = bundles_file.parent / "template.yml"
+        template_file.write_text("""
+template-repository: test/repo
+template-branch: main
+templates:
+  - core
+""")
+
+        # Test with invalid file (missing version) - should fail validation
+        result = main([str(bundles_file)])
+        assert result == 1
+
+    def test_main_with_cwd_default(self, tmp_path, monkeypatch, valid_bundles_content):
+        """Test main function uses current working directory when no filename provided."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Create the .rhiza directory structure in tmp_path
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+        bundles_file = rhiza_dir / "template-bundles.yml"
+        bundles_file.write_text(dedent(valid_bundles_content))
+
+        # Create template.yml with templates field
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            template-branch: main
+            templates:
+              - core
+        """)
+        )
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Test with no arguments (should use cwd)
+        result = main([])
+        assert result == 0
+
+    def test_main_with_nonexistent_default_path(self, tmp_path, monkeypatch):
+        """Test main function when default path doesn't exist."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Change to a directory without .rhiza/template-bundles.yml
+        monkeypatch.chdir(tmp_path)
+
+        # Test with no arguments (no templates field, should skip validation)
+        result = main([])
+        assert result == 0
+
+    def test_main_skips_validation_without_templates_field(self, tmp_path, monkeypatch, valid_bundles_content):
+        """Test main function skips validation when no templates field in template.yml."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Create the .rhiza directory structure in tmp_path
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+        bundles_file = rhiza_dir / "template-bundles.yml"
+        bundles_file.write_text(dedent(valid_bundles_content))
+
+        # Create template.yml WITHOUT templates field (uses include instead)
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            template-branch: main
+            include:
+              - file1
+              - file2
+        """)
+        )
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Test with no arguments (should skip validation since no templates field)
+        result = main([])
+        assert result == 0
+
+
+class TestGetTemplatesFromConfig:
+    """Tests for _get_templates_from_config function."""
+
+    def test_get_templates_from_valid_config(self, tmp_path):
+        """Test getting templates from valid config."""
+        config_file = tmp_path / "template.yml"
+        config_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            template-branch: main
+            templates:
+              - core
+              - python
+        """)
+        )
+
+        templates = _get_templates_from_config(config_file)
+        assert templates == {"core", "python"}
+
+    def test_get_templates_from_nonexistent_file(self, tmp_path):
+        """Test with non-existent config file."""
+        config_file = tmp_path / "nonexistent.yml"
+        templates = _get_templates_from_config(config_file)
+        assert templates is None
+
+    def test_get_templates_from_config_without_templates_field(self, tmp_path):
+        """Test config file without templates field."""
+        config_file = tmp_path / "template.yml"
+        config_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            template-branch: main
+            include:
+              - file1
+              - file2
+        """)
+        )
+
+        templates = _get_templates_from_config(config_file)
+        assert templates is None
+
+    def test_get_templates_from_invalid_yaml(self, tmp_path):
+        """Test with invalid YAML."""
+        config_file = tmp_path / "template.yml"
+        config_file.write_text("invalid: yaml: syntax:")
+
+        templates = _get_templates_from_config(config_file)
+        assert templates is None
+
+
+class TestValidateTemplateBundlesWithTemplates:
+    """Tests for validate_template_bundles with templates filtering."""
+
+    def test_validate_specific_templates(self, temp_bundles_file):
+        """Test validating only specific templates."""
+        bundles_file = temp_bundles_file("""
+            version: 1.0
+            bundles:
+              core:
+                description: Core files
+                files:
+                  - .gitignore
+              python:
+                description: Python files
+                requires:
+                  - core
+                files:
+                  - pyproject.toml
+              makefile:
+                description: Makefile
+                files:
+                  - Makefile
+        """)
+
+        # Validate only core and python
+        success, errors = validate_template_bundles(bundles_file, {"core", "python"})
+        assert success is True
+        assert errors == []
+
+    def test_validate_nonexistent_template(self, temp_bundles_file):
+        """Test with non-existent template in templates list."""
+        bundles_file = temp_bundles_file("""
+            version: 1.0
+            bundles:
+              core:
+                description: Core files
+                files:
+                  - .gitignore
+        """)
+
+        # Try to validate a template that doesn't exist
+        success, errors = validate_template_bundles(bundles_file, {"core", "nonexistent"})
+        assert success is False
+        assert any("nonexistent" in e.lower() for e in errors)
+
+    def test_validate_with_invalid_dependency(self, temp_bundles_file):
+        """Test validating template with invalid dependency."""
+        bundles_file = temp_bundles_file("""
+            version: 1.0
+            bundles:
+              core:
+                description: Core files
+                files:
+                  - .gitignore
+              python:
+                description: Python files
+                requires:
+                  - nonexistent
+                files:
+                  - pyproject.toml
+        """)
+
+        # Validate only python, which has invalid dependency
+        success, errors = validate_template_bundles(bundles_file, {"python"})
+        assert success is False
+        assert any("non-existent" in e.lower() for e in errors)
+
+    def test_metadata_not_validated_with_specific_templates(self, temp_bundles_file):
+        """Test that metadata is not validated when checking specific templates."""
+        bundles_file = temp_bundles_file("""
+            version: 1.0
+            bundles:
+              core:
+                description: Core files
+                files:
+                  - .gitignore
+              python:
+                description: Python files
+                files:
+                  - pyproject.toml
+            metadata:
+              total_bundles: 999
+        """)
+
+        # Validate only core - metadata should not be checked
+        success, errors = validate_template_bundles(bundles_file, {"core"})
+        assert success is True
+        assert errors == []
