@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 try:
     import yaml
@@ -25,7 +26,7 @@ except ImportError:
     sys.exit(1)
 
 
-def _load_yaml_file(bundles_path: Path) -> tuple[bool, dict | list[str]]:
+def _load_yaml_file(bundles_path: Path) -> tuple[bool, dict[Any, Any] | list[str]]:
     """Load and parse YAML file.
 
     Returns:
@@ -46,7 +47,7 @@ def _load_yaml_file(bundles_path: Path) -> tuple[bool, dict | list[str]]:
     return True, data
 
 
-def _validate_top_level_fields(data: dict) -> list[str]:
+def _validate_top_level_fields(data: dict[Any, Any]) -> list[str]:
     """Validate required top-level fields."""
     errors = []
     required_fields = {"version", "bundles"}
@@ -56,7 +57,7 @@ def _validate_top_level_fields(data: dict) -> list[str]:
     return errors
 
 
-def _validate_bundle_structure(bundle_name: str, bundle_config: dict | object, bundle_names: set) -> list[str]:
+def _validate_bundle_structure(bundle_name: str, bundle_config: dict[Any, Any] | object, bundle_names: set[str]) -> list[str]:
     """Validate a single bundle's structure and dependencies."""
     errors = []
 
@@ -93,7 +94,7 @@ def _validate_bundle_structure(bundle_name: str, bundle_config: dict | object, b
     return errors
 
 
-def _validate_examples(examples: dict | object, bundle_names: set) -> list[str]:
+def _validate_examples(examples: dict[Any, Any] | object, bundle_names: set[str]) -> list[str]:
     """Validate examples section."""
     errors = []
 
@@ -114,7 +115,7 @@ def _validate_examples(examples: dict | object, bundle_names: set) -> list[str]:
     return errors
 
 
-def _validate_metadata(metadata: dict, bundles: dict) -> list[str]:
+def _validate_metadata(metadata: dict[Any, Any], bundles: dict[Any, Any]) -> list[str]:
     """Validate metadata section."""
     errors = []
 
@@ -141,8 +142,12 @@ def validate_template_bundles(bundles_path: Path) -> tuple[bool, list[str]]:
     # Load YAML file
     success, data_or_errors = _load_yaml_file(bundles_path)
     if not success:
+        # Type narrowing: when success is False, data_or_errors is list[str]
+        assert isinstance(data_or_errors, list)
         return False, data_or_errors
 
+    # Type narrowing: when success is True, data_or_errors is dict[Any, Any]
+    assert isinstance(data_or_errors, dict)
     data = data_or_errors
 
     # Validate top-level fields
