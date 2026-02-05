@@ -1,0 +1,54 @@
+version: 1.0
+
+bundles:
+  core:
+    description: Core configuration files required for all projects
+    files:
+      - .editorconfig
+      - .gitignore
+      - LICENSE
+      - CODE_OF_CONDUCT.md
+      - CONTRIBUTING.md
+
+  github-workflows:
+    description: GitHub Actions workflow configurations
+    requires:
+      - core
+    files:
+      - .github/workflows/
+
+  python:
+    description: Python project configuration
+    requires:
+      - core
+    files:
+      - .python-version
+      - pyproject.toml
+      - ruff.toml
+      - pytest.ini
+
+  makefile:
+    description: Makefile for project automation
+    recommends:
+      - core
+    files:
+      - Makefile
+
+examples:
+  basic-python:
+    description: Basic Python project setup
+    templates:
+      - core
+      - python
+      - makefile
+
+  full-python:
+    description: Full-featured Python project with CI/CD
+    templates:
+      - core
+      - python
+      - github-workflows
+      - makefile
+
+metadata:
+  total_bundles: 4
