@@ -49,9 +49,7 @@ Ensures GitHub Actions workflow names have the `(RHIZA)` prefix in uppercase. Au
 
 #### `update-readme-help`
 
-Embeds the output of `make help` into README.md between marker comments (`<!-- X_MAKE_HELP_START -->
-
-<!-- X_MAKE_HELP_END -->`). Remove the leading 'X_'.
+Embeds the output of `make help` into README.md between marker comments.
 
 **Triggers on:** Changes to `Makefile`
 
