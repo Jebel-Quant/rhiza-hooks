@@ -9,8 +9,8 @@ from pathlib import Path
 
 import yaml
 
-REQUIRED_KEYS = {"template-repository", "template-branch", "include"}
-OPTIONAL_KEYS = {"exclude"}
+REQUIRED_KEYS = {"template-repository", "template-branch"}
+OPTIONAL_KEYS = {"include", "exclude", "templates"}
 VALID_KEYS = REQUIRED_KEYS | OPTIONAL_KEYS
 
 

@@ -50,6 +50,27 @@ class TestValidateRhizaConfig:
         errors = validate_rhiza_config(config)
         assert errors == []
 
+    def test_valid_config_without_include(self, temp_config):
+        """Test that a valid config without include passes validation."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+        """)
+        errors = validate_rhiza_config(config)
+        assert errors == []
+
+    def test_valid_config_with_templates(self, temp_config):
+        """Test that a valid config with templates key passes validation."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+            templates:
+              - template1
+              - template2
+        """)
+        errors = validate_rhiza_config(config)
+        assert errors == []
+
     def test_missing_required_keys(self, temp_config):
         """Test that missing required keys are reported."""
         config = temp_config("""
@@ -57,7 +78,8 @@ class TestValidateRhizaConfig:
         """)
         errors = validate_rhiza_config(config)
         assert any("template-repository" in e for e in errors)
-        assert any("include" in e for e in errors)
+        # "include" is now optional, so it should not be in the errors
+        assert not any("include" in e for e in errors)
 
     def test_invalid_repository_format(self, temp_config):
         """Test that invalid repository format is reported."""
