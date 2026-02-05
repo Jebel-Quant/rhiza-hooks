@@ -57,7 +57,11 @@ def _validate_top_level_fields(data: dict[Any, Any]) -> list[str]:
     return errors
 
 
-def _validate_bundle_structure(bundle_name: str, bundle_config: dict[Any, Any] | object, bundle_names: set[str]) -> list[str]:
+def _validate_bundle_structure(
+    bundle_name: str,
+    bundle_config: dict[Any, Any] | object,
+    bundle_names: set[str],
+) -> list[str]:
     """Validate a single bundle's structure and dependencies."""
     errors = []
 
