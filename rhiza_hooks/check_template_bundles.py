@@ -188,30 +188,28 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "filenames",
         nargs="*",
-        help="Filenames to check",
+        help="Filenames to check (defaults to .rhiza/template-bundles.yml in current directory)",
     )
     args = parser.parse_args(argv)
 
-    # If no filenames provided, return success (file is optional)
-    if not args.filenames:
+    # If filenames provided, use them; otherwise use default path from current directory
+    if args.filenames:
+        bundles_path = Path(args.filenames[0])
+    else:
+        bundles_path = Path.cwd() / ".rhiza" / "template-bundles.yml"
+
+    print(f"Validating template bundles: {bundles_path}")
+
+    success, errors = validate_template_bundles(bundles_path)
+
+    if success:
+        print("✓ Template bundles validation passed!")
         return 0
-
-    retval = 0
-    for filename in args.filenames:
-        filepath = Path(filename)
-        print(f"Validating template bundles: {filepath}")
-
-        success, errors = validate_template_bundles(filepath)
-
-        if success:
-            print("✓ Template bundles validation passed!")
-        else:
-            print("\n✗ Template bundles validation failed:")
-            for error in errors:
-                print(f"  - {error}")
-            retval = 1
-
-    return retval
+    else:
+        print("\n✗ Template bundles validation failed:")
+        for error in errors:
+            print(f"  - {error}")
+        return 1
 
 
 if __name__ == "__main__":
