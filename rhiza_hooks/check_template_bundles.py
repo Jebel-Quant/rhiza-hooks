@@ -135,11 +135,43 @@ def _validate_metadata(metadata: dict[Any, Any], bundles: dict[Any, Any]) -> lis
     return errors
 
 
-def validate_template_bundles(bundles_path: Path) -> tuple[bool, list[str]]:
+def _get_templates_from_config(config_path: Path) -> set[str] | None:
+    """Get the list of templates from .rhiza/template.yml.
+
+    Args:
+        config_path: Path to .rhiza/template.yml
+
+    Returns:
+        Set of template names, or None if templates field doesn't exist or file not found
+    """
+    if not config_path.exists():
+        return None
+
+    try:
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+    except yaml.YAMLError:
+        return None
+
+    if not isinstance(config, dict):
+        return None
+
+    templates = config.get("templates")
+    if templates is None:
+        return None
+
+    if not isinstance(templates, list):
+        return None
+
+    return set(templates)
+
+
+def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] | None = None) -> tuple[bool, list[str]]:
     """Validate template bundles configuration.
 
     Args:
         bundles_path: Path to template-bundles.yml
+        templates_to_check: Optional set of template names to validate. If None, validate all.
 
     Returns:
         Tuple of (success, error_messages)
@@ -167,16 +199,27 @@ def validate_template_bundles(bundles_path: Path) -> tuple[bool, list[str]]:
 
     bundle_names = set(bundles.keys())
 
-    # Validate each bundle
-    for bundle_name, bundle_config in bundles.items():
-        errors.extend(_validate_bundle_structure(bundle_name, bundle_config, bundle_names))
+    # If templates_to_check is specified, verify they exist
+    if templates_to_check is not None:
+        for template in templates_to_check:
+            if template not in bundle_names:
+                errors.append(f"Template '{template}' specified in .rhiza/template.yml not found in bundles")
 
-    # Validate examples section
-    if "examples" in data:
+    # Determine which bundles to validate
+    bundles_to_validate = templates_to_check if templates_to_check is not None else bundle_names
+
+    # Validate each bundle
+    for bundle_name in bundles_to_validate:
+        if bundle_name in bundles:
+            bundle_config = bundles[bundle_name]
+            errors.extend(_validate_bundle_structure(bundle_name, bundle_config, bundle_names))
+
+    # Validate examples section (only if validating all bundles)
+    if templates_to_check is None and "examples" in data:
         errors.extend(_validate_examples(data["examples"], bundle_names))
 
-    # Validate metadata if present
-    if "metadata" in data:
+    # Validate metadata if present (only if validating all bundles)
+    if templates_to_check is None and "metadata" in data:
         errors.extend(_validate_metadata(data["metadata"], bundles))
 
     return len(errors) == 0, errors
@@ -198,9 +241,18 @@ def main(argv: list[str] | None = None) -> int:
     else:
         bundles_path = Path.cwd() / ".rhiza" / "template-bundles.yml"
 
-    print(f"Validating template bundles: {bundles_path}")
+    # Try to load templates from .rhiza/template.yml
+    config_path = bundles_path.parent / "template.yml"
+    templates_to_check = _get_templates_from_config(config_path)
 
-    success, errors = validate_template_bundles(bundles_path)
+    if templates_to_check is not None:
+        print(f"Validating template bundles: {bundles_path}")
+        print(f"Checking only templates specified in {config_path}: {', '.join(sorted(templates_to_check))}")
+    else:
+        print(f"Validating template bundles: {bundles_path}")
+        print("No templates field in .rhiza/template.yml, validating all bundles")
+
+    success, errors = validate_template_bundles(bundles_path, templates_to_check)
 
     if success:
         print("✓ Template bundles validation passed!")

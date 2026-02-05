@@ -8,6 +8,7 @@ from textwrap import dedent
 import pytest
 
 from rhiza_hooks.check_template_bundles import (
+    _get_templates_from_config,
     _load_yaml_file,
     _validate_bundle_structure,
     _validate_examples,
@@ -448,3 +449,139 @@ class TestMain:
         # Test with no arguments (file doesn't exist)
         result = main([])
         assert result == 1
+
+
+class TestGetTemplatesFromConfig:
+    """Tests for _get_templates_from_config function."""
+
+    def test_get_templates_from_valid_config(self, tmp_path):
+        """Test getting templates from valid config."""
+        config_file = tmp_path / "template.yml"
+        config_file.write_text(dedent("""
+            template-repository: test/repo
+            template-branch: main
+            templates:
+              - core
+              - python
+        """))
+
+        templates = _get_templates_from_config(config_file)
+        assert templates == {"core", "python"}
+
+    def test_get_templates_from_nonexistent_file(self, tmp_path):
+        """Test with non-existent config file."""
+        config_file = tmp_path / "nonexistent.yml"
+        templates = _get_templates_from_config(config_file)
+        assert templates is None
+
+    def test_get_templates_from_config_without_templates_field(self, tmp_path):
+        """Test config file without templates field."""
+        config_file = tmp_path / "template.yml"
+        config_file.write_text(dedent("""
+            template-repository: test/repo
+            template-branch: main
+            include:
+              - file1
+              - file2
+        """))
+
+        templates = _get_templates_from_config(config_file)
+        assert templates is None
+
+    def test_get_templates_from_invalid_yaml(self, tmp_path):
+        """Test with invalid YAML."""
+        config_file = tmp_path / "template.yml"
+        config_file.write_text("invalid: yaml: syntax:")
+
+        templates = _get_templates_from_config(config_file)
+        assert templates is None
+
+
+class TestValidateTemplateBundlesWithTemplates:
+    """Tests for validate_template_bundles with templates filtering."""
+
+    def test_validate_specific_templates(self, temp_bundles_file):
+        """Test validating only specific templates."""
+        bundles_file = temp_bundles_file("""
+            version: 1.0
+            bundles:
+              core:
+                description: Core files
+                files:
+                  - .gitignore
+              python:
+                description: Python files
+                requires:
+                  - core
+                files:
+                  - pyproject.toml
+              makefile:
+                description: Makefile
+                files:
+                  - Makefile
+        """)
+
+        # Validate only core and python
+        success, errors = validate_template_bundles(bundles_file, {"core", "python"})
+        assert success is True
+        assert errors == []
+
+    def test_validate_nonexistent_template(self, temp_bundles_file):
+        """Test with non-existent template in templates list."""
+        bundles_file = temp_bundles_file("""
+            version: 1.0
+            bundles:
+              core:
+                description: Core files
+                files:
+                  - .gitignore
+        """)
+
+        # Try to validate a template that doesn't exist
+        success, errors = validate_template_bundles(bundles_file, {"core", "nonexistent"})
+        assert success is False
+        assert any("nonexistent" in e.lower() for e in errors)
+
+    def test_validate_with_invalid_dependency(self, temp_bundles_file):
+        """Test validating template with invalid dependency."""
+        bundles_file = temp_bundles_file("""
+            version: 1.0
+            bundles:
+              core:
+                description: Core files
+                files:
+                  - .gitignore
+              python:
+                description: Python files
+                requires:
+                  - nonexistent
+                files:
+                  - pyproject.toml
+        """)
+
+        # Validate only python, which has invalid dependency
+        success, errors = validate_template_bundles(bundles_file, {"python"})
+        assert success is False
+        assert any("non-existent" in e.lower() for e in errors)
+
+    def test_metadata_not_validated_with_specific_templates(self, temp_bundles_file):
+        """Test that metadata is not validated when checking specific templates."""
+        bundles_file = temp_bundles_file("""
+            version: 1.0
+            bundles:
+              core:
+                description: Core files
+                files:
+                  - .gitignore
+              python:
+                description: Python files
+                files:
+                  - pyproject.toml
+            metadata:
+              total_bundles: 999
+        """)
+
+        # Validate only core - metadata should not be checked
+        success, errors = validate_template_bundles(bundles_file, {"core"})
+        assert success is True
+        assert errors == []
