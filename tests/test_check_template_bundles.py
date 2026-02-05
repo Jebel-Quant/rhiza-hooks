@@ -458,12 +458,14 @@ templates:
 
         # Create template.yml with templates field
         template_file = rhiza_dir / "template.yml"
-        template_file.write_text(dedent("""
+        template_file.write_text(
+            dedent("""
             template-repository: test/repo
             template-branch: main
             templates:
               - core
-        """))
+        """)
+        )
 
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
@@ -495,13 +497,15 @@ templates:
 
         # Create template.yml WITHOUT templates field (uses include instead)
         template_file = rhiza_dir / "template.yml"
-        template_file.write_text(dedent("""
+        template_file.write_text(
+            dedent("""
             template-repository: test/repo
             template-branch: main
             include:
               - file1
               - file2
-        """))
+        """)
+        )
 
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
@@ -517,13 +521,15 @@ class TestGetTemplatesFromConfig:
     def test_get_templates_from_valid_config(self, tmp_path):
         """Test getting templates from valid config."""
         config_file = tmp_path / "template.yml"
-        config_file.write_text(dedent("""
+        config_file.write_text(
+            dedent("""
             template-repository: test/repo
             template-branch: main
             templates:
               - core
               - python
-        """))
+        """)
+        )
 
         templates = _get_templates_from_config(config_file)
         assert templates == {"core", "python"}
@@ -537,13 +543,15 @@ class TestGetTemplatesFromConfig:
     def test_get_templates_from_config_without_templates_field(self, tmp_path):
         """Test config file without templates field."""
         config_file = tmp_path / "template.yml"
-        config_file.write_text(dedent("""
+        config_file.write_text(
+            dedent("""
             template-repository: test/repo
             template-branch: main
             include:
               - file1
               - file2
-        """))
+        """)
+        )
 
         templates = _get_templates_from_config(config_file)
         assert templates is None

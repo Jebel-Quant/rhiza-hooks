@@ -135,6 +135,20 @@ def _validate_metadata(metadata: dict[Any, Any], bundles: dict[Any, Any]) -> lis
     return errors
 
 
+def find_repo_root() -> Path:
+    """Find the repository root directory.
+
+    Returns:
+        Path to the repository root
+    """
+    current = Path.cwd()
+    while current != current.parent:
+        if (current / ".git").exists():
+            return current
+        current = current.parent
+    return Path.cwd()
+
+
 def _get_templates_from_config(config_path: Path) -> set[str] | None:
     """Get the list of templates from .rhiza/template.yml.
 
@@ -235,11 +249,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    # If filenames provided, use them; otherwise use default path from current directory
+    # If filenames provided, use them; otherwise use default path from repository root
     if args.filenames:
         bundles_path = Path(args.filenames[0])
     else:
-        bundles_path = Path.cwd() / ".rhiza" / "template-bundles.yml"
+        repo_root = find_repo_root()
+        bundles_path = repo_root / ".rhiza" / "template-bundles.yml"
 
     # Try to load templates from .rhiza/template.yml
     config_path = bundles_path.parent / "template.yml"
