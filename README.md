@@ -49,92 +49,9 @@ Ensures GitHub Actions workflow names have the `(RHIZA)` prefix in uppercase. Au
 
 #### `update-readme-help`
 
-Embeds the output of `make help` into README.md between marker comments (`<!-- MAKE_HELP_START -->
-```
-[36m  ____  _     _
- |  _ \| |__ (_)______ _
- | |_) | '_ \| |_  / _\`|
- |  _ <| | | | |/ / (_| |
- |_| \_\_| |_|_/___\__,_|
-[0m
-[1mUsage:[0m
-  make [36m<target>[0m
+Embeds the output of `make help` into README.md between marker comments (`<!-- X_MAKE_HELP_START -->
 
-[1mTargets:[0m
-
-[1mRhiza Workflows[0m
-  [36msync                [0m  sync with template repository as defined in .rhiza/template.yml
-  [36msummarise-sync      [0m  summarise differences created by sync with template repository
-  [36mvalidate            [0m  validate project structure against template repository as defined in .rhiza/template.yml
-  [36mreadme              [0m  update README.md with current Makefile help output
-
-[1mBootstrap[0m
-  [36minstall-uv          [0m  ensure uv/uvx is installed
-  [36minstall             [0m  install
-  [36mclean               [0m  Clean project artifacts and stale local branches
-
-[1mQuality and Formatting[0m
-  [36mdeptry              [0m  Run deptry
-  [36mfmt                 [0m  check the pre-commit hooks and the linting
-  [36mmypy                [0m  run mypy analysis
-
-[1mReleasing and Versioning[0m
-  [36mbump                [0m  bump version
-  [36mrelease             [0m  create tag and push to remote with prompts
-
-[1mMeta[0m
-  [36mhelp                [0m  Display this help message
-  [36mversion-matrix      [0m  Emit the list of supported Python versions from pyproject.toml
-
-[1mDevelopment and Testing[0m
-  [36mtest                [0m  run all tests
-  [36mtypecheck           [0m  run mypy type checking
-  [36msecurity            [0m  run security scans (pip-audit and bandit)
-  [36mbenchmark           [0m  run performance benchmarks
-  [36mdocs-coverage       [0m  check documentation coverage with interrogate
-
-[1mBook[0m
-  [36mbook                [0m  compile the companion book
-
-[1mMarimo Notebooks[0m
-  [36mmarimo-validate     [0m  validate all Marimo notebooks can run
-  [36mmarimo              [0m  fire up Marimo server
-  [36mmarimushka          [0m  export Marimo notebooks to HTML
-
-[1mPresentation[0m
-  [36mpresentation        [0m  generate presentation slides from PRESENTATION.md using Marp
-  [36mpresentation-pdf    [0m  generate PDF presentation from PRESENTATION.md using Marp
-  [36mpresentation-serve  [0m  serve presentation interactively with Marp
-
-[1mGitHub Helpers[0m
-  [36mgh-install          [0m  check for gh cli existence and install extensions
-  [36mview-prs            [0m  list open pull requests
-  [36mview-issues         [0m  list open issues
-  [36mfailed-workflows    [0m  list recent failing workflow runs
-  [36mwhoami              [0m  check github auth status
-
-[1mAgentic Workflows[0m
-  [36mcopilot             [0m  open interactive prompt for copilot
-  [36mclaude              [0m  open interactive prompt for claude code
-  [36manalyse-repo        [0m  run the analyser agent to update REPOSITORY_ANALYSIS.md
-  [36msummarise-changes   [0m  summarise changes since the most recent release/tag
-  [36minstall-copilot     [0m  checks for copilot and prompts to install
-  [36minstall-claude      [0m  checks for claude and prompts to install
-
-[1mDocker[0m
-  [36mdocker-build        [0m  build Docker image
-  [36mdocker-run          [0m  run the Docker container
-  [36mdocker-clean        [0m  remove Docker image
-
-[1mDocumentation[0m
-  [36mdocs                [0m  create documentation with pdoc
-
-[1mCustom Tasks[0m
-  [36mhello-rhiza         [0m  a custom greeting task
-  [36mpost-install        [0m  run custom logic after core install
-
-```
-<!-- MAKE_HELP_END -->`).
+<!-- X_MAKE_HELP_END -->`). Remove the leading 'X_'.
 
 **Triggers on:** Changes to `Makefile`
 
