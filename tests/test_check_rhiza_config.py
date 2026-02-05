@@ -80,7 +80,7 @@ class TestValidateRhizaConfig:
             template-branch: main
         """)
         errors = validate_rhiza_config(config)
-        assert any("include" in e.lower() or "templates" in e.lower() for e in errors)
+        assert any("At least one of 'include' or 'templates' must be present" in e for e in errors)
 
     def test_missing_required_keys(self, temp_config):
         """Test that missing required keys are reported."""
@@ -92,7 +92,7 @@ class TestValidateRhizaConfig:
         errors = validate_rhiza_config(config)
         assert any("template-repository" in e for e in errors)
         # With include present, should not have the "include or templates" error
-        assert not any("At least one" in e for e in errors)
+        assert not any("At least one of 'include' or 'templates' must be present" in e for e in errors)
 
     def test_invalid_repository_format(self, temp_config):
         """Test that invalid repository format is reported."""
