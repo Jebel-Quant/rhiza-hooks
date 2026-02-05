@@ -50,14 +50,49 @@ class TestValidateRhizaConfig:
         errors = validate_rhiza_config(config)
         assert errors == []
 
+    def test_valid_config_without_include(self, temp_config):
+        """Test that a valid config without include but with templates passes validation."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+            templates:
+              - template1
+        """)
+        errors = validate_rhiza_config(config)
+        assert errors == []
+
+    def test_valid_config_with_templates(self, temp_config):
+        """Test that a valid config with templates key passes validation."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+            templates:
+              - template1
+              - template2
+        """)
+        errors = validate_rhiza_config(config)
+        assert errors == []
+
+    def test_missing_include_and_templates(self, temp_config):
+        """Test that missing both include and templates is reported."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("At least one of 'include' or 'templates' must be present" in e for e in errors)
+
     def test_missing_required_keys(self, temp_config):
         """Test that missing required keys are reported."""
         config = temp_config("""
             template-branch: main
+            include:
+              - Makefile
         """)
         errors = validate_rhiza_config(config)
         assert any("template-repository" in e for e in errors)
-        assert any("include" in e for e in errors)
+        # With include present, should not have the "include or templates" error
+        assert not any("At least one of 'include' or 'templates' must be present" in e for e in errors)
 
     def test_invalid_repository_format(self, temp_config):
         """Test that invalid repository format is reported."""
@@ -170,6 +205,26 @@ class TestValidateRhizaConfig:
         """)
         errors = validate_rhiza_config(config)
         assert any("list" in e.lower() for e in errors)
+
+    def test_templates_not_list(self, temp_config):
+        """Test that non-list templates is reported."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+            templates: just-a-string
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("list" in e.lower() for e in errors)
+
+    def test_empty_templates(self, temp_config):
+        """Test that empty templates list is reported."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+            templates: []
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("empty" in e.lower() for e in errors)
 
 
 class TestMain:

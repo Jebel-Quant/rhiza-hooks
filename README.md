@@ -67,10 +67,12 @@ Embeds the output of `make help` into README.md between marker comments (`<!-- X
 
 Validates the `.rhiza/template.yml` configuration file to ensure:
 
-- All required keys are present (`template-repository`, `template-branch`, `include`)
+- All required keys are present (`template-repository`, `template-branch`)
+- At least one of `include` or `templates` is present
 - The `template-repository` is in the correct `owner/repo` format
 - No unknown keys are present
-- The `include` list is not empty
+- The `include` list (if present) is not empty
+- The `templates` list (if present) is not empty
 
 **Usage:**
 

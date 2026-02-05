@@ -9,8 +9,8 @@ from pathlib import Path
 
 import yaml
 
-REQUIRED_KEYS = {"template-repository", "template-branch", "include"}
-OPTIONAL_KEYS = {"exclude"}
+REQUIRED_KEYS = {"template-repository", "template-branch"}
+OPTIONAL_KEYS = {"include", "exclude", "templates"}
 VALID_KEYS = REQUIRED_KEYS | OPTIONAL_KEYS
 
 
@@ -49,6 +49,10 @@ def validate_rhiza_config(filepath: Path) -> list[str]:
         if key not in VALID_KEYS:
             errors.append(f"Unknown key: {key}")
 
+    # Ensure at least one of 'include' or 'templates' is present
+    if "include" not in config and "templates" not in config:
+        errors.append("At least one of 'include' or 'templates' must be present")
+
     # Validate template-repository format
     if "template-repository" in config:
         repo = config["template-repository"]
@@ -72,6 +76,14 @@ def validate_rhiza_config(filepath: Path) -> list[str]:
             errors.append("include must be a list")
         elif not include:
             errors.append("include list cannot be empty")
+
+    # Validate templates (if present)
+    if "templates" in config:
+        templates = config["templates"]
+        if not isinstance(templates, list):
+            errors.append("templates must be a list")
+        elif not templates:
+            errors.append("templates list cannot be empty")
 
     # Validate exclude (if present)
     if "exclude" in config:
