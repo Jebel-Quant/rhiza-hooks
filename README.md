@@ -53,7 +53,7 @@ Embeds the output of `make help` into README.md between marker comments (`<!-- M
 
 <!-- MAKE_HELP_START -->
 ```
-____  _     _
+  ____  _     _
  |  _ \| |__ (_)______ _
  | |_) | '_ \| |_  / _\`|
  |  _ <| | | | |/ / (_| |

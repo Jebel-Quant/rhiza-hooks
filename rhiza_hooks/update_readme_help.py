@@ -20,11 +20,24 @@ START_MARKER = "<!-- MAKE_HELP_START -->"
 END_MARKER = "<!-- MAKE_HELP_END -->"
 
 
+def strip_ansi_codes(text: str) -> str:
+    """Remove ANSI escape codes from text.
+
+    Args:
+        text: Text that may contain ANSI escape codes.
+
+    Returns:
+        Text with ANSI codes removed.
+    """
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    return ansi_escape.sub("", text)
+
+
 def get_make_help_output() -> str | None:
     """Run 'make help' and capture the output.
 
     Returns:
-        The output from 'make help', or None if the command fails.
+        The output from 'make help' with ANSI codes stripped, or None if the command fails.
     """
     try:
         result = subprocess.run(  # nosec B603 B607
@@ -44,7 +57,8 @@ def get_make_help_output() -> str | None:
         print("Error: 'make' command not found")
         return None
     else:
-        return result.stdout
+        # Strip ANSI color codes before returning
+        return strip_ansi_codes(result.stdout)
 
 
 def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
