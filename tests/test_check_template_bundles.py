@@ -395,7 +395,7 @@ class TestMain:
                 files:
                   - .gitignore
         """)
-        
+
         # Test with valid file
         result = main([str(bundles_file)])
         assert result == 0
@@ -410,7 +410,7 @@ class TestMain:
                 files:
                   - .gitignore
         """)
-        
+
         # Test with invalid file (missing version)
         result = main([str(bundles_file)])
         assert result == 1
@@ -431,10 +431,10 @@ bundles:
     files:
       - .gitignore
 """)
-        
+
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
-        
+
         # Test with no arguments (should use cwd)
         result = main([])
         assert result == 0
@@ -445,7 +445,7 @@ bundles:
 
         # Change to a directory without .rhiza/template-bundles.yml
         monkeypatch.chdir(tmp_path)
-        
+
         # Test with no arguments (file doesn't exist)
         result = main([])
         assert result == 1
