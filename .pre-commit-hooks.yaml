@@ -46,3 +46,12 @@
   files: (^\.python-version$|^pyproject\.toml$)
   pass_filenames: false
   always_run: true
+
+- id: check-template-bundles
+  name: Check template bundles configuration
+  description: Validates the .rhiza/template-bundles.yml configuration file
+  entry: check-template-bundles
+  language: python
+  files: ^\.rhiza/template-bundles\.yml$
+  types: [yaml]
+  pass_filenames: false
