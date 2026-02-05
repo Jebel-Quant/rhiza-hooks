@@ -181,11 +181,23 @@ def validate_template_bundles(bundles_path: Path) -> tuple[bool, list[str]]:
     return len(errors) == 0, errors
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
-    # Find template-bundles.yml
-    script_dir = Path(__file__).parent.parent
-    bundles_path = script_dir / ".rhiza" / "template-bundles.yml"
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Validate template-bundles.yml configuration")
+    parser.add_argument(
+        "filenames",
+        nargs="*",
+        help="Filenames to check (defaults to .rhiza/template-bundles.yml in current directory)",
+    )
+    args = parser.parse_args(argv)
+
+    # If filenames provided, use them; otherwise use default path from current directory
+    if args.filenames:
+        bundles_path = Path(args.filenames[0])
+    else:
+        bundles_path = Path.cwd() / ".rhiza" / "template-bundles.yml"
 
     print(f"Validating template bundles: {bundles_path}")
 

@@ -378,3 +378,74 @@ class TestValidateTemplateBundles:
         success, errors = validate_template_bundles(bundles_file)
         assert success is False
         assert any("doesn't match" in e.lower() for e in errors)
+
+
+class TestMain:
+    """Tests for main function."""
+
+    def test_main_with_filename_argument(self, temp_bundles_file):
+        """Test main function with filename passed as argument."""
+        from rhiza_hooks.check_template_bundles import main
+
+        bundles_file = temp_bundles_file("""
+            version: 1.0
+            bundles:
+              core:
+                description: Core files
+                files:
+                  - .gitignore
+        """)
+        
+        # Test with valid file
+        result = main([str(bundles_file)])
+        assert result == 0
+
+    def test_main_with_invalid_file(self, temp_bundles_file):
+        """Test main function with invalid file."""
+        from rhiza_hooks.check_template_bundles import main
+
+        bundles_file = temp_bundles_file("""
+            bundles:
+              core:
+                files:
+                  - .gitignore
+        """)
+        
+        # Test with invalid file (missing version)
+        result = main([str(bundles_file)])
+        assert result == 1
+
+    def test_main_with_cwd_default(self, tmp_path, monkeypatch):
+        """Test main function uses current working directory when no filename provided."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Create the .rhiza directory structure in tmp_path
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+        bundles_file = rhiza_dir / "template-bundles.yml"
+        bundles_file.write_text("""
+version: 1.0
+bundles:
+  core:
+    description: Core files
+    files:
+      - .gitignore
+""")
+        
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+        
+        # Test with no arguments (should use cwd)
+        result = main([])
+        assert result == 0
+
+    def test_main_with_nonexistent_default_path(self, tmp_path, monkeypatch):
+        """Test main function when default path doesn't exist."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Change to a directory without .rhiza/template-bundles.yml
+        monkeypatch.chdir(tmp_path)
+        
+        # Test with no arguments (file doesn't exist)
+        result = main([])
+        assert result == 1
