@@ -49,6 +49,7 @@ def mock_project(tmp_path: Path) -> Callable[[dict[str, str]], Path]:
     Returns:
         A function that creates project files from a dict of {filename: content}
     """
+
     def _create_project(files: dict[str, str]) -> Path:
         for filepath, content in files.items():
             file_path = tmp_path / filepath
@@ -114,13 +115,10 @@ class TestCheckWorkflowNames:
 
     def test_valid_workflow(self, mock_project: Callable[[dict[str, str]], Path]) -> None:
         """Test with valid workflow file."""
-        project = mock_project({
-            ".github/workflows/test.yml": 'name: "(RHIZA) TEST WORKFLOW"\non: push\n'
-        })
+        project = mock_project({".github/workflows/test.yml": 'name: "(RHIZA) TEST WORKFLOW"\non: push\n'})
 
         result = subprocess.run(
-            [sys.executable, "-m", "rhiza_hooks.check_workflow_names",
-             str(project / ".github/workflows/test.yml")],
+            [sys.executable, "-m", "rhiza_hooks.check_workflow_names", str(project / ".github/workflows/test.yml")],
             capture_output=True,
             text=True,
             check=False,
@@ -130,13 +128,10 @@ class TestCheckWorkflowNames:
 
     def test_missing_prefix(self, mock_project: Callable[[dict[str, str]], Path]) -> None:
         """Test with workflow missing (RHIZA) prefix."""
-        project = mock_project({
-            ".github/workflows/test.yml": 'name: "Test Workflow"\non: push\n'
-        })
+        project = mock_project({".github/workflows/test.yml": 'name: "Test Workflow"\non: push\n'})
 
         result = subprocess.run(
-            [sys.executable, "-m", "rhiza_hooks.check_workflow_names",
-             str(project / ".github/workflows/test.yml")],
+            [sys.executable, "-m", "rhiza_hooks.check_workflow_names", str(project / ".github/workflows/test.yml")],
             capture_output=True,
             text=True,
             check=False,
@@ -215,10 +210,12 @@ class TestCheckPythonVersion:
 [project]
 requires-python = ">=3.11"
 """
-        project = mock_project({
-            ".python-version": "3.11\n",
-            "pyproject.toml": pyproject,
-        })
+        project = mock_project(
+            {
+                ".python-version": "3.11\n",
+                "pyproject.toml": pyproject,
+            }
+        )
 
         result = subprocess.run(
             [sys.executable, "-m", "rhiza_hooks.check_python_version"],
@@ -235,10 +232,12 @@ requires-python = ">=3.11"
 [project]
 requires-python = ">=3.11"
 """
-        project = mock_project({
-            ".python-version": "3.10\n",
-            "pyproject.toml": pyproject,
-        })
+        project = mock_project(
+            {
+                ".python-version": "3.10\n",
+                "pyproject.toml": pyproject,
+            }
+        )
 
         result = subprocess.run(
             [sys.executable, "-m", "rhiza_hooks.check_python_version"],
@@ -264,10 +263,12 @@ core:
 bundles:
   - core
 """
-        project = mock_project({
-            ".rhiza/template-bundles.yml": bundles,
-            ".rhiza/template.yml": template,
-        })
+        project = mock_project(
+            {
+                ".rhiza/template-bundles.yml": bundles,
+                ".rhiza/template.yml": template,
+            }
+        )
 
         result = subprocess.run(
             [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
@@ -315,10 +316,12 @@ test: ## Run tests
 <!-- BEGIN_MAKEFILE_TARGETS -->
 <!-- END_MAKEFILE_TARGETS -->
 """
-        project = mock_project({
-            "Makefile": makefile,
-            "README.md": readme,
-        })
+        project = mock_project(
+            {
+                "Makefile": makefile,
+                "README.md": readme,
+            }
+        )
 
         result = subprocess.run(
             [sys.executable, "-m", "rhiza_hooks.update_readme_help"],
