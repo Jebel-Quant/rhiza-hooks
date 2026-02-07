@@ -23,8 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "pyyaml>=6.0",
-    "tomli>=2.0; python_version < '3.11'",
+    "pyyaml>=6.0"
 ]
 
 [project.urls]
@@ -35,7 +34,6 @@ Repository = "https://github.com/Jebel-Quant/rhiza-hooks"
 # Migrated from rhiza
 check-rhiza-workflow-names = "rhiza_hooks.check_workflow_names:main"
 update-readme-help = "rhiza_hooks.update_readme_help:main"
-# Additional utility hooks
 check-rhiza-config = "rhiza_hooks.check_rhiza_config:main"
 check-makefile-targets = "rhiza_hooks.check_makefile_targets:main"
 check-python-version-consistency = "rhiza_hooks.check_python_version:main"
@@ -49,9 +47,6 @@ extend_exclude = ["book"]
 
 [tool.deptry.package_module_name_map]
 pyyaml = "yaml"
-
-[tool.deptry.per_rule_ignores]
-DEP002 = ["tomli"]  # tomli is a backport for Python < 3.11
 
 [dependency-groups]
 dev = [
