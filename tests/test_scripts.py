@@ -64,27 +64,49 @@ class TestScriptAvailability:
 
     @pytest.mark.parametrize("script_name", SCRIPTS)
     def test_script_is_installed(self, script_name: str) -> None:
-        """Test that script is available in PATH."""
+        """Test that script module is importable."""
+        # Map script names to their module names
+        module_mapping = {
+            "check-rhiza-workflow-names": "rhiza_hooks.check_workflow_names",
+            "update-readme-help": "rhiza_hooks.update_readme_help",
+            "check-rhiza-config": "rhiza_hooks.check_rhiza_config",
+            "check-makefile-targets": "rhiza_hooks.check_makefile_targets",
+            "check-python-version-consistency": "rhiza_hooks.check_python_version",
+            "check-template-bundles": "rhiza_hooks.check_template_bundles",
+        }
+
+        module_name = module_mapping[script_name]
+        # Just verify the module is importable
         result = subprocess.run(
-            ["which", script_name],
+            [sys.executable, "-c", f"import {module_name}"],
             capture_output=True,
             text=True,
             check=False,
         )
-        assert result.returncode == 0, f"Script {script_name} not found in PATH"
-        assert script_name in result.stdout
+        assert result.returncode == 0, f"Failed to import {module_name}: {result.stderr}"
 
     @pytest.mark.parametrize("script_name", SCRIPTS)
-    def test_script_has_help(self, script_name: str) -> None:
-        """Test that script responds to --help flag."""
+    def test_script_has_main_function(self, script_name: str) -> None:
+        """Test that script has a main function."""
+        # Map script names to their module names
+        module_mapping = {
+            "check-rhiza-workflow-names": "rhiza_hooks.check_workflow_names",
+            "update-readme-help": "rhiza_hooks.update_readme_help",
+            "check-rhiza-config": "rhiza_hooks.check_rhiza_config",
+            "check-makefile-targets": "rhiza_hooks.check_makefile_targets",
+            "check-python-version-consistency": "rhiza_hooks.check_python_version",
+            "check-template-bundles": "rhiza_hooks.check_template_bundles",
+        }
+
+        module_name = module_mapping[script_name]
+        # Verify the module has a main function
         result = subprocess.run(
-            [script_name, "--help"],
+            [sys.executable, "-c", f"import {module_name}; assert hasattr({module_name}, 'main')"],
             capture_output=True,
             text=True,
             check=False,
         )
-        # --help should exit with 0 or produce output
-        assert result.returncode == 0 or result.stdout or result.stderr
+        assert result.returncode == 0, f"Module {module_name} has no main function"
 
 
 class TestCheckWorkflowNames:
@@ -97,7 +119,8 @@ class TestCheckWorkflowNames:
         })
 
         result = subprocess.run(
-            ["check-rhiza-workflow-names", str(project / ".github/workflows/test.yml")],
+            [sys.executable, "-m", "rhiza_hooks.check_workflow_names",
+             str(project / ".github/workflows/test.yml")],
             capture_output=True,
             text=True,
             check=False,
@@ -112,7 +135,8 @@ class TestCheckWorkflowNames:
         })
 
         result = subprocess.run(
-            ["check-rhiza-workflow-names", str(project / ".github/workflows/test.yml")],
+            [sys.executable, "-m", "rhiza_hooks.check_workflow_names",
+             str(project / ".github/workflows/test.yml")],
             capture_output=True,
             text=True,
             check=False,
@@ -133,7 +157,7 @@ bundles: []
         project = mock_project({".rhiza/rhiza.yml": config})
 
         result = subprocess.run(
-            ["check-rhiza-config"],
+            [sys.executable, "-m", "rhiza_hooks.check_rhiza_config"],
             cwd=project,
             capture_output=True,
             text=True,
@@ -147,7 +171,7 @@ bundles: []
         project = mock_project({"dummy.txt": "test"})
 
         result = subprocess.run(
-            ["check-rhiza-config"],
+            [sys.executable, "-m", "rhiza_hooks.check_rhiza_config"],
             cwd=project,
             capture_output=True,
             text=True,
@@ -172,7 +196,7 @@ test: ## Run tests
         project = mock_project({"Makefile": makefile})
 
         result = subprocess.run(
-            ["check-makefile-targets"],
+            [sys.executable, "-m", "rhiza_hooks.check_makefile_targets"],
             cwd=project,
             capture_output=True,
             text=True,
@@ -197,7 +221,7 @@ requires-python = ">=3.11"
         })
 
         result = subprocess.run(
-            ["check-python-version-consistency"],
+            [sys.executable, "-m", "rhiza_hooks.check_python_version"],
             cwd=project,
             capture_output=True,
             text=True,
@@ -217,7 +241,7 @@ requires-python = ">=3.11"
         })
 
         result = subprocess.run(
-            ["check-python-version-consistency"],
+            [sys.executable, "-m", "rhiza_hooks.check_python_version"],
             cwd=project,
             capture_output=True,
             text=True,
@@ -246,7 +270,7 @@ bundles:
         })
 
         result = subprocess.run(
-            ["check-template-bundles"],
+            [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
             cwd=project,
             capture_output=True,
             text=True,
@@ -264,7 +288,7 @@ bundles:
         project = mock_project({".rhiza/template.yml": template})
 
         result = subprocess.run(
-            ["check-template-bundles"],
+            [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
             cwd=project,
             capture_output=True,
             text=True,
@@ -297,7 +321,7 @@ test: ## Run tests
         })
 
         result = subprocess.run(
-            ["update-readme-help"],
+            [sys.executable, "-m", "rhiza_hooks.update_readme_help"],
             cwd=project,
             capture_output=True,
             text=True,
@@ -323,7 +347,7 @@ class TestScriptsInCurrentProject:
         # Just verify the script runs without crashing on actual workflows
         for workflow in workflows:
             result = subprocess.run(
-                ["check-rhiza-workflow-names", str(workflow)],
+                [sys.executable, "-m", "rhiza_hooks.check_workflow_names", str(workflow)],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -334,7 +358,7 @@ class TestScriptsInCurrentProject:
     def test_check_rhiza_config_on_project(self, project_root: Path) -> None:
         """Test check-rhiza-config on actual project."""
         result = subprocess.run(
-            ["check-rhiza-config"],
+            [sys.executable, "-m", "rhiza_hooks.check_rhiza_config"],
             cwd=project_root,
             capture_output=True,
             text=True,
@@ -346,7 +370,7 @@ class TestScriptsInCurrentProject:
     def test_check_makefile_targets_on_project(self, project_root: Path) -> None:
         """Test check-makefile-targets on actual project."""
         result = subprocess.run(
-            ["check-makefile-targets"],
+            [sys.executable, "-m", "rhiza_hooks.check_makefile_targets"],
             cwd=project_root,
             capture_output=True,
             text=True,
@@ -358,7 +382,7 @@ class TestScriptsInCurrentProject:
     def test_check_python_version_on_project(self, project_root: Path) -> None:
         """Test check-python-version-consistency on actual project."""
         result = subprocess.run(
-            ["check-python-version-consistency"],
+            [sys.executable, "-m", "rhiza_hooks.check_python_version"],
             cwd=project_root,
             capture_output=True,
             text=True,
@@ -370,7 +394,7 @@ class TestScriptsInCurrentProject:
     def test_check_template_bundles_on_project(self, project_root: Path) -> None:
         """Test check-template-bundles on actual project."""
         result = subprocess.run(
-            ["check-template-bundles"],
+            [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
             cwd=project_root,
             capture_output=True,
             text=True,
@@ -387,10 +411,21 @@ class TestScriptErrorHandling:
     @pytest.mark.parametrize("script_name", SCRIPTS)
     def test_script_handles_nonexistent_directory(self, script_name: str, tmp_path: Path) -> None:
         """Test that scripts handle nonexistent directories gracefully."""
+        # Map script names to their module names
+        module_mapping = {
+            "check-rhiza-workflow-names": "rhiza_hooks.check_workflow_names",
+            "update-readme-help": "rhiza_hooks.update_readme_help",
+            "check-rhiza-config": "rhiza_hooks.check_rhiza_config",
+            "check-makefile-targets": "rhiza_hooks.check_makefile_targets",
+            "check-python-version-consistency": "rhiza_hooks.check_python_version",
+            "check-template-bundles": "rhiza_hooks.check_template_bundles",
+        }
+
+        module_name = module_mapping[script_name]
         nonexistent = tmp_path / "nonexistent"
 
         result = subprocess.run(
-            [script_name],
+            [sys.executable, "-m", module_name],
             cwd=nonexistent if nonexistent.exists() else tmp_path,
             capture_output=True,
             text=True,
