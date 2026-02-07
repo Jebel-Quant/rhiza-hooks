@@ -1,4 +1,4 @@
-name: "(RHIZA HOOKS) RELEASE"
+name: "(RHIZA) (RHIZA HOOKS) RELEASE"
 
 on:
   push:
