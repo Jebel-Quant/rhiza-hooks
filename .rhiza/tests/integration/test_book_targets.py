@@ -98,6 +98,11 @@ def test_book_without_logo_file(git_repo):
     The build should succeed gracefully without a logo, and the generated
     HTML template should hide the logo element via onerror handler.
     """
+    # Skip if 02-book.mk doesn't exist (not all projects have book features)
+    book_makefile = git_repo / ".rhiza" / "make.d" / "02-book.mk"
+    if not book_makefile.exists():
+        pytest.skip("02-book.mk not found, skipping book-related tests")
+
     makefile = git_repo / "Makefile"
     if not makefile.exists():
         pytest.skip("Makefile not found")
@@ -128,6 +133,11 @@ def test_book_with_missing_logo_file(git_repo):
 
     The build should succeed but emit a warning about the missing logo.
     """
+    # Skip if 02-book.mk doesn't exist (not all projects have book features)
+    book_makefile = git_repo / ".rhiza" / "make.d" / "02-book.mk"
+    if not book_makefile.exists():
+        pytest.skip("02-book.mk not found, skipping book-related tests")
+
     makefile = git_repo / "Makefile"
     if not makefile.exists():
         pytest.skip("Makefile not found")
