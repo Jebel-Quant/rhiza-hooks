@@ -14,6 +14,7 @@ from rhiza_hooks.check_template_bundles import (
     _validate_examples,
     _validate_metadata,
     _validate_top_level_fields,
+    find_repo_root,
     validate_template_bundles,
 )
 
@@ -653,3 +654,145 @@ class TestValidateTemplateBundlesWithTemplates:
         success, errors = validate_template_bundles(bundles_file, {"core"})
         assert success is True
         assert errors == []
+
+
+class TestGetTemplatesFromConfigEdgeCases:
+    """Tests for edge cases in _get_templates_from_config function."""
+
+    def test_get_templates_from_config_not_dict(self, tmp_path):
+        """Test config file that parses to a list instead of dict."""
+        config_file = tmp_path / "template.yml"
+        config_file.write_text("- item1\n- item2")
+
+        templates = _get_templates_from_config(config_file)
+        assert templates is None
+
+    def test_get_templates_from_config_templates_not_list(self, tmp_path):
+        """Test config file where templates field is not a list."""
+        config_file = tmp_path / "template.yml"
+        config_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            templates: "not a list"
+        """)
+        )
+
+        templates = _get_templates_from_config(config_file)
+        assert templates is None
+
+
+class TestFindRepoRoot:
+    """Tests for find_repo_root function."""
+
+    def test_finds_git_directory(self, tmp_path, monkeypatch):
+        """Test that find_repo_root finds the .git directory."""
+        # Create a .git directory
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+
+        # Create a subdirectory
+        sub_dir = tmp_path / "subdir"
+        sub_dir.mkdir()
+
+        # Change to the subdirectory
+        monkeypatch.chdir(sub_dir)
+
+        # Should find the parent directory with .git
+        root = find_repo_root()
+        assert root == tmp_path
+
+    def test_returns_cwd_when_no_git_found(self, tmp_path, monkeypatch):
+        """Test that find_repo_root returns cwd when no .git directory is found."""
+        # Change to a directory without .git
+        monkeypatch.chdir(tmp_path)
+
+        # Should return current working directory
+        root = find_repo_root()
+        assert root == tmp_path
+
+
+class TestModuleExecution:
+    """Tests for module execution."""
+
+    def test_module_executes_main(self, tmp_path, monkeypatch):
+        """Test that the module can be executed directly."""
+        import subprocess
+        import sys
+
+        # Create a valid bundles file
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+        bundles_file = rhiza_dir / "template-bundles.yml"
+        bundles_file.write_text(
+            dedent("""
+            version: 1.0
+            bundles:
+              core:
+                description: Core files
+                files:
+                  - .gitignore
+        """)
+        )
+
+        # Create template.yml with templates field
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            templates:
+              - core
+        """)
+        )
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Execute the module directly
+        result = subprocess.run(
+            [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0
+
+
+class TestImportError:
+    """Tests for yaml import error handling."""
+
+    def test_yaml_import_error(self, monkeypatch):
+        """Test handling of yaml import error."""
+        import subprocess
+        import sys
+
+        # Create a script that simulates missing yaml
+        script = """
+import sys
+import builtins
+
+# Store original import
+original_import = builtins.__import__
+
+def mock_import(name, *args, **kwargs):
+    if name == 'yaml':
+        raise ImportError("No module named 'yaml'")
+    return original_import(name, *args, **kwargs)
+
+# Mock the import
+builtins.__import__ = mock_import
+
+# Now import the module
+try:
+    from rhiza_hooks import check_template_bundles
+except SystemExit as e:
+    sys.exit(e.code)
+"""
+
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 1
+        assert "pyyaml" in result.stdout.lower() or "yaml" in result.stdout.lower()
