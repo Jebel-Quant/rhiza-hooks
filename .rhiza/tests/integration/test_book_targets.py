@@ -15,11 +15,6 @@ def test_no_book_folder(git_repo):
     available but check internally for the existence of the book folder.
     Using dry-run (-n) to test the target logic without actually executing.
     """
-    # Check if 02-book.mk exists, skip if not present
-    makefile = git_repo / ".rhiza" / "make.d" / "02-book.mk"
-    if not makefile.exists():
-        pytest.skip("02-book.mk not found, skipping test")
-
     if (git_repo / "book").exists():
         shutil.rmtree(git_repo / "book")
     assert not (git_repo / "book").exists()
@@ -40,11 +35,6 @@ def test_book_folder_but_no_mk(git_repo):
     With the new architecture, targets are always defined in .rhiza/make.d/02-book.mk,
     so they should exist regardless of the book folder contents.
     """
-    # Check if 02-book.mk exists, skip if not present
-    makefile = git_repo / ".rhiza" / "make.d" / "02-book.mk"
-    if not makefile.exists():
-        pytest.skip("02-book.mk not found, skipping test")
-
     # ensure book folder exists but is empty
     if (git_repo / "book").exists():
         shutil.rmtree(git_repo / "book")
