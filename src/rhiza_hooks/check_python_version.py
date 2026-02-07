@@ -6,12 +6,8 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import tomllib
 from pathlib import Path
-
-try:
-    import tomllib
-except ImportError:  # pragma: no cover
-    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
 
 
 def get_python_version_file(repo_root: Path) -> str | None:
