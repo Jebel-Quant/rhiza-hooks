@@ -423,19 +423,12 @@ class TestMain:
         result = main([str(bundles_file)])
         assert result == 0
 
-    def test_main_with_invalid_file_and_templates(self, temp_bundles_file, tmp_path):
+    def test_main_with_invalid_file_and_templates(self, temp_bundles_file, tmp_path, monkeypatch):
         """Test main function with invalid file when templates field exists."""
         from rhiza_hooks.check_template_bundles import main
 
-        bundles_file = temp_bundles_file("""
-            bundles:
-              core:
-                files:
-                  - .gitignore
-        """)
-
-        # Create template.yml with templates field in the same directory
-        template_file = bundles_file.parent / "template.yml"
+        # Create template.yml with templates field
+        template_file = tmp_path / "template.yml"
         template_file.write_text("""
 template-repository: test/repo
 template-branch: main
@@ -443,8 +436,23 @@ templates:
   - core
 """)
 
+        # Mock _fetch_remote_bundles to return invalid bundles (missing version)
+        def mock_fetch_remote_bundles(repo, branch):
+            return True, {
+                "bundles": {
+                    "core": {
+                        "files": [".gitignore"]
+                    }
+                }
+            }
+
+        monkeypatch.setattr(
+            "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
+            mock_fetch_remote_bundles
+        )
+
         # Test with invalid file (missing version) - should fail validation
-        result = main([str(bundles_file)])
+        result = main([str(template_file)])
         assert result == 1
 
     def test_main_with_cwd_default(self, tmp_path, monkeypatch, valid_bundles_content):
@@ -454,8 +462,6 @@ templates:
         # Create the .rhiza directory structure in tmp_path
         rhiza_dir = tmp_path / ".rhiza"
         rhiza_dir.mkdir()
-        bundles_file = rhiza_dir / "template-bundles.yml"
-        bundles_file.write_text(dedent(valid_bundles_content))
 
         # Create template.yml with templates field
         template_file = rhiza_dir / "template.yml"
@@ -466,6 +472,23 @@ templates:
             templates:
               - core
         """)
+        )
+
+        # Mock _fetch_remote_bundles to return valid bundles
+        def mock_fetch_remote_bundles(repo, branch):
+            return True, {
+                "version": 1.0,
+                "bundles": {
+                    "core": {
+                        "description": "Core files",
+                        "files": [".gitignore"]
+                    }
+                }
+            }
+
+        monkeypatch.setattr(
+            "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
+            mock_fetch_remote_bundles
         )
 
         # Change to the tmp_path directory
@@ -719,37 +742,49 @@ class TestModuleExecution:
         import subprocess
         import sys
 
-        # Create a valid bundles file
+        # Create a valid template.yml with templates field
         rhiza_dir = tmp_path / ".rhiza"
         rhiza_dir.mkdir()
-        bundles_file = rhiza_dir / "template-bundles.yml"
-        bundles_file.write_text(
-            dedent("""
-            version: 1.0
-            bundles:
-              core:
-                description: Core files
-                files:
-                  - .gitignore
-        """)
-        )
-
-        # Create template.yml with templates field
         template_file = rhiza_dir / "template.yml"
         template_file.write_text(
             dedent("""
             template-repository: test/repo
+            template-branch: main
             templates:
               - core
+        """)
+        )
+
+        # Create a mock script that patches _fetch_remote_bundles
+        mock_script = tmp_path / "mock_fetch.py"
+        mock_script.write_text(
+            dedent("""
+            import sys
+            from unittest.mock import patch
+
+            def mock_fetch_remote_bundles(repo, branch):
+                return True, {
+                    "version": 1.0,
+                    "bundles": {
+                        "core": {
+                            "description": "Core files",
+                            "files": [".gitignore"]
+                        }
+                    }
+                }
+
+            with patch("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles):
+                from rhiza_hooks.check_template_bundles import main
+                sys.exit(main())
         """)
         )
 
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
 
-        # Execute the module directly
+        # Execute the mock script
         result = subprocess.run(
-            [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
+            [sys.executable, str(mock_script)],
             capture_output=True,
             text=True,
         )

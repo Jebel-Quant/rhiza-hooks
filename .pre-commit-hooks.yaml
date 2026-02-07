@@ -49,8 +49,8 @@
 
 - id: check-template-bundles
   name: Check template bundles configuration
-  description: Validates the .rhiza/template-bundles.yml configuration file
+  description: Validates templates against remote template-bundles.yml from template repository
   entry: check-template-bundles
   language: python
-  files: ^\.rhiza/template-bundles\.yml$
+  files: ^\.rhiza/template\.yml$
   types: [yaml]
