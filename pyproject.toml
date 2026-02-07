@@ -42,7 +42,7 @@ check-python-version-consistency = "rhiza_hooks.check_python_version:main"
 check-template-bundles = "rhiza_hooks.check_template_bundles:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["rhiza_hooks"]
+packages = ["src/rhiza_hooks"]
 
 [tool.deptry]
 extend_exclude = ["book"]
