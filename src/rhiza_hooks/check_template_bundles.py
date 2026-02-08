@@ -301,6 +301,92 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
     return len(errors) == 0, errors
 
 
+def _get_config_path(args: argparse.Namespace) -> Path:
+    """Get the configuration file path from arguments or default location."""
+    if args.filenames:
+        return Path(args.filenames[0])
+    return find_repo_root() / ".rhiza" / "template.yml"
+
+
+def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any] | None, set[str] | None]:
+    """Load and validate configuration file.
+
+    Returns:
+        Tuple of (config, templates_set) or (None, None) if validation fails
+    """
+    config = _get_config_data(config_path)
+    if config is None:
+        print(f"Could not load configuration from {config_path}, skipping validation")
+        return None, None
+
+    templates_to_check = config.get("templates")
+    if templates_to_check is None or not isinstance(templates_to_check, list):
+        print(f"No templates field in {config_path}, skipping bundle validation")
+        return None, None
+
+    return config, set(templates_to_check)
+
+
+def _validate_remote_bundles(
+    template_repo: str, template_branch: str, templates_set: set[str], config_path: Path
+) -> tuple[dict[Any, Any] | None, list[str]]:
+    """Fetch and validate remote bundles.
+
+    Returns:
+        Tuple of (bundles_data, errors) or (None, errors) if fetch fails
+    """
+    print(f"Fetching template bundles from {template_repo} (branch: {template_branch})")
+    print(f"Checking templates: {', '.join(sorted(templates_set))}")
+
+    success, data_or_errors = _fetch_remote_bundles(template_repo, template_branch)
+    if not success:
+        print("\n✗ Failed to fetch template bundles:")
+        assert isinstance(data_or_errors, list)
+        for error in data_or_errors:
+            print(f"  - {error}")
+        return None, data_or_errors
+
+    assert isinstance(data_or_errors, dict)
+    data = data_or_errors
+
+    # Validate top-level structure
+    errors = _validate_top_level_fields(data)
+    if errors:
+        print("\n✗ Template bundles validation failed:")
+        for error in errors:
+            print(f"  - {error}")
+        return None, errors
+
+    bundles = data.get("bundles", {})
+    if not isinstance(bundles, dict):
+        print("\n✗ Template bundles validation failed:")
+        print("  - 'bundles' must be a dictionary")
+        return None, ["'bundles' must be a dictionary"]
+
+    return data, []
+
+
+def _validate_templates_in_bundles(
+    templates_set: set[str], bundles: dict[Any, Any], config_path: Path
+) -> list[str]:
+    """Validate that requested templates exist and have valid structure."""
+    errors = []
+    bundle_names = set(bundles.keys())
+
+    # Check if templates exist
+    for template in templates_set:
+        if template not in bundle_names:
+            errors.append(f"Template '{template}' specified in {config_path} not found in remote bundles")
+
+    # Validate structure of each template
+    for template in templates_set:
+        if template in bundles:
+            bundle_config = bundles[template]
+            errors.extend(_validate_bundle_structure(template, bundle_config, bundle_names))
+
+    return errors
+
+
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Validate template-bundles.yml from remote template repository")
@@ -311,26 +397,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    # Find .rhiza/template.yml - use provided filename or default to repo root
-    if args.filenames:
-        config_path = Path(args.filenames[0])
-    else:
-        repo_root = find_repo_root()
-        config_path = repo_root / ".rhiza" / "template.yml"
+    # Get configuration path
+    config_path = _get_config_path(args)
 
-    # Load configuration
-    config = _get_config_data(config_path)
-    if config is None:
-        print(f"Could not load configuration from {config_path}, skipping validation")
+    # Load and validate configuration
+    config, templates_set = _load_and_validate_config(config_path)
+    if config is None or templates_set is None:
         return 0
-
-    # Check if templates field exists
-    templates_to_check = config.get("templates")
-    if templates_to_check is None or not isinstance(templates_to_check, list):
-        print(f"No templates field in {config_path}, skipping bundle validation")
-        return 0
-
-    templates_set = set(templates_to_check)
 
     # Get template repository and branch
     template_repo = config.get("template-repository")
@@ -340,47 +413,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Missing template-repository or template-branch in {config_path}")
         return 1
 
-    print(f"Fetching template bundles from {template_repo} (branch: {template_branch})")
-    print(f"Checking templates: {', '.join(sorted(templates_set))}")
-
-    # Fetch remote template-bundles.yml
-    success, data_or_errors = _fetch_remote_bundles(template_repo, template_branch)
-    if not success:
-        print("\n✗ Failed to fetch template bundles:")
-        assert isinstance(data_or_errors, list)
-        for error in data_or_errors:
-            print(f"  - {error}")
+    # Fetch and validate remote bundles
+    data, fetch_errors = _validate_remote_bundles(template_repo, template_branch, templates_set, config_path)
+    if data is None:
         return 1
 
-    assert isinstance(data_or_errors, dict)
-    data = data_or_errors
-
-    # Validate bundles structure
-    errors = _validate_top_level_fields(data)
-    if errors:
-        print("\n✗ Template bundles validation failed:")
-        for error in errors:
-            print(f"  - {error}")
-        return 1
-
+    # Validate templates
     bundles = data.get("bundles", {})
-    if not isinstance(bundles, dict):
-        print("\n✗ Template bundles validation failed:")
-        print("  - 'bundles' must be a dictionary")
-        return 1
-
-    bundle_names = set(bundles.keys())
-
-    # Validate that requested templates exist
-    for template in templates_set:
-        if template not in bundle_names:
-            errors.append(f"Template '{template}' specified in {config_path} not found in remote bundles")
-
-    # Validate structure of each requested bundle
-    for template in templates_set:
-        if template in bundles:
-            bundle_config = bundles[template]
-            errors.extend(_validate_bundle_structure(template, bundle_config, bundle_names))
+    errors = _validate_templates_in_bundles(templates_set, bundles, config_path)
 
     if errors:
         print("\n✗ Template bundles validation failed:")
