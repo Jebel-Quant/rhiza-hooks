@@ -307,9 +307,7 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
-    parser = argparse.ArgumentParser(
-        description="Validate template-bundles.yml from remote template repository"
-    )
+    parser = argparse.ArgumentParser(description="Validate template-bundles.yml from remote template repository")
     parser.add_argument(
         "filenames",
         nargs="*",

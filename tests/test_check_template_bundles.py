@@ -438,18 +438,9 @@ templates:
 
         # Mock _fetch_remote_bundles to return invalid bundles (missing version)
         def mock_fetch_remote_bundles(repo, branch):
-            return True, {
-                "bundles": {
-                    "core": {
-                        "files": [".gitignore"]
-                    }
-                }
-            }
+            return True, {"bundles": {"core": {"files": [".gitignore"]}}}
 
-        monkeypatch.setattr(
-            "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
-            mock_fetch_remote_bundles
-        )
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
 
         # Test with invalid file (missing version) - should fail validation
         result = main([str(template_file)])
@@ -476,20 +467,9 @@ templates:
 
         # Mock _fetch_remote_bundles to return valid bundles
         def mock_fetch_remote_bundles(repo, branch):
-            return True, {
-                "version": 1.0,
-                "bundles": {
-                    "core": {
-                        "description": "Core files",
-                        "files": [".gitignore"]
-                    }
-                }
-            }
+            return True, {"version": 1.0, "bundles": {"core": {"description": "Core files", "files": [".gitignore"]}}}
 
-        monkeypatch.setattr(
-            "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
-            mock_fetch_remote_bundles
-        )
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
 
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
