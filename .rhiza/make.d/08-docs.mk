@@ -22,9 +22,8 @@ PDOC_TEMPLATE_DIR ?= book/pdoc-templates
 # 2. Detects the docformat (google, numpy, or sphinx) from ruff.toml or defaults to google.
 # 3. Installs pdoc and generates HTML documentation in _pdoc.
 docs:: install ## create documentation with pdoc
-	# Clean up previous docs and __pycache__ directories
+	# Clean up previous docs
 	rm -rf _pdoc;
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true;
 
 	@if [ -d "${SOURCE_FOLDER}" ]; then \
 	  PKGS=""; for d in "${SOURCE_FOLDER}"/*; do [ -d "$$d" ] && PKGS="$$PKGS $$(basename "$$d")"; done; \
