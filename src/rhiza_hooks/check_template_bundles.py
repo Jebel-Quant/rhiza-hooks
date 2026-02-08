@@ -366,9 +366,7 @@ def _validate_remote_bundles(
     return data, []
 
 
-def _validate_templates_in_bundles(
-    templates_set: set[str], bundles: dict[Any, Any], config_path: Path
-) -> list[str]:
+def _validate_templates_in_bundles(templates_set: set[str], bundles: dict[Any, Any], config_path: Path) -> list[str]:
     """Validate that requested templates exist and have valid structure."""
     errors = []
     bundle_names = set(bundles.keys())
@@ -414,7 +412,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     # Fetch and validate remote bundles
-    data, fetch_errors = _validate_remote_bundles(template_repo, template_branch, templates_set, config_path)
+    data, _fetch_errors = _validate_remote_bundles(template_repo, template_branch, templates_set, config_path)
     if data is None:
         return 1
 

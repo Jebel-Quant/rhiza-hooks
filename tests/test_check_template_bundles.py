@@ -786,7 +786,6 @@ class TestFetchRemoteBundles:
     def test_fetch_remote_bundles_http_404(self, monkeypatch):
         """Test fetching remote bundles returns 404 error."""
         from urllib.error import HTTPError
-        from urllib.request import Request
 
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
@@ -821,7 +820,8 @@ class TestFetchRemoteBundles:
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
-            raise URLError("Connection refused")
+            msg = "Connection refused"
+            raise URLError(msg)
 
         monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
 
@@ -844,7 +844,6 @@ class TestFetchRemoteBundles:
 
     def test_fetch_remote_bundles_invalid_yaml(self, monkeypatch):
         """Test fetching remote bundles with invalid YAML."""
-        from io import BytesIO
         from unittest.mock import MagicMock
 
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
@@ -908,7 +907,9 @@ class TestFetchRemoteBundles:
 
         def mock_urlparse(url):
             # Return a parsed URL with http scheme instead of https
-            return ParseResult(scheme="http", netloc="raw.githubusercontent.com", path="", params="", query="", fragment="")
+            return ParseResult(
+                scheme="http", netloc="raw.githubusercontent.com", path="", params="", query="", fragment=""
+            )
 
         monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlparse", mock_urlparse)
 
@@ -924,7 +925,9 @@ class TestFetchRemoteBundles:
 
         def mock_urlopen(url, timeout):
             mock_response = MagicMock()
-            mock_response.read.return_value = b"version: 1.0\nbundles:\n  core:\n    description: Core\n    files:\n      - .gitignore"
+            mock_response.read.return_value = (
+                b"version: 1.0\nbundles:\n  core:\n    description: Core\n    files:\n      - .gitignore"
+            )
             mock_response.__enter__ = lambda self: self
             mock_response.__exit__ = lambda self, *args: None
             return mock_response
@@ -1167,10 +1170,9 @@ class TestMainNameBlock:
         sys.argv = ["rhiza_hooks.check_template_bundles"]
 
         try:
-            # Run the module as __main__ using runpy
-            runpy.run_module("rhiza_hooks.check_template_bundles", run_name="__main__")
-        except SystemExit as e:
-            # The module calls sys.exit(), which we expect
-            assert e.code == 0
+            # Run the module as __main__ using runpy - it should exit with code 0
+            with pytest.raises(SystemExit) as exc_info:
+                runpy.run_module("rhiza_hooks.check_template_bundles", run_name="__main__")
+            assert exc_info.value.code == 0
         finally:
             sys.argv = original_argv
