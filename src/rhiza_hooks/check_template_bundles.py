@@ -26,11 +26,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
-try:
-    import yaml
-except ImportError:
-    print("ERROR: PyYAML is required. Install with: pip install pyyaml")
-    sys.exit(1)
+import yaml
 
 
 def _load_yaml_file(bundles_path: Path) -> tuple[bool, dict[Any, Any] | list[str]]:
