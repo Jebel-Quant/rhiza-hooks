@@ -312,6 +312,14 @@ class TestValidateTemplateBundles:
         assert success is True
         assert errors == []
 
+    def test_nonexistent_file_triggers_assertion(self, tmp_path):
+        """Test that nonexistent file triggers the assertion on line 263-264."""
+        nonexistent_file = tmp_path / "nonexistent.yml"
+        success, errors = validate_template_bundles(nonexistent_file)
+        assert success is False
+        assert isinstance(errors, list)
+        assert len(errors) > 0
+
     def test_missing_required_fields(self, temp_bundles_file):
         """Test with missing required fields."""
         bundles_file = temp_bundles_file("""
@@ -772,42 +780,397 @@ class TestModuleExecution:
         assert result.returncode == 0
 
 
-class TestImportError:
-    """Tests for yaml import error handling."""
+class TestFetchRemoteBundles:
+    """Tests for _fetch_remote_bundles function."""
 
-    def test_yaml_import_error(self, monkeypatch):
-        """Test handling of yaml import error."""
+    def test_fetch_remote_bundles_http_404(self, monkeypatch):
+        """Test fetching remote bundles returns 404 error."""
+        from urllib.error import HTTPError
+        from urllib.request import Request
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        def mock_urlopen(url, timeout):
+            raise HTTPError(url, 404, "Not Found", {}, None)
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+
+        success, errors = _fetch_remote_bundles("test/repo", "main")
+        assert success is False
+        assert any("not found" in e.lower() for e in errors)
+
+    def test_fetch_remote_bundles_http_error_non_404(self, monkeypatch):
+        """Test fetching remote bundles with non-404 HTTP error."""
+        from urllib.error import HTTPError
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        def mock_urlopen(url, timeout):
+            raise HTTPError(url, 500, "Internal Server Error", {}, None)
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+
+        success, errors = _fetch_remote_bundles("test/repo", "main")
+        assert success is False
+        assert any("500" in e for e in errors)
+
+    def test_fetch_remote_bundles_url_error(self, monkeypatch):
+        """Test fetching remote bundles with URL error."""
+        from urllib.error import URLError
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        def mock_urlopen(url, timeout):
+            raise URLError("Connection refused")
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+
+        success, errors = _fetch_remote_bundles("test/repo", "main")
+        assert success is False
+        assert any("error fetching" in e.lower() for e in errors)
+
+    def test_fetch_remote_bundles_timeout(self, monkeypatch):
+        """Test fetching remote bundles with timeout."""
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        def mock_urlopen(url, timeout):
+            raise TimeoutError("Timeout")
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+
+        success, errors = _fetch_remote_bundles("test/repo", "main")
+        assert success is False
+        assert any("timeout" in e.lower() for e in errors)
+
+    def test_fetch_remote_bundles_invalid_yaml(self, monkeypatch):
+        """Test fetching remote bundles with invalid YAML."""
+        from io import BytesIO
+        from unittest.mock import MagicMock
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        def mock_urlopen(url, timeout):
+            mock_response = MagicMock()
+            mock_response.read.return_value = b"invalid: yaml: syntax:"
+            mock_response.__enter__ = lambda self: self
+            mock_response.__exit__ = lambda self, *args: None
+            return mock_response
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+
+        success, errors = _fetch_remote_bundles("test/repo", "main")
+        assert success is False
+        assert any("invalid yaml" in e.lower() for e in errors)
+
+    def test_fetch_remote_bundles_empty_file(self, monkeypatch):
+        """Test fetching remote bundles with empty file."""
+        from unittest.mock import MagicMock
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        def mock_urlopen(url, timeout):
+            mock_response = MagicMock()
+            mock_response.read.return_value = b""
+            mock_response.__enter__ = lambda self: self
+            mock_response.__exit__ = lambda self, *args: None
+            return mock_response
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+
+        success, errors = _fetch_remote_bundles("test/repo", "main")
+        assert success is False
+        assert any("empty" in e.lower() for e in errors)
+
+    def test_fetch_remote_bundles_not_dict(self, monkeypatch):
+        """Test fetching remote bundles that's not a dictionary."""
+        from unittest.mock import MagicMock
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        def mock_urlopen(url, timeout):
+            mock_response = MagicMock()
+            mock_response.read.return_value = b"- item1\n- item2"
+            mock_response.__enter__ = lambda self: self
+            mock_response.__exit__ = lambda self, *args: None
+            return mock_response
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+
+        success, errors = _fetch_remote_bundles("test/repo", "main")
+        assert success is False
+        assert any("dictionary" in e.lower() for e in errors)
+
+    def test_fetch_remote_bundles_invalid_scheme(self, monkeypatch):
+        """Test fetching remote bundles with invalid URL scheme."""
+        from urllib.parse import ParseResult
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        def mock_urlparse(url):
+            # Return a parsed URL with http scheme instead of https
+            return ParseResult(scheme="http", netloc="raw.githubusercontent.com", path="", params="", query="", fragment="")
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlparse", mock_urlparse)
+
+        success, errors = _fetch_remote_bundles("test/repo", "main")
+        assert success is False
+        assert any("invalid url scheme" in e.lower() for e in errors)
+
+    def test_fetch_remote_bundles_success(self, monkeypatch):
+        """Test successful fetching of remote bundles."""
+        from unittest.mock import MagicMock
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        def mock_urlopen(url, timeout):
+            mock_response = MagicMock()
+            mock_response.read.return_value = b"version: 1.0\nbundles:\n  core:\n    description: Core\n    files:\n      - .gitignore"
+            mock_response.__enter__ = lambda self: self
+            mock_response.__exit__ = lambda self, *args: None
+            return mock_response
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+
+        success, data = _fetch_remote_bundles("test/repo", "main")
+        assert success is True
+        assert isinstance(data, dict)
+        assert "version" in data
+        assert "bundles" in data
+
+
+class TestMainErrorPaths:
+    """Tests for main function error paths."""
+
+    def test_main_missing_template_repository(self, tmp_path, monkeypatch):
+        """Test main function when template-repository is missing."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Create the .rhiza directory structure
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+
+        # Create template.yml with templates but missing template-repository
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(
+            dedent("""
+            template-branch: main
+            templates:
+              - core
+        """)
+        )
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Test with no arguments - should fail due to missing template-repository
+        result = main([])
+        assert result == 1
+
+    def test_main_missing_template_branch(self, tmp_path, monkeypatch):
+        """Test main function when template-branch is missing."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Create the .rhiza directory structure
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+
+        # Create template.yml with templates but missing template-branch
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            templates:
+              - core
+        """)
+        )
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Test with no arguments - should fail due to missing template-branch
+        result = main([])
+        assert result == 1
+
+    def test_main_fetch_remote_fails(self, tmp_path, monkeypatch):
+        """Test main function when fetching remote bundles fails."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Create the .rhiza directory structure
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+
+        # Create template.yml with templates field
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            template-branch: main
+            templates:
+              - core
+        """)
+        )
+
+        # Mock _fetch_remote_bundles to return failure
+        def mock_fetch_remote_bundles(repo, branch):
+            return False, ["Failed to fetch remote bundles"]
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Test with no arguments - should fail
+        result = main([])
+        assert result == 1
+
+    def test_main_bundles_not_dict(self, tmp_path, monkeypatch):
+        """Test main function when bundles is not a dict in remote data."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Create the .rhiza directory structure
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+
+        # Create template.yml with templates field
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            template-branch: main
+            templates:
+              - core
+        """)
+        )
+
+        # Mock _fetch_remote_bundles to return bundles as a list instead of dict
+        def mock_fetch_remote_bundles(repo, branch):
+            return True, {"version": 1.0, "bundles": []}
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Test with no arguments - should fail
+        result = main([])
+        assert result == 1
+
+    def test_main_template_not_in_bundles(self, tmp_path, monkeypatch):
+        """Test main function when requested template is not in remote bundles."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Create the .rhiza directory structure
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+
+        # Create template.yml with templates field
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            template-branch: main
+            templates:
+              - core
+              - nonexistent
+        """)
+        )
+
+        # Mock _fetch_remote_bundles to return bundles without the requested template
+        def mock_fetch_remote_bundles(repo, branch):
+            return True, {
+                "version": 1.0,
+                "bundles": {"core": {"description": "Core files", "files": [".gitignore"]}},
+            }
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Test with no arguments - should fail
+        result = main([])
+        assert result == 1
+
+    def test_main_invalid_bundle_structure_in_remote(self, tmp_path, monkeypatch):
+        """Test main function when remote bundle has invalid structure."""
+        from rhiza_hooks.check_template_bundles import main
+
+        # Create the .rhiza directory structure
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+
+        # Create template.yml with templates field
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text(
+            dedent("""
+            template-repository: test/repo
+            template-branch: main
+            templates:
+              - core
+        """)
+        )
+
+        # Mock _fetch_remote_bundles to return invalid bundle structure (missing description)
+        def mock_fetch_remote_bundles(repo, branch):
+            return True, {"version": 1.0, "bundles": {"core": {"files": [".gitignore"]}}}
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Test with no arguments - should fail
+        result = main([])
+        assert result == 1
+
+
+class TestMainNameBlock:
+    """Tests for the if __name__ == '__main__' block."""
+
+    def test_main_name_block_execution(self, tmp_path):
+        """Test that the module can be run as __main__."""
         import subprocess
         import sys
 
-        # Create a script that simulates missing yaml
-        script = """
-import sys
-import builtins
+        # Create a temporary directory with a .rhiza/template.yml that won't trigger validation
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text("# No templates field")
 
-# Store original import
-original_import = builtins.__import__
-
-def mock_import(name, *args, **kwargs):
-    if name == 'yaml':
-        raise ImportError("No module named 'yaml'")
-    return original_import(name, *args, **kwargs)
-
-# Mock the import
-builtins.__import__ = mock_import
-
-# Now import the module
-try:
-    from rhiza_hooks import check_template_bundles
-except SystemExit as e:
-    sys.exit(e.code)
-"""
-
+        # Run the module as __main__ using python -m
         result = subprocess.run(
-            [sys.executable, "-c", script],
+            [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
+            cwd=tmp_path,
             capture_output=True,
             text=True,
         )
 
-        assert result.returncode == 1
-        assert "pyyaml" in result.stdout.lower() or "yaml" in result.stdout.lower()
+        assert result.returncode == 0
+
+    def test_main_name_block_with_runpy(self, tmp_path, monkeypatch):
+        """Test the __main__ block using runpy to maintain coverage."""
+        import runpy
+        import sys
+
+        # Create a temporary directory with a .rhiza/template.yml that won't trigger validation
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+        template_file = rhiza_dir / "template.yml"
+        template_file.write_text("# No templates field")
+
+        # Change to the tmp_path directory
+        monkeypatch.chdir(tmp_path)
+
+        # Mock sys.argv to simulate command-line execution
+        original_argv = sys.argv
+        sys.argv = ["rhiza_hooks.check_template_bundles"]
+
+        try:
+            # Run the module as __main__ using runpy
+            runpy.run_module("rhiza_hooks.check_template_bundles", run_name="__main__")
+        except SystemExit as e:
+            # The module calls sys.exit(), which we expect
+            assert e.code == 0
+        finally:
+            sys.argv = original_argv
