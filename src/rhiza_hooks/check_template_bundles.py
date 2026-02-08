@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 try:
@@ -214,8 +215,13 @@ def _fetch_remote_bundles(repo: str, branch: str) -> tuple[bool, dict[Any, Any] 
     # Construct GitHub raw content URL
     url = f"https://raw.githubusercontent.com/{repo}/{branch}/.rhiza/template-bundles.yml"
 
+    # Validate URL scheme for security (bandit B310)
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        return False, [f"Invalid URL scheme: {parsed.scheme}. Only https is allowed."]
+
     try:
-        with urlopen(url, timeout=10) as response:
+        with urlopen(url, timeout=10) as response:  # nosec B310
             content = response.read()
     except HTTPError as e:
         if e.code == 404:
