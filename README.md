@@ -23,6 +23,7 @@ repos:
       - id: check-rhiza-config
       - id: check-makefile-targets
       - id: check-python-version-consistency
+      - id: check-template-bundles
 ```
 
 Then install the hooks:
@@ -104,6 +105,23 @@ Ensures Python version is consistent between `.python-version` and `pyproject.to
 
 ```yaml
 - id: check-python-version-consistency
+```
+
+#### `check-template-bundles`
+
+Validates templates specified in `.rhiza/template.yml` against the `template-bundles.yml` file from the template repository. This hook:
+
+- Fetches `template-bundles.yml` from the remote template repository specified in your config
+- Ensures all templates listed in your `.rhiza/template.yml` exist in the remote bundles
+- Validates bundle structure (each bundle has `description` and `files`)
+- Checks that bundle dependencies are valid
+
+**Triggers on:** Changes to `.rhiza/template.yml`
+
+**Usage:**
+
+```yaml
+- id: check-template-bundles
 ```
 
 ## 🛠️ Development
