@@ -226,6 +226,61 @@ class TestValidateRhizaConfig:
         errors = validate_rhiza_config(config)
         assert any("empty" in e.lower() for e in errors)
 
+    def test_alias_repository_accepted(self, temp_config):
+        """Test that 'repository' alias is accepted for 'template-repository'."""
+        config = temp_config("""
+            repository: owner/repo
+            template-branch: main
+            include:
+              - Makefile
+        """)
+        errors = validate_rhiza_config(config)
+        assert errors == []
+
+    def test_alias_ref_accepted(self, temp_config):
+        """Test that 'ref' alias is accepted for 'template-branch'."""
+        config = temp_config("""
+            template-repository: owner/repo
+            ref: main
+            include:
+              - Makefile
+        """)
+        errors = validate_rhiza_config(config)
+        assert errors == []
+
+    def test_both_aliases_accepted(self, temp_config):
+        """Test that both aliases work together."""
+        config = temp_config("""
+            repository: owner/repo
+            ref: main
+            templates:
+              - core
+        """)
+        errors = validate_rhiza_config(config)
+        assert errors == []
+
+    def test_alias_with_invalid_format(self, temp_config):
+        """Test that validation still works with aliases."""
+        config = temp_config("""
+            repository: invalid-format
+            ref: main
+            include:
+              - Makefile
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("owner/repo" in e for e in errors)
+
+    def test_mixed_canonical_and_alias(self, temp_config):
+        """Test that mixing canonical and alias names works."""
+        config = temp_config("""
+            repository: owner/repo
+            template-branch: main
+            include:
+              - Makefile
+        """)
+        errors = validate_rhiza_config(config)
+        assert errors == []
+
 
 class TestMain:
     """Tests for main function."""
