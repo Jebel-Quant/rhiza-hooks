@@ -21,10 +21,10 @@ KEY_ALIASES = {
 
 def _normalize_config(config: dict) -> dict:
     """Normalize configuration by replacing aliases with canonical keys.
-    
+
     Args:
         config: Raw configuration dictionary
-        
+
     Returns:
         Normalized configuration with aliases replaced
     """
