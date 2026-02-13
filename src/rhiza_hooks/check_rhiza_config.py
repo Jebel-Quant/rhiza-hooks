@@ -12,6 +12,28 @@ import yaml
 REQUIRED_KEYS = {"template-repository", "template-branch"}
 OPTIONAL_KEYS = {"include", "exclude", "templates"}
 VALID_KEYS = REQUIRED_KEYS | OPTIONAL_KEYS
+# Alternative key names
+KEY_ALIASES = {
+    "repository": "template-repository",
+    "ref": "template-branch",
+}
+
+
+def _normalize_config(config: dict) -> dict:
+    """Normalize configuration by replacing aliases with canonical keys.
+
+    Args:
+        config: Raw configuration dictionary
+
+    Returns:
+        Normalized configuration with aliases replaced
+    """
+    normalized = {}
+    for key, value in config.items():
+        # Replace alias with canonical name if it exists
+        canonical_key = KEY_ALIASES.get(key, key)
+        normalized[canonical_key] = value
+    return normalized
 
 
 def _load_config(filepath: Path) -> dict | list[str]:
@@ -49,8 +71,10 @@ def _validate_required_keys(config: dict) -> list[str]:
 def _validate_unknown_keys(config: dict) -> list[str]:
     """Check for unknown keys."""
     errors = []
+    # Accept both canonical keys and their aliases
+    all_valid_keys = VALID_KEYS | set(KEY_ALIASES.keys())
     for key in config:
-        if key not in VALID_KEYS:
+        if key not in all_valid_keys:
             errors.append(f"Unknown key: {key}")
     return errors
 
@@ -130,14 +154,19 @@ def validate_rhiza_config(filepath: Path) -> list[str]:
         List of error messages (empty if valid)
     """
     # Load configuration
-    config = _load_config(filepath)
-    if isinstance(config, list):
-        return config
+    raw_config = _load_config(filepath)
+    if isinstance(raw_config, list):
+        return raw_config
+
+    # Validate unknown keys on raw config (before normalization)
+    errors = []
+    errors.extend(_validate_unknown_keys(raw_config))
+
+    # Normalize aliases for subsequent validation
+    config = _normalize_config(raw_config)
 
     # Validate all aspects
-    errors = []
     errors.extend(_validate_required_keys(config))
-    errors.extend(_validate_unknown_keys(config))
     errors.extend(_validate_include_or_templates(config))
     errors.extend(_validate_template_repository(config))
     errors.extend(_validate_template_branch(config))
