@@ -12,7 +12,7 @@ import yaml
 REQUIRED_KEYS = {"template-repository", "template-branch"}
 OPTIONAL_KEYS = {"include", "exclude", "templates"}
 VALID_KEYS = REQUIRED_KEYS | OPTIONAL_KEYS
-# Aliases for backward compatibility
+# Alternative key names
 KEY_ALIASES = {
     "repository": "template-repository",
     "ref": "template-branch",
@@ -161,7 +161,7 @@ def validate_rhiza_config(filepath: Path) -> list[str]:
     # Validate unknown keys on raw config (before normalization)
     errors = []
     errors.extend(_validate_unknown_keys(raw_config))
-    
+
     # Normalize aliases for subsequent validation
     config = _normalize_config(raw_config)
 
