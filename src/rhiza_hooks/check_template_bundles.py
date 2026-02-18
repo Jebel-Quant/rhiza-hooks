@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen
@@ -62,7 +62,7 @@ def _validate_top_level_fields(data: dict[Any, Any]) -> list[str]:
 
 def _validate_bundle_structure(
     bundle_name: str,
-    bundle_config: dict[Any, Any] | object,
+    bundle_config: Any,
     bundle_names: set[str],
 ) -> list[str]:
     """Validate a single bundle's structure and dependencies."""
@@ -101,7 +101,7 @@ def _validate_bundle_structure(
     return errors
 
 
-def _validate_examples(examples: dict[Any, Any] | object, bundle_names: set[str]) -> list[str]:
+def _validate_examples(examples: Any, bundle_names: set[str]) -> list[str]:
     """Validate examples section."""
     errors = []
 
@@ -217,7 +217,7 @@ def _fetch_remote_bundles(repo: str, branch: str) -> tuple[bool, dict[Any, Any] 
         return False, [f"Invalid URL scheme: {parsed.scheme}. Only https is allowed."]
 
     try:
-        with urlopen(url, timeout=10) as response:  # nosec B310
+        with urlopen(url, timeout=10) as response:  # noqa: S310  # nosec B310
             content = response.read()
     except HTTPError as e:
         if e.code == 404:
@@ -256,12 +256,10 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
     success, data_or_errors = _load_yaml_file(bundles_path)
     if not success:
         # Type narrowing: when success is False, data_or_errors is list[str]
-        assert isinstance(data_or_errors, list)
-        return False, data_or_errors
+        return False, cast(list[str], data_or_errors)
 
     # Type narrowing: when success is True, data_or_errors is dict[Any, Any]
-    assert isinstance(data_or_errors, dict)
-    data = data_or_errors
+    data = cast(dict[Any, Any], data_or_errors)
 
     # Validate top-level fields
     errors = _validate_top_level_fields(data)
@@ -341,13 +339,12 @@ def _validate_remote_bundles(
     success, data_or_errors = _fetch_remote_bundles(template_repo, template_branch)
     if not success:
         print("\n✗ Failed to fetch template bundles:")
-        assert isinstance(data_or_errors, list)
-        for error in data_or_errors:
+        errors = cast(list[str], data_or_errors)
+        for error in errors:
             print(f"  - {error}")
-        return None, data_or_errors
+        return None, errors
 
-    assert isinstance(data_or_errors, dict)
-    data = data_or_errors
+    data = cast(dict[Any, Any], data_or_errors)
 
     # Validate top-level structure
     errors = _validate_top_level_fields(data)

@@ -28,7 +28,7 @@ def get_make_help_output() -> str | None:
     """
     try:
         result = subprocess.run(  # nosec B603 B607
-            ["make", "help"],
+            ["make", "help"],  # noqa: S607
             capture_output=True,
             text=True,
             check=True,
