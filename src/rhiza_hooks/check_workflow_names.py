@@ -42,10 +42,7 @@ def check_file(filepath: str) -> bool:
 
     prefix = "(RHIZA) "
     # Remove prefix if present to verify the rest of the string
-    if name.startswith(prefix):
-        clean_name = name[len(prefix) :]
-    else:
-        clean_name = name
+    clean_name = name[len(prefix) :] if name.startswith(prefix) else name
 
     expected_name = f"{prefix}{clean_name.upper()}"
 
