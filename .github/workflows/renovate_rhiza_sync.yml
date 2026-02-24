@@ -1,4 +1,4 @@
-name: Renovate Rhiza Template Sync
+name: "(RHIZA) RENOVATE RHIZA TEMPLATE SYNC"
 # Automatically sync rhiza template files when Renovate updates .rhiza/template.yml
 
 on:
