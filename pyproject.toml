@@ -8,6 +8,7 @@ version = "0.3.0"
 description = "Pre-commit hooks for rhiza projects"
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [
     { name = "Harry Campion" },
