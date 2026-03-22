@@ -1,3 +1,5 @@
 """Pre-commit hooks for rhiza projects."""
 
-__version__ = "0.1.6"
+import importlib.metadata
+
+__version__ = importlib.metadata.version("rhiza-hooks")
