@@ -384,6 +384,8 @@ def _validate_templates_in_bundles(templates_set: set[str], bundles: dict[Any, A
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description="Validate template-bundles.yml from remote template repository")
     parser.add_argument(
         "filenames",
