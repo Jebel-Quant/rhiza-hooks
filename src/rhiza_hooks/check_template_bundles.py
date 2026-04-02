@@ -19,6 +19,7 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import io
 import sys
 from pathlib import Path
 from typing import Any, cast
@@ -384,6 +385,8 @@ def _validate_templates_in_bundles(templates_set: set[str], bundles: dict[Any, A
 
 def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description="Validate template-bundles.yml from remote template repository")
     parser.add_argument(
         "filenames",
