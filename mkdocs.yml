@@ -1,0 +1,24 @@
+INHERIT: docs/mkdocs-base.yml
+
+site_name: Rhiza Hooks
+site_url: https://jebel-quant.github.io/rhiza-hooks/
+repo_url: https://github.com/Jebel-Quant/rhiza-hooks
+repo_name: Jebel-Quant/rhiza-hooks
+
+docs_dir: docs
+
+nav:
+  - Home: index.md
+  - Guides:
+      - Quick Reference: guides/QUICK_REFERENCE.md
+      - Extending Rhiza: guides/EXTENDING_RHIZA.md
+  - Reference:
+      - Architecture: reference/ARCHITECTURE.md
+      - Dependencies: reference/DEPENDENCIES.md
+      - Glossary: reference/GLOSSARY.md
+      - Shell Scripts: reference/SHELL_SCRIPTS.md
+      - Tools Reference: reference/TOOLS_REFERENCE.md
+  - Development:
+      - Tests: development/TESTS.md
+  - ADR:
+      - Template: adr/0000-adr-template.md
