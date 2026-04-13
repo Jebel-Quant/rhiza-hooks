@@ -14,6 +14,7 @@ BOOK_OUTPUT ?= _book
 # Projects can extend the package list without editing this template, e.g.:
 #   MKDOCS_EXTRA_PACKAGES = --with "mkdocs-graphviz"
 MKDOCS_EXTRA_PACKAGES ?=
+MKDOCS_OUTPUT ?= _site
 
 # Detect mkdocs config: prefer root-level, fall back to docs/mkdocs-base.yml
 _MKDOCS_CFG := $(if $(wildcard mkdocs.yml),mkdocs.yml,$(if $(wildcard docs/mkdocs-base.yml),docs/mkdocs-base.yml,))
@@ -58,6 +59,12 @@ _book-notebooks:
 	    echo "- [$$name]($$name.html)" >> docs/notebooks.md; \
 	  done; \
 	fi
+
+mkdocs-build: ## build the MkDocs site into $(MKDOCS_OUTPUT)
+	@${UVX_BIN} --with mkdocs-material $(MKDOCS_EXTRA_PACKAGES) mkdocs build $(if $(_MKDOCS_CFG),-f $(_MKDOCS_CFG)) -d $(MKDOCS_OUTPUT)
+
+mkdocs-serve: ## serve MkDocs locally for live preview
+	@${UVX_BIN} --with mkdocs-material $(MKDOCS_EXTRA_PACKAGES) mkdocs serve $(if $(_MKDOCS_CFG),-f $(_MKDOCS_CFG))
 
 book:: _book-reports _book-notebooks ## compile the companion book via MkDocs
 	@$(MAKE) mkdocs-build MKDOCS_OUTPUT=$(BOOK_OUTPUT)
