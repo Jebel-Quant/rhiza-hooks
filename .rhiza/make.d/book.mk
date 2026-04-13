@@ -1,6 +1,6 @@
 ## book.mk - Book-building targets (MkDocs-based)
 
-.PHONY: mkdocs-build book test benchmark stress hypothesis-test _book-reports _book-notebooks
+.PHONY: book mkdocs-build test benchmark stress hypothesis-test _book-reports _book-notebooks mkdocs-serve mkdocs
 
 # No-op stubs — overridden by test.mk / bench.mk when present
 test:: ; @:
@@ -8,13 +8,15 @@ benchmark:: ; @:
 stress:: ; @:
 hypothesis-test:: ; @:
 
-# No-op stub — overridden by docs.mk when present
-mkdocs-build:: install-uv
-	@if [ ! -f "mkdocs.yml" ]; then \
-	  printf "${BLUE}[INFO] No mkdocs.yml found, skipping MkDocs${RESET}\n"; \
-	fi
-
 BOOK_OUTPUT ?= _book
+
+# Additional uvx --with packages to inject into mkdocs build and serve.
+# Projects can extend the package list without editing this template, e.g.:
+#   MKDOCS_EXTRA_PACKAGES = --with "mkdocs-graphviz"
+MKDOCS_EXTRA_PACKAGES ?=
+
+# Detect mkdocs config: prefer root-level, fall back to docs/mkdocs-base.yml
+_MKDOCS_CFG := $(if $(wildcard mkdocs.yml),mkdocs.yml,$(if $(wildcard docs/mkdocs-base.yml),docs/mkdocs-base.yml,))
 
 ##@ Book
 
