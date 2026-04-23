@@ -18,5 +18,17 @@ nav:
       - Glossary: reference/GLOSSARY.md
       - Shell Scripts: reference/SHELL_SCRIPTS.md
       - Tools Reference: reference/TOOLS_REFERENCE.md
+  - API Reference:
+      - Overview: api-reference/index.md
+      - check_makefile_targets: api-reference/check_makefile_targets.md
+      - check_python_version: api-reference/check_python_version.md
+      - check_rhiza_config: api-reference/check_rhiza_config.md
+      - check_template_bundles: api-reference/check_template_bundles.md
+      - check_workflow_names: api-reference/check_workflow_names.md
+      - update_readme_help: api-reference/update_readme_help.md
+  - Reports:
+      - Test Report: reports/html-report/report.html
+      - Coverage Report: reports/html-coverage/index.html
+      - Hypothesis Report: reports/hypothesis/report.html
   - Development:
       - Tests: development/TESTS.md
