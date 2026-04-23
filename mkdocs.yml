@@ -20,5 +20,3 @@ nav:
       - Tools Reference: reference/TOOLS_REFERENCE.md
   - Development:
       - Tests: development/TESTS.md
-  - ADR:
-      - Template: adr/0000-adr-template.md
