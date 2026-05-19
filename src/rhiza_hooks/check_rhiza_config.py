@@ -16,6 +16,7 @@ VALID_KEYS = REQUIRED_KEYS | OPTIONAL_KEYS
 KEY_ALIASES = {
     "repository": "template-repository",
     "ref": "template-branch",
+    "profiles": "templates",
 }
 
 
