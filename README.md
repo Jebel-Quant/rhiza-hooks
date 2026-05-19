@@ -1,8 +1,10 @@
 # 🪝 Rhiza Hooks
 
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://github.com/jebel-quant/rhiza-hooks)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CodeFactor](https://www.codefactor.io/repository/github/jebel-quant/rhiza-hooks/badge/main)](https://www.codefactor.io/repository/github/jebel-quant/rhiza-hooks/overview/main)
+[![Rhiza](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjebel-quant%2Frhiza-hooks%2Fmain%2F.rhiza%2Ftemplate.yml&query=%24.ref&label=rhiza)](https://github.com/jebel-quant/rhiza)
 [![Coverage](https://jebel-quant.github.io/rhiza-hooks/coverage-badge.svg)](https://jebel-quant.github.io/rhiza-hooks/reports/html-coverage/)
 
 Custom [pre-commit](https://pre-commit.com/) hooks for projects using [Rhiza](https://github.com/Jebel-Quant/rhiza) templates.
