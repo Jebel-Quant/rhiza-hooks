@@ -53,5 +53,5 @@ pyyaml = "yaml"
 
 [dependency-groups]
 dev = [
-    "types-pyyaml>=6.0.12.20260510",
+    "types-pyyaml>=6.0.12.20260518",
 ]
