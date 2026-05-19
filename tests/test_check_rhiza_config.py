@@ -259,6 +259,18 @@ class TestValidateRhizaConfig:
         errors = validate_rhiza_config(config)
         assert errors == []
 
+    def test_profiles_alias_accepted(self, temp_config):
+        """Test that 'profiles' alias is accepted for 'templates'."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+            profiles:
+              - core
+              - github
+        """)
+        errors = validate_rhiza_config(config)
+        assert errors == []
+
     def test_alias_with_invalid_format(self, temp_config):
         """Test that validation still works with aliases."""
         config = temp_config("""
@@ -280,6 +292,16 @@ class TestValidateRhizaConfig:
         """)
         errors = validate_rhiza_config(config)
         assert errors == []
+
+    def test_profiles_alias_not_list(self, temp_config):
+        """Test that 'profiles' alias still validates list type."""
+        config = temp_config("""
+            template-repository: owner/repo
+            template-branch: main
+            profiles: core
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("templates must be a list" in e for e in errors)
 
 
 class TestMain:
