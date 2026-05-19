@@ -3,6 +3,6 @@ ref: "v0.10.7"
 
 templates:
   - github
-  - tests
+  - github-book
+  - github-tests
   - legal
-  - book
