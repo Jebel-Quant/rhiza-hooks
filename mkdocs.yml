@@ -9,15 +9,6 @@ docs_dir: docs
 
 nav:
   - Home: index.md
-  - Guides:
-      - Quick Reference: guides/QUICK_REFERENCE.md
-      - Extending Rhiza: guides/EXTENDING_RHIZA.md
-  - Reference:
-      - Architecture: reference/ARCHITECTURE.md
-      - Dependencies: reference/DEPENDENCIES.md
-      - Glossary: reference/GLOSSARY.md
-      - Shell Scripts: reference/SHELL_SCRIPTS.md
-      - Tools Reference: reference/TOOLS_REFERENCE.md
   - API Reference:
       - Overview: api-reference/index.md
       - check_makefile_targets: api-reference/check_makefile_targets.md
@@ -30,5 +21,3 @@ nav:
       - Test Report: reports/html-report/report.html
       - Coverage Report: reports/html-coverage/index.html
       - Hypothesis Report: reports/hypothesis/report.html
-  - Development:
-      - Tests: development/TESTS.md
