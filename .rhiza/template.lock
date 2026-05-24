@@ -6,8 +6,6 @@ include: []
 exclude: []
 templates:
 - github
-- github-book
-- github-tests
 - legal
 files:
 - .bandit
@@ -93,5 +91,7 @@ files:
 - docs/mkdocs-base.yml
 - pytest.ini
 - ruff.toml
-synced_at: '2026-05-22T06:49:34Z'
+profiles:
+- github-project
+synced_at: '2026-05-24T08:10:57Z'
 strategy: merge
