@@ -11,7 +11,7 @@ This module tests the command-line entry points of all rhiza-hooks scripts:
 
 from __future__ import annotations
 
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -78,7 +78,7 @@ class TestScriptAvailability:
 
         module_name = module_mapping[script_name]
         # Just verify the module is importable
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-c", f"import {module_name}"],
             capture_output=True,
             text=True,
@@ -101,7 +101,7 @@ class TestScriptAvailability:
 
         module_name = module_mapping[script_name]
         # Verify the module has a main function
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-c", f"import {module_name}; assert hasattr({module_name}, 'main')"],
             capture_output=True,
             text=True,
@@ -117,7 +117,7 @@ class TestCheckWorkflowNames:
         """Test with valid workflow file."""
         project = mock_project({".github/workflows/test.yml": 'name: "(RHIZA) TEST WORKFLOW"\non: push\n'})
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_workflow_names", str(project / ".github/workflows/test.yml")],
             capture_output=True,
             text=True,
@@ -130,7 +130,7 @@ class TestCheckWorkflowNames:
         """Test with workflow missing (RHIZA) prefix."""
         project = mock_project({".github/workflows/test.yml": 'name: "Test Workflow"\non: push\n'})
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_workflow_names", str(project / ".github/workflows/test.yml")],
             capture_output=True,
             text=True,
@@ -151,7 +151,7 @@ bundles: []
 """
         project = mock_project({".rhiza/rhiza.yml": config})
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_rhiza_config"],
             cwd=project,
             capture_output=True,
@@ -165,7 +165,7 @@ bundles: []
         # Create project without config file to test missing config handling
         project = mock_project({"dummy.txt": "test"})
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_rhiza_config"],
             cwd=project,
             capture_output=True,
@@ -190,7 +190,7 @@ test: ## Run tests
 """
         project = mock_project({"Makefile": makefile})
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_makefile_targets"],
             cwd=project,
             capture_output=True,
@@ -217,7 +217,7 @@ requires-python = ">=3.11"
             }
         )
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_python_version"],
             cwd=project,
             capture_output=True,
@@ -239,7 +239,7 @@ requires-python = ">=3.11"
             }
         )
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_python_version"],
             cwd=project,
             capture_output=True,
@@ -270,7 +270,7 @@ bundles:
             }
         )
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
             cwd=project,
             capture_output=True,
@@ -288,7 +288,7 @@ bundles:
 """
         project = mock_project({".rhiza/template.yml": template})
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
             cwd=project,
             capture_output=True,
@@ -323,7 +323,7 @@ test: ## Run tests
             }
         )
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.update_readme_help"],
             cwd=project,
             capture_output=True,
@@ -349,7 +349,7 @@ class TestScriptsInCurrentProject:
 
         # Just verify the script runs without crashing on actual workflows
         for workflow in workflows:
-            result = subprocess.run(
+            result = subprocess.run(  # nosec B603
                 [sys.executable, "-m", "rhiza_hooks.check_workflow_names", str(workflow)],
                 capture_output=True,
                 text=True,
@@ -360,7 +360,7 @@ class TestScriptsInCurrentProject:
 
     def test_check_rhiza_config_on_project(self, project_root: Path) -> None:
         """Test check-rhiza-config on actual project."""
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_rhiza_config"],
             cwd=project_root,
             capture_output=True,
@@ -372,7 +372,7 @@ class TestScriptsInCurrentProject:
 
     def test_check_makefile_targets_on_project(self, project_root: Path) -> None:
         """Test check-makefile-targets on actual project."""
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_makefile_targets"],
             cwd=project_root,
             capture_output=True,
@@ -384,7 +384,7 @@ class TestScriptsInCurrentProject:
 
     def test_check_python_version_on_project(self, project_root: Path) -> None:
         """Test check-python-version-consistency on actual project."""
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_python_version"],
             cwd=project_root,
             capture_output=True,
@@ -396,7 +396,7 @@ class TestScriptsInCurrentProject:
 
     def test_check_template_bundles_on_project(self, project_root: Path) -> None:
         """Test check-template-bundles on actual project."""
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
             cwd=project_root,
             capture_output=True,
@@ -427,7 +427,7 @@ class TestScriptErrorHandling:
         module_name = module_mapping[script_name]
         nonexistent = tmp_path / "nonexistent"
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", module_name],
             cwd=nonexistent if nonexistent.exists() else tmp_path,
             capture_output=True,
@@ -453,7 +453,7 @@ class TestScriptErrorHandling:
         module_name = module_mapping.get(script_name, script_name.replace("-", "_"))
         module_path = f"rhiza_hooks.{module_name}"
 
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-c", f"import {module_path}"],
             capture_output=True,
             text=True,
