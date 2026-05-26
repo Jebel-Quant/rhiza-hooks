@@ -727,7 +727,7 @@ class TestModuleExecution:
 
     def test_module_executes_main(self, tmp_path, monkeypatch):
         """Test that the module can be executed directly."""
-        import subprocess
+        import subprocess  # nosec B404
         import sys
 
         # Create a valid template.yml with templates field
@@ -771,7 +771,7 @@ class TestModuleExecution:
         monkeypatch.chdir(tmp_path)
 
         # Execute the mock script
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, str(mock_script)],
             capture_output=True,
             text=True,
@@ -1132,7 +1132,7 @@ class TestMainNameBlock:
 
     def test_main_name_block_execution(self, tmp_path):
         """Test that the module can be run as __main__."""
-        import subprocess
+        import subprocess  # nosec B404
         import sys
 
         # Create a temporary directory with a .rhiza/template.yml that won't trigger validation
@@ -1142,7 +1142,7 @@ class TestMainNameBlock:
         template_file.write_text("# No templates field")
 
         # Run the module as __main__ using python -m
-        result = subprocess.run(
+        result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
             cwd=tmp_path,
             capture_output=True,
