@@ -37,6 +37,11 @@ def parse_version(version_str: str) -> tuple[int, int]:
 
     Returns:
         Tuple of (major, minor) integers
+
+    >>> parse_version("3.11")
+    (3, 11)
+    >>> parse_version("3.12")
+    (3, 12)
     """
     parts = version_str.split(".")
     return (int(parts[0]), int(parts[1]))
