@@ -55,3 +55,11 @@ pyyaml = "yaml"
 dev = [
     "types-pyyaml>=6.0.12.20260518",
 ]
+test = [
+    "pytest>=8.0",
+]
+lint = [
+    "ruff>=0.4,<1.0",
+    "interrogate>=1.7,<2.0",
+    "pre-commit>=3.7,<5.0",
+]

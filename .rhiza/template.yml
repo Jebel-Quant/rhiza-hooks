@@ -1,8 +1,13 @@
 repository: "jebel-quant/rhiza"
-ref: "v0.17.0"
+ref: "v0.18.2"
 
 profiles:
   - github-project
 
 templates:
   - legal
+
+exclude:
+  - .rhiza/tests/api/test_gh_aw_targets.py
+  - .rhiza/tests/api/test_github_targets.py
+  - .rhiza/tests/integration/test_lfs.py
