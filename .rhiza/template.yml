@@ -6,3 +6,8 @@ profiles:
 
 templates:
   - legal
+
+exclude:
+  - .rhiza/tests/api/test_gh_aw_targets.py
+  - .rhiza/tests/api/test_github_targets.py
+  - .rhiza/tests/integration/test_lfs.py
