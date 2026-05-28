@@ -55,3 +55,6 @@ pyyaml = "yaml"
 dev = [
     "types-pyyaml>=6.0.12.20260518",
 ]
+test = [
+    "pytest>=8.0",
+]
