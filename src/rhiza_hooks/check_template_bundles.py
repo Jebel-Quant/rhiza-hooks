@@ -196,7 +196,7 @@ def _get_templates_from_config(config_path: Path) -> set[str] | None:
     if not isinstance(templates, list):
         return None
 
-    return set(templates)
+    return cast(set[str], set(templates))
 
 
 def _fetch_remote_bundles(repo: str, branch: str) -> tuple[bool, dict[Any, Any] | list[str]]:
@@ -272,7 +272,7 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
     if not isinstance(bundles, dict):
         return False, ["'bundles' must be a dictionary"]
 
-    bundle_names = set(bundles.keys())
+    bundle_names = cast(set[str], set(bundles.keys()))
 
     # If templates_to_check is specified, verify they exist
     if templates_to_check is not None:
@@ -323,7 +323,7 @@ def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any] | None,
         print(f"No templates field in {config_path}, skipping bundle validation")
         return None, None
 
-    return config, set(templates_to_check)
+    return config, cast(set[str], set(templates_to_check))
 
 
 def _validate_remote_bundles(
@@ -367,7 +367,7 @@ def _validate_remote_bundles(
 def _validate_templates_in_bundles(templates_set: set[str], bundles: dict[Any, Any], config_path: Path) -> list[str]:
     """Validate that requested templates exist and have valid structure."""
     errors = []
-    bundle_names = set(bundles.keys())
+    bundle_names = cast(set[str], set(bundles.keys()))
 
     # Check if templates exist
     for template in templates_set:
