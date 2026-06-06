@@ -1,9 +1,12 @@
-sha: fc0df45f1494fb4c54f40f430da7ae99f56b539a
+sha: ae79c6f0729b21239655abe390269be9171f907d
 repo: jebel-quant/rhiza
 host: github
-ref: v0.18.2
+ref: v0.18.8
 include: []
-exclude: []
+exclude:
+- .rhiza/tests/api/test_gh_aw_targets.py
+- .rhiza/tests/api/test_github_targets.py
+- .rhiza/tests/integration/test_lfs.py
 templates:
 - legal
 files:
@@ -12,8 +15,6 @@ files:
 - .github/DISCUSSION_TEMPLATE/q-and-a.yml
 - .github/ISSUE_TEMPLATE/bug_report.yml
 - .github/ISSUE_TEMPLATE/feature_request.yml
-- .github/actions/configure-git-auth/README.md
-- .github/actions/configure-git-auth/action.yml
 - .github/dependabot.yml
 - .github/pull_request_template.md
 - .github/release.yml
@@ -57,40 +58,27 @@ files:
 - .rhiza/semgrep.yml
 - .rhiza/tests/README.md
 - .rhiza/tests/api/conftest.py
-- .rhiza/tests/api/test_ci_workflow.py
-- .rhiza/tests/api/test_gh_aw_targets.py
 - .rhiza/tests/api/test_github_targets.py
+- .rhiza/tests/api/test_make_variable_overrides.py
 - .rhiza/tests/api/test_makefile_api.py
 - .rhiza/tests/api/test_makefile_targets.py
-- .rhiza/tests/api/test_release_workflow.py
-- .rhiza/tests/api/test_weekly_workflow.py
 - .rhiza/tests/conftest.py
-- .rhiza/tests/deps/test_dependency_health.py
 - .rhiza/tests/integration/test_book_targets.py
 - .rhiza/tests/integration/test_docs_targets.py
-- .rhiza/tests/integration/test_lfs.py
-- .rhiza/tests/integration/test_sbom.py
 - .rhiza/tests/integration/test_test_mk.py
 - .rhiza/tests/integration/test_virtual_env_unexport.py
-- .rhiza/tests/security/test_security_patterns.py
 - .rhiza/tests/shell/test_scripts.sh
 - .rhiza/tests/stress/README.md
 - .rhiza/tests/stress/__init__.py
 - .rhiza/tests/stress/conftest.py
-- .rhiza/tests/stress/test_git_stress.py
-- .rhiza/tests/stress/test_makefile_stress.py
-- .rhiza/tests/structure/test_lfs_structure.py
 - .rhiza/tests/structure/test_project_layout.py
+- .rhiza/tests/structure/test_pyproject.py
 - .rhiza/tests/structure/test_requirements.py
-- .rhiza/tests/structure/test_template_bundles.py
 - .rhiza/tests/sync/conftest.py
 - .rhiza/tests/sync/test_docstrings.py
 - .rhiza/tests/sync/test_readme_validation.py
-- .rhiza/tests/sync/test_rhiza_version.py
-- .rhiza/tests/sync/test_sync_schedule.py
 - .rhiza/tests/test_utils.py
 - .rhiza/tests/utils/test_git_repo_fixture.py
-- .rhiza/tests/utils/test_suppression_audit.py
 - .rhiza/utils/pip_audit_policy.py
 - .rhiza/utils/suppression_audit.py
 - LICENSE
@@ -101,10 +89,9 @@ files:
 - docs/development/TESTS.md
 - docs/index.md
 - docs/mkdocs-base.yml
-- pyproject.toml.template
 - pytest.ini
 - ruff.toml
 profiles:
 - github-project
-synced_at: '2026-05-28T13:25:53Z'
+synced_at: '2026-06-06T05:17:05Z'
 strategy: merge
