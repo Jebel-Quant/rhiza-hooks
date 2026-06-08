@@ -1,3 +1,14 @@
+## [0.5.1] - 2026-06-08
+
+### 💼 Other
+
+- Bump version 0.5.0 → 0.5.1
+
+### ⚙️ Miscellaneous Tasks
+
+- Update CHANGELOG.md for v0.5.0 [skip ci]
+- Update rhiza to v0.18.4 (#112)
+- Update rhiza to v0.18.8 (#115)
 ## [0.5.0] - 2026-05-28
 
 ### 💼 Other
