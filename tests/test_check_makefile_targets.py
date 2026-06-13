@@ -99,24 +99,21 @@ help:
         assert warnings == []
 
     def test_missing_some_targets(self, tmp_path: Path) -> None:
-        """Warns about missing recommended targets."""
+        """Warns about missing recommended targets with the exact message."""
         makefile = tmp_path / "Makefile"
         makefile.write_text("""
 install:
 	pip install .
 """)
         warnings = check_makefile(makefile)
-        assert len(warnings) == 1
-        assert "test" in warnings[0]
-        assert "fmt" in warnings[0]
-        assert "help" in warnings[0]
+        # Exact match pins the message and the ", " join separator (sorted order).
+        assert warnings == ["Missing recommended targets: fmt, help, test"]
 
     def test_file_not_found(self, tmp_path: Path) -> None:
-        """Returns error for missing file."""
+        """Returns the exact error for a missing file."""
         makefile = tmp_path / "nonexistent"
         warnings = check_makefile(makefile)
-        assert len(warnings) == 1
-        assert "not found" in warnings[0].lower()
+        assert warnings == [f"File not found: {makefile}"]
 
     def test_non_makefile_skips_target_check(self, tmp_path: Path) -> None:
         """Non-Makefile files don't get target recommendations."""
@@ -151,7 +148,8 @@ help:
 
         assert result == 0
         captured = capsys.readouterr()
-        assert "Missing recommended targets" in captured.out
+        # Exact stdout pins both the "{filename}:" header and the "  - {warning}" line.
+        assert captured.out == f"{makefile}:\n  - Missing recommended targets: fmt, help, test\n"
 
     def test_main_with_missing_targets_strict(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Main returns 1 with --strict when targets missing."""
@@ -166,6 +164,19 @@ help:
         """Main returns 0 when no files provided."""
         result = main([])
         assert result == 0
+
+    def test_help_text(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """--help renders the exact argparse description and option help strings."""
+        with pytest.raises(SystemExit) as exc_info:
+            main(["--help"])
+        assert exc_info.value.code == 0
+        out = capsys.readouterr().out
+        # Pin each literal exactly; the mutation engine wraps mutated literals in a
+        # sentinel, so asserting it is absent guarantees the rendered text is verbatim.
+        assert "XX" not in out
+        assert "Check Makefile for recommended targets" in out
+        assert "Filenames to check" in out
+        assert "Exit with error if recommended targets are missing" in out
 
 
 class TestModuleExecution:

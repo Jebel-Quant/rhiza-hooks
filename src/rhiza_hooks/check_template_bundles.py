@@ -400,7 +400,10 @@ def main(argv: list[str] | None = None) -> int:
 
     # Load and validate configuration
     config, templates_set = _load_and_validate_config(config_path)
-    if config is None or templates_set is None:
+    # pragma below: equivalent mutant — _load_and_validate_config returns (None, None)
+    # or (config, set) as a pair, so `config is None` and `templates_set is None` are
+    # always equal and `or`->`and` cannot change the outcome.
+    if config is None or templates_set is None:  # pragma: no mutate
         return 0
 
     # Get template repository and branch
@@ -430,5 +433,5 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no mutate
     sys.exit(main())

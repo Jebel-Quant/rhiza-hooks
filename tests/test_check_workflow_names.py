@@ -22,38 +22,65 @@ class TestCheckFile:
 
         assert check_file(str(workflow)) is True
 
-    def test_missing_prefix_updates_file(self, tmp_path: Path) -> None:
-        """File without (RHIZA) prefix is updated and returns False."""
+    def test_missing_prefix_updates_file(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """File without (RHIZA) prefix is rewritten exactly and the update is announced."""
         workflow = tmp_path / "workflow.yml"
         workflow.write_text("name: My Workflow\non: push\n")
 
         result = check_file(str(workflow))
 
         assert result is False
-        content = workflow.read_text()
-        assert "(RHIZA) MY WORKFLOW" in content
+        # Exact file content pins the rewritten `name:` line (and that nothing else changed).
+        assert workflow.read_text() == 'name: "(RHIZA) MY WORKFLOW"\non: push\n'
+        # Exact stdout pins the "Updating ..." message.
+        assert capsys.readouterr().out == (f"Updating {workflow}: name 'My Workflow' -> '(RHIZA) MY WORKFLOW'\n")
 
     def test_missing_name_field_returns_false(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-        """File without name field returns False with error message."""
+        """File without name field returns False with the exact error message."""
         workflow = tmp_path / "workflow.yml"
         workflow.write_text("on: push\njobs:\n  test:\n    runs-on: ubuntu-latest\n")
 
         result = check_file(str(workflow))
 
         assert result is False
-        captured = capsys.readouterr()
-        assert "missing 'name' field" in captured.out
+        assert capsys.readouterr().out == f"Error: {workflow} missing 'name' field.\n"
 
     def test_invalid_yaml_returns_false(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-        """Invalid YAML returns False with error message."""
+        """Invalid YAML returns False with the exact error prefix (no mutated wrapper)."""
         workflow = tmp_path / "workflow.yml"
         workflow.write_text("name: test\n  invalid: yaml: syntax:\n")
 
         result = check_file(str(workflow))
 
         assert result is False
-        captured = capsys.readouterr()
-        assert "Error parsing YAML" in captured.out
+        # startswith pins the leading literal so a wrapped/mutated message is rejected.
+        assert capsys.readouterr().out.startswith(f"Error parsing YAML {workflow}: ")
+
+    def test_first_line_not_name_is_preserved(self, tmp_path: Path) -> None:
+        """Only the top-level `name:` line is rewritten; a leading non-name line is kept.
+
+        Pins the `not replaced and line.startswith("name:")` conjunction: with `or` the
+        first line would be overwritten regardless of its content.
+        """
+        workflow = tmp_path / "workflow.yml"
+        workflow.write_text("on: push\nname: Foo\n")
+
+        check_file(str(workflow))
+
+        assert workflow.read_text() == 'on: push\nname: "(RHIZA) FOO"\n'
+
+    def test_only_first_name_line_replaced(self, tmp_path: Path) -> None:
+        """Replacement stops after the first `name:` line.
+
+        Pins `replaced = True`: if it were reset/falsy, a second `name:` line would be
+        rewritten too. PyYAML keeps the last duplicate key, so the expected name is FOO.
+        """
+        workflow = tmp_path / "workflow.yml"
+        workflow.write_text("name: Bar\nname: Foo\non: push\n")
+
+        check_file(str(workflow))
+
+        assert workflow.read_text() == 'name: "(RHIZA) FOO"\nname: Foo\non: push\n'
 
     def test_empty_file_returns_true(self, tmp_path: Path) -> None:
         """Empty YAML file returns True (nothing to check)."""

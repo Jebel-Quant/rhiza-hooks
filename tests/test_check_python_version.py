@@ -98,6 +98,30 @@ class TestVersionSatisfiesConstraint:
         """Unknown operator is permissive and returns True."""
         assert version_satisfies_constraint("3.12", "???", "3.11") is True
 
+    def test_lte_exact_match_is_true(self) -> None:
+        """<= is inclusive: 3.11 <= 3.11 holds (distinguishes <= from <)."""
+        assert version_satisfies_constraint("3.11", "<=", "3.11") is True
+
+    def test_lte_above_is_false(self) -> None:
+        """3.12 does not satisfy <=3.11 (pins the '<=' operator branch)."""
+        assert version_satisfies_constraint("3.12", "<=", "3.11") is False
+
+    def test_lt_exact_match_is_false(self) -> None:
+        """< is exclusive: 3.11 < 3.11 is false (distinguishes < from <=)."""
+        assert version_satisfies_constraint("3.11", "<", "3.11") is False
+
+    def test_lt_above_is_false(self) -> None:
+        """3.12 does not satisfy <3.11 (pins the '<' operator branch)."""
+        assert version_satisfies_constraint("3.12", "<", "3.11") is False
+
+    def test_empty_operator_unequal_is_false(self) -> None:
+        """Empty operator means equality: 3.10 does not equal 3.11 (pins the '' branch)."""
+        assert version_satisfies_constraint("3.10", "", "3.11") is False
+
+    def test_compatible_release_exact_match_is_true(self) -> None:
+        """~= is inclusive of the floor: 3.11 satisfies ~=3.11 (pins '>=' inside ~=)."""
+        assert version_satisfies_constraint("3.11", "~=", "3.11") is True
+
 
 class TestGetPythonVersionFile:
     """Tests for get_python_version_file function."""
@@ -137,6 +161,12 @@ class TestGetPyprojectRequiresPython:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\nrequires-python = "~=3.11"\n')
         assert get_pyproject_requires_python(tmp_path) == ("~=", "3.11")
+
+    def test_bare_version_defaults_to_equality_operator(self, tmp_path: Path) -> None:
+        """A bare version with no operator defaults to '==' (pins the default literal)."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nrequires-python = "3.11"\n')
+        assert get_pyproject_requires_python(tmp_path) == ("==", "3.11")
 
     def test_missing_file_returns_none(self, tmp_path: Path) -> None:
         """Returns None if file doesn't exist."""
@@ -189,9 +219,10 @@ class TestCheckVersionConsistency:
 
         errors = check_version_consistency(tmp_path)
 
-        assert len(errors) == 1
-        assert "3.10" in errors[0]
-        assert ">=3.11" in errors[0]
+        # Exact match pins both halves of the mismatch message.
+        assert errors == [
+            "Python version mismatch: .python-version has 3.10, but pyproject.toml requires-python is >=3.11"
+        ]
 
     def test_eq_constraint_not_satisfied(self, tmp_path: Path) -> None:
         """Error when .python-version doesn't match exact constraint."""
@@ -272,7 +303,11 @@ class TestMain:
             result = main([])
             assert result == 1
             captured = capsys.readouterr()
-            assert "ERROR" in captured.out
+            # Exact stdout pins the "ERROR: {error}" print format.
+            assert captured.out == (
+                "ERROR: Python version mismatch: .python-version has 3.10, "
+                "but pyproject.toml requires-python is >=3.11\n"
+            )
 
     def test_main_no_files_returns_zero(self, tmp_path: Path) -> None:
         """Returns 0 when no version files exist."""
@@ -289,6 +324,22 @@ class TestMain:
         with patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path):
             result = main(["some_file.py", "another.py"])
             assert result == 0
+
+    def test_unknown_flag_exits(self) -> None:
+        """An unknown flag is parsed and rejected (pins parse_args, not a no-op)."""
+        with pytest.raises(SystemExit):
+            main(["--definitely-not-a-flag"])
+
+    def test_help_text(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """--help renders the exact argparse description, arg name, and help strings."""
+        with pytest.raises(SystemExit) as exc_info:
+            main(["--help"])
+        assert exc_info.value.code == 0
+        out = capsys.readouterr().out
+        assert "XX" not in out  # no mutated literal survived into the rendered help
+        assert "Check Python version consistency" in out
+        assert "Filenames (ignored, checks repo root)" in out
+        assert "filenames" in out
 
 
 class TestModuleExecution:
