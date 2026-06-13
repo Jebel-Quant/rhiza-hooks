@@ -1,16 +1,17 @@
-# Mutation testing (advisory) — repo-owned, NOT part of the rhiza template.
+# Mutation testing — repo-owned, NOT part of the rhiza template.
 #
 # Purpose: Measure test *assertion strength* with mutmut. 100% line/branch
 #          coverage proves code is executed, not that a wrong result would be
 #          caught; surviving mutants reveal assertions that are too weak.
 #
-# This job is informational only:
-#   - The mutmut step is `continue-on-error`, so surviving mutants never fail CI.
-#   - The HTML report is uploaded as an artifact for inspection.
+# This is a blocking gate: the suite is at a 100% mutation score, so any
+# surviving mutant (genuinely-equivalent ones are marked `# pragma: no mutate`)
+# fails the job. The HTML report is uploaded as an artifact for inspection.
 #
-# Trigger: weekly schedule (mutation runs are slow) and manual dispatch.
+# Trigger: weekly schedule (mutation runs are slow) and manual dispatch — it
+# does NOT run per-PR, to avoid adding ~10 minutes to every pull request.
 
-name: "(RHIZA) MUTATION (ADVISORY)"
+name: "(RHIZA) MUTATION"
 
 permissions:
   contents: read
@@ -31,10 +32,9 @@ jobs:
           python-version: "3.12"
 
       # `make mutation` bootstraps uv, creates the venv, installs deps, then runs
-      # mutmut. continue-on-error keeps this advisory: surviving mutants are a
-      # signal to review, not a build failure.
-      - name: Run mutation tests (advisory)
-        continue-on-error: true
+      # mutmut. It exits non-zero when any mutant survives, which (without
+      # continue-on-error) fails the job — the blocking gate.
+      - name: Run mutation tests
         run: make mutation
 
       - name: Upload mutation report
