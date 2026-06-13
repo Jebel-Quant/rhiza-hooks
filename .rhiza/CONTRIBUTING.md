@@ -68,6 +68,20 @@ following:
 - Browse the open issues,
   and look for the issues tagged "help wanted".
 
+## Release process
+
+Releases are tag-driven. The expected flow is:
+
+1. Create and push a version tag (for example with `make release`).
+2. The tag triggers `.github/workflows/rhiza_release.yml`.
+3. The workflow builds artifacts, generates an SBOM, and drafts the GitHub release.
+4. The workflow then regenerates and commits `CHANGELOG.md` to the default branch.
+
+PyPI publishing is deliberately disabled in this repository. `pyproject.toml`
+includes the classifier `Private :: Do Not Upload` (`pyproject.toml:23`), and
+the release workflow treats that classifier as a kill-switch to skip the PyPI
+publish step. This is expected behavior, not a release failure.
+
 ## Commit conventions
 
 We use [Conventional Commits](https://www.conventionalcommits.org/). Every commit message must have a
