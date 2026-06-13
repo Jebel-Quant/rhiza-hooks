@@ -67,7 +67,10 @@ def check_file(filepath: str) -> bool:
                     if line.strip() == "" or line.startswith(" "):
                         continue
                     skipping_block = False  # pragma: no mutate  # equivalent: only ever read via `if skipping_block`
-                # Replace only the top-level name field (assumes it starts at beginning of line)
+                # Replace only the top-level workflow `name`. It is the sole `name:` key
+                # at column 0; job- and step-level `name:` keys are nested and therefore
+                # indented, so `startswith("name:")` never matches them. `not replaced`
+                # also stops us after the first match (a duplicate top-level key).
                 if not replaced and line.startswith("name:"):
                     f_write.write(f'name: "{expected_name}"\n')
                     replaced = True

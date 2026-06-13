@@ -20,7 +20,7 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/Jebel-Quant/rhiza-hooks
-    rev: v0.5.1  # Use the latest release
+    rev: v0.6.2  # Use the latest release
     hooks:
       # Migrated from rhiza
       - id: check-rhiza-workflow-names
@@ -39,6 +39,17 @@ pre-commit install
 ```
 
 ## 📋 Available Hooks
+
+| Hook | Triggers on | Autofixes? | Exit code |
+| --- | --- | --- | --- |
+| `check-rhiza-workflow-names` | `.github/workflows/rhiza_*.yml` | ✅ rewrites a wrong `name:` | `1` if any file was changed or has an error, else `0` |
+| `update-readme-help` | `Makefile` | ✅ rewrites `README.md` between markers | `1` if `README.md` was changed, else `0` (never fails when `make help` is unavailable) |
+| `check-rhiza-config` | `.rhiza/template.yml` | ❌ validates only | `1` if invalid, else `0` |
+| `check-makefile-targets` | `Makefile`, `.rhiza/*.mk` | ❌ warns only | `0` by default (warn-only); `1` on missing targets **only** with `--strict` |
+| `check-python-version-consistency` | `.python-version`, `pyproject.toml` | ❌ validates only | `1` on mismatch, else `0` |
+| `check-template-bundles` | `.rhiza/template.yml` | ❌ validates only (network) | `1` on validation failure, else `0`; `0` when `--offline` |
+
+Details for each hook follow.
 
 ### Migrated from Rhiza
 
@@ -96,11 +107,24 @@ Checks that your Makefile contains recommended targets for rhiza-based projects:
 
 By default, this hook only warns about missing targets. Use `--strict` to fail on missing targets.
 
+The expected set can be customised:
+
+- `--target NAME` (repeatable) **replaces** the default set with exactly the targets you list.
+- `--extend-target NAME` (repeatable) **adds** to the active set (defaults, or whatever `--target` selected).
+
 **Usage:**
 
 ```yaml
 - id: check-makefile-targets
   args: [--strict]  # Optional: fail if targets are missing
+
+# Require a custom set instead of the defaults:
+- id: check-makefile-targets
+  args: [--target, build, --target, lint]
+
+# Keep the defaults and also require `deploy`:
+- id: check-makefile-targets
+  args: [--extend-target, deploy]
 ```
 
 #### `check-python-version-consistency`
@@ -124,10 +148,13 @@ Validates templates specified in `.rhiza/template.yml` against the `template-bun
 
 **Triggers on:** Changes to `.rhiza/template.yml`
 
+This hook reaches the network on every run. A transient failure is retried once with a short backoff before giving up; pass `--offline` to skip the remote fetch entirely (the hook then passes without validating), which is useful for offline commits.
+
 **Usage:**
 
 ```yaml
 - id: check-template-bundles
+  # args: [--offline]  # Optional: skip the network fetch and pass
 ```
 
 ## 🛠️ Development
@@ -172,6 +199,29 @@ pre-commit try-repo . --all-files
 # Test a specific hook
 pre-commit try-repo . check-rhiza-config --files .rhiza/template.yml
 ```
+
+### Tests, coverage & mutation testing
+
+This project enforces **100% line/branch coverage** and a **100% mutation score** (via [`mutmut`](https://github.com/boxed/mutmut)). Both gates run in CI, but you can reproduce them locally before opening a PR:
+
+```bash
+make test       # Run the suite with coverage (fails under 100%)
+make mutation   # Run mutation testing (fails on any surviving mutant)
+```
+
+`make mutation` writes an HTML report to `_tests/mutation/html/index.html` — open it to see exactly which mutants survived and which test should have caught each one. `mutmut results` lists survivors on the command line.
+
+Coverage proves a line ran; mutation testing proves a wrong result would be *caught*. When a mutant survives, the fix is almost always a stronger assertion (pin the exact value/message rather than asserting "truthy").
+
+#### Equivalent mutants
+
+Occasionally a mutant is genuinely **equivalent** — it changes the code without changing any observable behaviour, so no test can kill it (e.g. swapping a boolean initializer that is only ever read in a truthiness check between `False` and `None`). Mark only these with a `# pragma: no mutate` comment that states *why* it is equivalent, e.g.:
+
+```python +RHIZA_SKIP
+failed = False  # pragma: no mutate  # equivalent: only ever read via `if failed`
+```
+
+Reach for the pragma sparingly and only after confirming no assertion can distinguish the mutant — a real, killable mutant should be killed with a test, not suppressed.
 
 ## 📄 License
 

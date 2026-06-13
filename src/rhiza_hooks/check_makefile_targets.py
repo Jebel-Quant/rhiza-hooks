@@ -41,11 +41,12 @@ def extract_targets(content: str) -> set[str]:
     return set(matches)
 
 
-def check_makefile(filepath: Path) -> list[str]:
+def check_makefile(filepath: Path, recommended: set[str] = RECOMMENDED_TARGETS) -> list[str]:
     """Check a Makefile for recommended targets.
 
     Args:
         filepath: Path to the Makefile
+        recommended: Target names that must be present (defaults to RECOMMENDED_TARGETS)
 
     Returns:
         List of warning messages (empty if all recommended targets exist)
@@ -61,11 +62,25 @@ def check_makefile(filepath: Path) -> list[str]:
 
     # Only check the main Makefile for recommended targets
     if filepath.name == "Makefile":
-        missing = RECOMMENDED_TARGETS - targets
+        missing = recommended - targets
         if missing:
             warnings.append(f"Missing recommended targets: {', '.join(sorted(missing))}")
 
     return warnings
+
+
+def resolve_recommended_targets(targets: list[str] | None, extra_targets: list[str] | None) -> set[str]:
+    """Build the effective set of required targets from the CLI options.
+
+    Args:
+        targets: Values of ``--target``. When non-empty they *replace* the defaults.
+        extra_targets: Values of ``--extend-target``, always *added* to the active set.
+
+    Returns:
+        The set of target names a Makefile is expected to define.
+    """
+    base = set(targets) if targets else set(RECOMMENDED_TARGETS)
+    return base | set(extra_targets or [])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -81,12 +96,26 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Exit with error if recommended targets are missing",
     )
+    parser.add_argument(
+        "--target",
+        action="append",
+        metavar="NAME",
+        help="Required target name; repeatable. When given, replaces the default set.",
+    )
+    parser.add_argument(
+        "--extend-target",
+        action="append",
+        metavar="NAME",
+        help="Extra required target name; repeatable. Added on top of the active set.",
+    )
     args = parser.parse_args(argv)
+
+    recommended = resolve_recommended_targets(args.target, args.extend_target)
 
     retval = 0
     for filename in args.filenames:
         filepath = Path(filename)
-        warnings = check_makefile(filepath)
+        warnings = check_makefile(filepath, recommended)
         if warnings:
             print(f"{filename}:")
             for warning in warnings:
