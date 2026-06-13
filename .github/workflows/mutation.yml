@@ -1,0 +1,46 @@
+# Mutation testing (advisory) — repo-owned, NOT part of the rhiza template.
+#
+# Purpose: Measure test *assertion strength* with mutmut. 100% line/branch
+#          coverage proves code is executed, not that a wrong result would be
+#          caught; surviving mutants reveal assertions that are too weak.
+#
+# This job is informational only:
+#   - The mutmut step is `continue-on-error`, so surviving mutants never fail CI.
+#   - The HTML report is uploaded as an artifact for inspection.
+#
+# Trigger: weekly schedule (mutation runs are slow) and manual dispatch.
+
+name: "(RHIZA) MUTATION (ADVISORY)"
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Monday 09:00 UTC (after the rhiza weekly job at 08:00)
+  workflow_dispatch:
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # `make mutation` bootstraps uv, creates the venv, installs deps, then runs
+      # mutmut. continue-on-error keeps this advisory: surviving mutants are a
+      # signal to review, not a build failure.
+      - name: Run mutation tests (advisory)
+        continue-on-error: true
+        run: make mutation
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: _tests/mutation/html
+          if-no-files-found: warn
