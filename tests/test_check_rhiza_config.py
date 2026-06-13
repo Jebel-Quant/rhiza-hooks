@@ -94,6 +94,18 @@ class TestValidateRhizaConfig:
         # With include present, should not have the "include or templates" error
         assert not any("At least one of 'include' or 'templates' must be present" in e for e in errors)
 
+    def test_missing_template_branch(self, temp_config):
+        """A config without template-branch is reported and skips branch validation."""
+        config = temp_config("""
+            template-repository: owner/repo
+            include:
+              - Makefile
+        """)
+        errors = validate_rhiza_config(config)
+        assert any("Missing required key: template-branch" in e for e in errors)
+        # The branch-format checks are skipped, so no "must be a string"/"cannot be empty".
+        assert not any("template-branch must be" in e or "template-branch cannot" in e for e in errors)
+
     def test_invalid_repository_format(self, temp_config):
         """Test that invalid repository format is reported."""
         config = temp_config("""
