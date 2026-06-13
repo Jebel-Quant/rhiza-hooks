@@ -23,8 +23,9 @@ import io
 import sys
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen
@@ -39,25 +40,36 @@ _FETCH_ATTEMPTS = 2
 _FETCH_BACKOFF_SECONDS = 1.0
 
 
-def _load_yaml_file(bundles_path: Path) -> tuple[bool, dict[Any, Any] | list[str]]:
-    """Load and parse YAML file.
+@dataclass(frozen=True)
+class BundlesDoc:
+    """Outcome of loading/parsing a template-bundles document.
 
-    Returns:
-        Tuple of (success, data_or_errors)
+    ``data`` holds the parsed mapping on success and is ``None`` on failure;
+    ``errors`` carries the failure messages (empty on success). The two are
+    mutually exclusive, so callers branch on ``data is None`` — which also lets
+    the type checker narrow ``data`` to ``dict`` on the success path without a
+    cast.
     """
+
+    data: dict[Any, Any] | None
+    errors: list[str]
+
+
+def _load_yaml_file(bundles_path: Path) -> BundlesDoc:
+    """Load and parse a local YAML file into a :class:`BundlesDoc`."""
     if not bundles_path.exists():
-        return False, [f"Template bundles file not found: {bundles_path}"]
+        return BundlesDoc(None, [f"Template bundles file not found: {bundles_path}"])
 
     try:
         with open(bundles_path) as f:
             data = yaml.safe_load(f)
     except yaml.YAMLError as e:
-        return False, [f"Invalid YAML: {e}"]
+        return BundlesDoc(None, [f"Invalid YAML: {e}"])
 
     if data is None:
-        return False, ["Template bundles file is empty"]
+        return BundlesDoc(None, ["Template bundles file is empty"])
 
-    return True, data
+    return BundlesDoc(data, [])
 
 
 def _validate_top_level_fields(data: dict[Any, Any]) -> list[str]:
@@ -191,27 +203,24 @@ def _get_templates_from_config(config_path: Path) -> set[str] | None:
     if not isinstance(templates, list):
         return None
 
-    return cast(set[str], set(templates))
+    template_names: set[str] = set(templates)
+    return template_names
 
 
-def _parse_remote_bundles(content: bytes) -> tuple[bool, dict[Any, Any] | list[str]]:
-    """Parse fetched template-bundles.yml content.
-
-    Returns:
-        Tuple of (success, data_or_errors)
-    """
+def _parse_remote_bundles(content: bytes) -> BundlesDoc:
+    """Parse fetched template-bundles.yml content into a :class:`BundlesDoc`."""
     try:
         data = yaml.safe_load(content)
     except yaml.YAMLError as e:
-        return False, [f"Invalid YAML in remote template bundles: {e}"]
+        return BundlesDoc(None, [f"Invalid YAML in remote template bundles: {e}"])
 
     if data is None:
-        return False, ["Remote template bundles file is empty"]
+        return BundlesDoc(None, ["Remote template bundles file is empty"])
 
     if not isinstance(data, dict):
-        return False, ["Remote template bundles must be a dictionary"]
+        return BundlesDoc(None, ["Remote template bundles must be a dictionary"])
 
-    return True, data
+    return BundlesDoc(data, [])
 
 
 def _fetch_remote_bundles(
@@ -219,7 +228,7 @@ def _fetch_remote_bundles(
     branch: str,
     attempts: int = _FETCH_ATTEMPTS,
     backoff: float = _FETCH_BACKOFF_SECONDS,
-) -> tuple[bool, dict[Any, Any] | list[str]]:
+) -> BundlesDoc:
     """Fetch template-bundles.yml from a remote GitHub repository.
 
     Transient network failures (`URLError`/`TimeoutError`) are retried up to
@@ -233,7 +242,7 @@ def _fetch_remote_bundles(
         backoff: Base seconds to sleep between attempts (multiplied by attempt number)
 
     Returns:
-        Tuple of (success, data_or_errors)
+        A :class:`BundlesDoc` with the parsed mapping on success, or errors.
     """
     # Construct GitHub raw content URL
     url = f"https://raw.githubusercontent.com/{repo}/{branch}/.rhiza/template-bundles.yml"
@@ -241,11 +250,11 @@ def _fetch_remote_bundles(
     # Validate URL scheme for security (bandit B310)
     parsed = urlparse(url)
     if parsed.scheme != "https":
-        return False, [f"Invalid URL scheme: {parsed.scheme}. Only https is allowed."]
+        return BundlesDoc(None, [f"Invalid URL scheme: {parsed.scheme}. Only https is allowed."])
 
-    # pragma below: equivalent mutant — the final `return False, errors` is only reached
-    # after a transient-error iteration has reassigned `errors` (success and HTTP errors
-    # return early), so for attempts >= 1 this initial value is never the one returned.
+    # pragma below: equivalent mutant — the final `return BundlesDoc(None, errors)` is only
+    # reached after a transient-error iteration has reassigned `errors` (success and HTTP
+    # errors return early), so for attempts >= 1 this initial value is never the one returned.
     errors: list[str] = []  # pragma: no mutate
     for attempt in range(attempts):
         try:
@@ -253,8 +262,8 @@ def _fetch_remote_bundles(
                 content = response.read()
         except HTTPError as e:
             if e.code == 404:
-                return False, [f"Template bundles file not found in repository {repo} (branch: {branch})"]
-            return False, [f"HTTP error fetching template bundles: {e.code} {e.reason}"]
+                return BundlesDoc(None, [f"Template bundles file not found in repository {repo} (branch: {branch})"])
+            return BundlesDoc(None, [f"HTTP error fetching template bundles: {e.code} {e.reason}"])
         except URLError as e:
             errors = [f"Error fetching template bundles from {url}: {e.reason}"]
         except TimeoutError:
@@ -265,7 +274,7 @@ def _fetch_remote_bundles(
         if attempt + 1 < attempts:
             time.sleep(backoff * (attempt + 1))
 
-    return False, errors
+    return BundlesDoc(None, errors)
 
 
 def _validate_selected_bundles(
@@ -287,7 +296,7 @@ def _validate_selected_bundles(
         List of error messages (empty if every requested template is valid).
     """
     errors: list[str] = []
-    bundle_names = cast(set[str], set(bundles.keys()))
+    bundle_names: set[str] = set(bundles.keys())
 
     for template in templates:
         if template not in bundle_names:
@@ -311,13 +320,11 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
         Tuple of (success, error_messages)
     """
     # Load YAML file
-    success, data_or_errors = _load_yaml_file(bundles_path)
-    if not success:
-        # Type narrowing: when success is False, data_or_errors is list[str]
-        return False, cast(list[str], data_or_errors)
-
-    # Type narrowing: when success is True, data_or_errors is dict[Any, Any]
-    data = cast(dict[Any, Any], data_or_errors)
+    loaded = _load_yaml_file(bundles_path)
+    if loaded.data is None:
+        return False, loaded.errors
+    # data is narrowed to dict[Any, Any] by the `is None` guard above.
+    data = loaded.data
 
     # Validate top-level fields
     errors = _validate_top_level_fields(data)
@@ -329,7 +336,7 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
     if not isinstance(bundles, dict):
         return False, ["'bundles' must be a dictionary"]
 
-    bundle_names = cast(set[str], set(bundles.keys()))
+    bundle_names: set[str] = set(bundles.keys())
 
     if templates_to_check is not None:
         # Validate only the requested subset (existence + structure).
@@ -375,7 +382,8 @@ def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any] | None,
         print(f"No templates field in {config_path}, skipping bundle validation")
         return None, None
 
-    return config, cast(set[str], set(templates_to_check))
+    templates_set: set[str] = set(templates_to_check)
+    return config, templates_set
 
 
 def _validate_remote_bundles(
@@ -389,15 +397,15 @@ def _validate_remote_bundles(
     print(f"Fetching template bundles from {template_repo} (branch: {template_branch})")
     print(f"Checking templates: {', '.join(sorted(templates_set))}")
 
-    success, data_or_errors = _fetch_remote_bundles(template_repo, template_branch)
-    if not success:
+    fetched = _fetch_remote_bundles(template_repo, template_branch)
+    if fetched.data is None:
         print("\n✗ Failed to fetch template bundles:")
-        errors = cast(list[str], data_or_errors)
-        for error in errors:
+        for error in fetched.errors:
             print(f"  - {error}")
-        return None, errors
+        return None, fetched.errors
 
-    data = cast(dict[Any, Any], data_or_errors)
+    # data is narrowed to dict[Any, Any] by the `is None` guard above.
+    data = fetched.data
 
     # Validate top-level structure
     errors = _validate_top_level_fields(data)
