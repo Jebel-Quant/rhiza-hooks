@@ -54,7 +54,7 @@ def check_file(filepath: str) -> bool:
             lines = f_read.readlines()
 
         with open(filepath, "w") as f_write:
-            replaced = False
+            replaced = False  # pragma: no mutate  # equivalent: only ever read via `not replaced`
             for line in lines:
                 # Replace only the top-level name field (assumes it starts at beginning of line)
                 if not replaced and line.startswith("name:"):
@@ -75,7 +75,7 @@ def check_file(filepath: str) -> bool:
 def main(argv: list[str] | None = None) -> int:
     """Execute the script."""
     files = argv if argv is not None else sys.argv[1:]
-    failed = False
+    failed = False  # pragma: no mutate  # equivalent: only ever read via `if failed`
     for f in files:
         if not check_file(f):
             failed = True

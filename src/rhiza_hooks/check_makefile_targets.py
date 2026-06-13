@@ -89,5 +89,5 @@ def main(argv: list[str] | None = None) -> int:
     return retval
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no mutate
     sys.exit(main())

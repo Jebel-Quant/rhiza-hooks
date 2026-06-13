@@ -80,7 +80,7 @@ class TestValidateRhizaConfig:
             template-branch: main
         """)
         errors = validate_rhiza_config(config)
-        assert any("At least one of 'include' or 'templates' must be present" in e for e in errors)
+        assert errors == ["At least one of 'include' or 'templates' must be present"]
 
     def test_missing_required_keys(self, temp_config):
         """Test that missing required keys are reported."""
@@ -90,9 +90,9 @@ class TestValidateRhizaConfig:
               - Makefile
         """)
         errors = validate_rhiza_config(config)
-        assert any("template-repository" in e for e in errors)
+        assert "Missing required key: template-repository" in errors
         # With include present, should not have the "include or templates" error
-        assert not any("At least one of 'include' or 'templates' must be present" in e for e in errors)
+        assert "At least one of 'include' or 'templates' must be present" not in errors
 
     def test_missing_template_branch(self, temp_config):
         """A config without template-branch is reported and skips branch validation."""
@@ -115,20 +115,20 @@ class TestValidateRhizaConfig:
               - Makefile
         """)
         errors = validate_rhiza_config(config)
-        assert any("owner/repo" in e for e in errors)
+        assert errors == ["template-repository should be in 'owner/repo' format, got: invalid-format"]
 
     def test_empty_include(self, temp_config):
-        """Test that empty include list is reported."""
+        """Test that empty include list is reported with the exact message."""
         config = temp_config("""
             template-repository: owner/repo
             template-branch: main
             include: []
         """)
         errors = validate_rhiza_config(config)
-        assert any("empty" in e.lower() for e in errors)
+        assert errors == ["include list cannot be empty"]
 
     def test_unknown_key(self, temp_config):
-        """Test that unknown keys are reported."""
+        """Test that unknown keys are reported with the exact message."""
         config = temp_config("""
             template-repository: owner/repo
             template-branch: main
@@ -137,34 +137,36 @@ class TestValidateRhizaConfig:
             unknown-key: value
         """)
         errors = validate_rhiza_config(config)
-        assert any("unknown-key" in e.lower() for e in errors)
+        assert errors == ["Unknown key: unknown-key"]
 
     def test_empty_file(self, temp_config):
-        """Test that empty file is reported."""
+        """Test that empty file is reported with the exact message."""
         config = temp_config("")
         errors = validate_rhiza_config(config)
-        assert len(errors) > 0
+        assert errors == ["Configuration file is empty"]
 
     def test_file_not_found(self, tmp_path: Path):
-        """Test that missing file is reported."""
+        """Test that missing file is reported with the exact message."""
         missing = tmp_path / "nonexistent.yml"
         errors = validate_rhiza_config(missing)
-        assert any("not found" in e.lower() for e in errors)
+        assert errors == [f"File not found: {missing}"]
 
     def test_invalid_yaml(self, temp_config):
-        """Test that invalid YAML is reported."""
+        """Test that invalid YAML is reported with the exact prefix."""
         config = temp_config("invalid: yaml: syntax:")
         errors = validate_rhiza_config(config)
-        assert any("yaml" in e.lower() for e in errors)
+        assert len(errors) == 1
+        # startswith pins the leading literal; the {e} tail is parser-defined.
+        assert errors[0].startswith("Invalid YAML: ")
 
     def test_non_dict_config(self, temp_config):
-        """Test that non-dict config is reported."""
+        """Test that non-dict config is reported with the exact message."""
         config = temp_config("- item1\n- item2")
         errors = validate_rhiza_config(config)
-        assert any("mapping" in e.lower() for e in errors)
+        assert errors == ["Configuration must be a YAML mapping"]
 
     def test_template_repository_not_string(self, temp_config):
-        """Test that non-string template-repository is reported."""
+        """Test that non-string template-repository is reported with the exact message."""
         config = temp_config("""
             template-repository: 123
             template-branch: main
@@ -172,10 +174,10 @@ class TestValidateRhizaConfig:
               - Makefile
         """)
         errors = validate_rhiza_config(config)
-        assert any("string" in e.lower() for e in errors)
+        assert errors == ["template-repository must be a string"]
 
     def test_template_branch_not_string(self, temp_config):
-        """Test that non-string template-branch is reported."""
+        """Test that non-string template-branch is reported with the exact message."""
         config = temp_config("""
             template-repository: owner/repo
             template-branch: 123
@@ -183,10 +185,10 @@ class TestValidateRhizaConfig:
               - Makefile
         """)
         errors = validate_rhiza_config(config)
-        assert any("string" in e.lower() for e in errors)
+        assert errors == ["template-branch must be a string"]
 
     def test_empty_template_branch(self, temp_config):
-        """Test that empty template-branch is reported."""
+        """Test that empty template-branch is reported with the exact message."""
         config = temp_config("""
             template-repository: owner/repo
             template-branch: ""
@@ -194,20 +196,20 @@ class TestValidateRhizaConfig:
               - Makefile
         """)
         errors = validate_rhiza_config(config)
-        assert any("empty" in e.lower() for e in errors)
+        assert errors == ["template-branch cannot be empty"]
 
     def test_include_not_list(self, temp_config):
-        """Test that non-list include is reported."""
+        """Test that non-list include is reported with the exact message."""
         config = temp_config("""
             template-repository: owner/repo
             template-branch: main
             include: just-a-string
         """)
         errors = validate_rhiza_config(config)
-        assert any("list" in e.lower() for e in errors)
+        assert errors == ["include must be a list"]
 
     def test_exclude_not_list(self, temp_config):
-        """Test that non-list exclude is reported."""
+        """Test that non-list exclude is reported with the exact message."""
         config = temp_config("""
             template-repository: owner/repo
             template-branch: main
@@ -216,27 +218,27 @@ class TestValidateRhizaConfig:
             exclude: just-a-string
         """)
         errors = validate_rhiza_config(config)
-        assert any("list" in e.lower() for e in errors)
+        assert errors == ["exclude must be a list or null"]
 
     def test_templates_not_list(self, temp_config):
-        """Test that non-list templates is reported."""
+        """Test that non-list templates is reported with the exact message."""
         config = temp_config("""
             template-repository: owner/repo
             template-branch: main
             templates: just-a-string
         """)
         errors = validate_rhiza_config(config)
-        assert any("list" in e.lower() for e in errors)
+        assert errors == ["templates must be a list"]
 
     def test_empty_templates(self, temp_config):
-        """Test that empty templates list is reported."""
+        """Test that empty templates list is reported with the exact message."""
         config = temp_config("""
             template-repository: owner/repo
             template-branch: main
             templates: []
         """)
         errors = validate_rhiza_config(config)
-        assert any("empty" in e.lower() for e in errors)
+        assert errors == ["templates list cannot be empty"]
 
     def test_alias_repository_accepted(self, temp_config):
         """Test that 'repository' alias is accepted for 'template-repository'."""
@@ -313,7 +315,7 @@ class TestValidateRhizaConfig:
             profiles: core
         """)
         errors = validate_rhiza_config(config)
-        assert any("templates must be a list" in e for e in errors)
+        assert errors == ["templates must be a list"]
 
 
 class TestMain:
@@ -331,17 +333,28 @@ class TestMain:
         assert result == 0
 
     def test_main_invalid_config(self, temp_config, capsys: pytest.CaptureFixture[str]) -> None:
-        """Main returns 1 for invalid config."""
+        """Main returns 1 for invalid config and prints the exact header + error lines."""
         config = temp_config("invalid")
         result = main([str(config)])
         assert result == 1
         captured = capsys.readouterr()
-        assert len(captured.out) > 0
+        # Exact stdout pins the "{filename}:" header and the "  - {error}" line.
+        assert captured.out == f"{config}:\n  - Configuration must be a YAML mapping\n"
 
     def test_main_no_files(self) -> None:
         """Main returns 0 when no files provided."""
         result = main([])
         assert result == 0
+
+    def test_help_text(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """--help renders the exact argparse description and option help strings."""
+        with pytest.raises(SystemExit) as exc_info:
+            main(["--help"])
+        assert exc_info.value.code == 0
+        out = capsys.readouterr().out
+        assert "XX" not in out  # no mutated literal survived into the rendered help
+        assert "Validate .rhiza/template.yml configuration" in out
+        assert "Filenames to check" in out
 
 
 class TestModuleExecution:

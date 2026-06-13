@@ -9,12 +9,16 @@ import pytest
 
 from rhiza_hooks.check_template_bundles import (
     _get_templates_from_config,
+    _load_and_validate_config,
     _load_yaml_file,
     _validate_bundle_structure,
     _validate_examples,
     _validate_metadata,
+    _validate_remote_bundles,
+    _validate_templates_in_bundles,
     _validate_top_level_fields,
     find_repo_root,
+    main,
     validate_template_bundles,
 )
 
@@ -59,25 +63,26 @@ class TestLoadYamlFile:
         assert data["version"] == 1.0
 
     def test_load_nonexistent_file(self, tmp_path: Path):
-        """Test loading non-existent file."""
+        """Test loading non-existent file reports the exact message."""
         bundles_file = tmp_path / "nonexistent.yml"
         success, errors = _load_yaml_file(bundles_file)
         assert success is False
-        assert any("not found" in e.lower() for e in errors)
+        assert errors == [f"Template bundles file not found: {bundles_file}"]
 
     def test_load_invalid_yaml(self, temp_bundles_file):
-        """Test loading invalid YAML."""
+        """Test loading invalid YAML reports the exact prefix."""
         bundles_file = temp_bundles_file("invalid: yaml: syntax:")
         success, errors = _load_yaml_file(bundles_file)
         assert success is False
-        assert any("yaml" in e.lower() for e in errors)
+        assert len(errors) == 1
+        assert errors[0].startswith("Invalid YAML: ")
 
     def test_load_empty_file(self, temp_bundles_file):
-        """Test loading empty file."""
+        """Test loading empty file reports the exact message."""
         bundles_file = temp_bundles_file("")
         success, errors = _load_yaml_file(bundles_file)
         assert success is False
-        assert any("empty" in e.lower() for e in errors)
+        assert errors == ["Template bundles file is empty"]
 
 
 class TestValidateTopLevelFields:
@@ -90,16 +95,16 @@ class TestValidateTopLevelFields:
         assert errors == []
 
     def test_missing_version(self):
-        """Test with missing version field."""
+        """Test with missing version field reports the exact message."""
         data = {"bundles": {}}
         errors = _validate_top_level_fields(data)
-        assert any("version" in e.lower() for e in errors)
+        assert errors == ["Missing required field: version"]
 
     def test_missing_bundles(self):
-        """Test with missing bundles field."""
+        """Test with missing bundles field reports the exact message."""
         data = {"version": 1.0}
         errors = _validate_top_level_fields(data)
-        assert any("bundles" in e.lower() for e in errors)
+        assert errors == ["Missing required field: bundles"]
 
     def test_missing_all_fields(self):
         """Test with all required fields missing."""
@@ -121,30 +126,30 @@ class TestValidateBundleStructure:
         assert errors == []
 
     def test_bundle_not_dict(self):
-        """Test with bundle not being a dictionary."""
+        """Test with bundle not being a dictionary reports the exact message."""
         errors = _validate_bundle_structure("test", "not-a-dict", {"test"})
-        assert any("dictionary" in e.lower() for e in errors)
+        assert errors == ["Bundle 'test' must be a dictionary"]
 
     def test_missing_description(self):
-        """Test with missing description."""
+        """Test with missing description reports the exact message."""
         bundle_config = {"files": [".gitignore"]}
         errors = _validate_bundle_structure("test", bundle_config, {"test"})
-        assert any("description" in e.lower() for e in errors)
+        assert errors == ["Bundle 'test' missing 'description'"]
 
     def test_missing_files(self):
-        """Test with missing files."""
+        """Test with missing files reports the exact message."""
         bundle_config = {"description": "Test bundle"}
         errors = _validate_bundle_structure("test", bundle_config, {"test"})
-        assert any("files" in e.lower() for e in errors)
+        assert errors == ["Bundle 'test' missing 'files'"]
 
     def test_files_not_list(self):
-        """Test with files not being a list."""
+        """Test with files not being a list reports the exact message."""
         bundle_config = {
             "description": "Test bundle",
             "files": "not-a-list",
         }
         errors = _validate_bundle_structure("test", bundle_config, {"test"})
-        assert any("list" in e.lower() for e in errors)
+        assert errors == ["Bundle 'test' 'files' must be a list"]
 
     def test_valid_requires(self):
         """Test with valid requires."""
@@ -164,17 +169,17 @@ class TestValidateBundleStructure:
             "requires": "not-a-list",
         }
         errors = _validate_bundle_structure("test", bundle_config, {"test"})
-        assert any("list" in e.lower() for e in errors)
+        assert errors == ["Bundle 'test' 'requires' must be a list"]
 
     def test_requires_nonexistent_bundle(self):
-        """Test with requires referencing non-existent bundle."""
+        """Test with requires referencing non-existent bundle reports the exact message."""
         bundle_config = {
             "description": "Test bundle",
             "files": [".gitignore"],
             "requires": ["nonexistent"],
         }
         errors = _validate_bundle_structure("test", bundle_config, {"test"})
-        assert any("non-existent" in e.lower() for e in errors)
+        assert errors == ["Bundle 'test' requires non-existent bundle 'nonexistent'"]
 
     def test_valid_recommends(self):
         """Test with valid recommends."""
@@ -194,17 +199,17 @@ class TestValidateBundleStructure:
             "recommends": "not-a-list",
         }
         errors = _validate_bundle_structure("test", bundle_config, {"test"})
-        assert any("list" in e.lower() for e in errors)
+        assert errors == ["Bundle 'test' 'recommends' must be a list"]
 
     def test_recommends_nonexistent_bundle(self):
-        """Test with recommends referencing non-existent bundle."""
+        """Test with recommends referencing non-existent bundle reports the exact message."""
         bundle_config = {
             "description": "Test bundle",
             "files": [".gitignore"],
             "recommends": ["nonexistent"],
         }
         errors = _validate_bundle_structure("test", bundle_config, {"test"})
-        assert any("non-existent" in e.lower() for e in errors)
+        assert errors == ["Bundle 'test' recommends non-existent bundle 'nonexistent'"]
 
 
 class TestValidateExamples:
@@ -221,29 +226,29 @@ class TestValidateExamples:
         assert errors == []
 
     def test_examples_not_dict(self):
-        """Test with examples not being a dictionary."""
+        """Test with examples not being a dictionary reports the exact message."""
         errors = _validate_examples("not-a-dict", {"core"})
-        assert any("dictionary" in e.lower() for e in errors)
+        assert errors == ["'examples' must be a dictionary"]
 
     def test_templates_not_list(self):
-        """Test with templates not being a list."""
+        """Test with templates not being a list reports the exact message."""
         examples = {
             "basic": {
                 "templates": "not-a-list",
             },
         }
         errors = _validate_examples(examples, {"core"})
-        assert any("list" in e.lower() for e in errors)
+        assert errors == ["Example 'basic' 'templates' must be a list"]
 
     def test_template_references_nonexistent_bundle(self):
-        """Test with template referencing non-existent bundle."""
+        """Test with template referencing non-existent bundle reports the exact message."""
         examples = {
             "basic": {
                 "templates": ["core", "nonexistent"],
             },
         }
         errors = _validate_examples(examples, {"core"})
-        assert any("non-existent" in e.lower() for e in errors)
+        assert errors == ["Example 'basic' references non-existent bundle 'nonexistent'"]
 
     def test_core_template_not_validated(self):
         """Test that 'core' template is not validated."""
@@ -275,11 +280,11 @@ class TestValidateMetadata:
         assert errors == []
 
     def test_mismatched_total_bundles(self):
-        """Test with mismatched total_bundles."""
+        """Test with mismatched total_bundles reports the exact message."""
         metadata = {"total_bundles": 5}
         bundles = {"bundle1": {}, "bundle2": {}}
         errors = _validate_metadata(metadata, bundles)
-        assert any("doesn't match" in e.lower() for e in errors)
+        assert errors == ["Metadata 'total_bundles' (5) doesn't match actual bundle count (2)"]
 
     def test_no_total_bundles_field(self):
         """Test with no total_bundles field."""
@@ -345,7 +350,7 @@ class TestValidateTemplateBundles:
         """)
         success, errors = validate_template_bundles(bundles_file)
         assert success is False
-        assert any("dictionary" in e.lower() for e in errors)
+        assert errors == ["'bundles' must be a dictionary"]
 
     def test_invalid_bundle_structure(self, temp_bundles_file):
         """Test with invalid bundle structure."""
@@ -462,7 +467,7 @@ templates:
         result = main([str(template_file)])
         assert result == 1
 
-    def test_main_with_cwd_default(self, tmp_path, monkeypatch, valid_bundles_content):
+    def test_main_with_cwd_default(self, tmp_path, monkeypatch, valid_bundles_content, capsys):
         """Test main function uses current working directory when no filename provided."""
         from rhiza_hooks.check_template_bundles import main
 
@@ -493,6 +498,8 @@ templates:
         # Test with no arguments (should use cwd)
         result = main([])
         assert result == 0
+        # Exact success line (splitlines membership rejects a mutated wrapper).
+        assert "✓ Template bundles validation passed!" in capsys.readouterr().out.splitlines()
 
     def test_main_with_nonexistent_default_path(self, tmp_path, monkeypatch):
         """Test main function when default path doesn't exist."""
@@ -628,7 +635,7 @@ class TestValidateTemplateBundlesWithTemplates:
         # Try to validate a template that doesn't exist
         success, errors = validate_template_bundles(bundles_file, {"core", "nonexistent"})
         assert success is False
-        assert any("nonexistent" in e.lower() for e in errors)
+        assert errors == ["Template 'nonexistent' specified in .rhiza/template.yml not found in bundles"]
 
     def test_validate_with_invalid_dependency(self, temp_bundles_file):
         """Test validating template with invalid dependency."""
@@ -804,7 +811,7 @@ class TestFetchRemoteBundles:
 
         success, errors = _fetch_remote_bundles("test/repo", "main")
         assert success is False
-        assert any("not found" in e.lower() for e in errors)
+        assert errors == ["Template bundles file not found in repository test/repo (branch: main)"]
 
     def test_fetch_remote_bundles_http_error_non_404(self, monkeypatch):
         """Test fetching remote bundles with non-404 HTTP error."""
@@ -819,7 +826,7 @@ class TestFetchRemoteBundles:
 
         success, errors = _fetch_remote_bundles("test/repo", "main")
         assert success is False
-        assert any("500" in e for e in errors)
+        assert errors == ["HTTP error fetching template bundles: 500 Internal Server Error"]
 
     def test_fetch_remote_bundles_url_error(self, monkeypatch):
         """Test fetching remote bundles with URL error."""
@@ -835,10 +842,11 @@ class TestFetchRemoteBundles:
 
         success, errors = _fetch_remote_bundles("test/repo", "main")
         assert success is False
-        assert any("error fetching" in e.lower() for e in errors)
+        url = "https://raw.githubusercontent.com/test/repo/main/.rhiza/template-bundles.yml"
+        assert errors == [f"Error fetching template bundles from {url}: Connection refused"]
 
     def test_fetch_remote_bundles_timeout(self, monkeypatch):
-        """Test fetching remote bundles with timeout."""
+        """Test fetching remote bundles with timeout reports the exact message."""
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
@@ -848,7 +856,8 @@ class TestFetchRemoteBundles:
 
         success, errors = _fetch_remote_bundles("test/repo", "main")
         assert success is False
-        assert any("timeout" in e.lower() for e in errors)
+        url = "https://raw.githubusercontent.com/test/repo/main/.rhiza/template-bundles.yml"
+        assert errors == [f"Timeout fetching template bundles from {url}"]
 
     def test_fetch_remote_bundles_invalid_yaml(self, monkeypatch):
         """Test fetching remote bundles with invalid YAML."""
@@ -867,7 +876,8 @@ class TestFetchRemoteBundles:
 
         success, errors = _fetch_remote_bundles("test/repo", "main")
         assert success is False
-        assert any("invalid yaml" in e.lower() for e in errors)
+        assert len(errors) == 1
+        assert errors[0].startswith("Invalid YAML in remote template bundles: ")
 
     def test_fetch_remote_bundles_empty_file(self, monkeypatch):
         """Test fetching remote bundles with empty file."""
@@ -886,7 +896,7 @@ class TestFetchRemoteBundles:
 
         success, errors = _fetch_remote_bundles("test/repo", "main")
         assert success is False
-        assert any("empty" in e.lower() for e in errors)
+        assert errors == ["Remote template bundles file is empty"]
 
     def test_fetch_remote_bundles_not_dict(self, monkeypatch):
         """Test fetching remote bundles that's not a dictionary."""
@@ -905,7 +915,7 @@ class TestFetchRemoteBundles:
 
         success, errors = _fetch_remote_bundles("test/repo", "main")
         assert success is False
-        assert any("dictionary" in e.lower() for e in errors)
+        assert errors == ["Remote template bundles must be a dictionary"]
 
     def test_fetch_remote_bundles_invalid_scheme(self, monkeypatch):
         """Test fetching remote bundles with invalid URL scheme."""
@@ -923,7 +933,7 @@ class TestFetchRemoteBundles:
 
         success, errors = _fetch_remote_bundles("test/repo", "main")
         assert success is False
-        assert any("invalid url scheme" in e.lower() for e in errors)
+        assert errors == ["Invalid URL scheme: http. Only https is allowed."]
 
     def test_fetch_remote_bundles_success(self, monkeypatch):
         """Test successful fetching of remote bundles."""
@@ -931,7 +941,10 @@ class TestFetchRemoteBundles:
 
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
+        seen = {}
+
         def mock_urlopen(url, timeout):
+            seen["timeout"] = timeout
             mock_response = MagicMock()
             mock_response.read.return_value = (
                 b"version: 1.0\nbundles:\n  core:\n    description: Core\n    files:\n      - .gitignore"
@@ -947,13 +960,15 @@ class TestFetchRemoteBundles:
         assert isinstance(data, dict)
         assert "version" in data
         assert "bundles" in data
+        # Pin the request timeout so a mutated value is caught.
+        assert seen["timeout"] == 10
 
 
 class TestMainErrorPaths:
     """Tests for main function error paths."""
 
-    def test_main_missing_template_repository(self, tmp_path, monkeypatch):
-        """Test main function when template-repository is missing."""
+    def test_main_missing_template_repository(self, tmp_path, monkeypatch, capsys):
+        """Test main function when template-repository is missing prints the exact message."""
         from rhiza_hooks.check_template_bundles import main
 
         # Create the .rhiza directory structure
@@ -970,15 +985,25 @@ class TestMainErrorPaths:
         """)
         )
 
+        # A fetch stub guards against the mutant branch attempting a real network call.
+        monkeypatch.setattr(
+            "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
+            lambda repo, branch: (False, ["stub"]),
+        )
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
 
-        # Test with no arguments - should fail due to missing template-repository
+        # Test with no arguments - should fail early due to missing template-repository,
+        # printing the exact message *before* any fetch is attempted.
         result = main([])
         assert result == 1
+        config_path = tmp_path / ".rhiza" / "template.yml"
+        assert (
+            f"Missing template-repository or template-branch in {config_path}" in capsys.readouterr().out.splitlines()
+        )
 
-    def test_main_missing_template_branch(self, tmp_path, monkeypatch):
-        """Test main function when template-branch is missing."""
+    def test_main_missing_template_branch(self, tmp_path, monkeypatch, capsys):
+        """Test main function when template-branch is missing prints the exact message."""
         from rhiza_hooks.check_template_bundles import main
 
         # Create the .rhiza directory structure
@@ -995,12 +1020,20 @@ class TestMainErrorPaths:
         """)
         )
 
+        monkeypatch.setattr(
+            "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
+            lambda repo, branch: (False, ["stub"]),
+        )
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
 
         # Test with no arguments - should fail due to missing template-branch
         result = main([])
         assert result == 1
+        config_path = tmp_path / ".rhiza" / "template.yml"
+        assert (
+            f"Missing template-repository or template-branch in {config_path}" in capsys.readouterr().out.splitlines()
+        )
 
     def test_main_fetch_remote_fails(self, tmp_path, monkeypatch):
         """Test main function when fetching remote bundles fails."""
@@ -1066,7 +1099,7 @@ class TestMainErrorPaths:
         result = main([])
         assert result == 1
 
-    def test_main_template_not_in_bundles(self, tmp_path, monkeypatch):
+    def test_main_template_not_in_bundles(self, tmp_path, monkeypatch, capsys):
         """Test main function when requested template is not in remote bundles."""
         from rhiza_hooks.check_template_bundles import main
 
@@ -1101,6 +1134,11 @@ class TestMainErrorPaths:
         # Test with no arguments - should fail
         result = main([])
         assert result == 1
+        # Exact failure header + bullet lines (splitlines membership rejects mutated wrappers).
+        config_path = tmp_path / ".rhiza" / "template.yml"
+        lines = capsys.readouterr().out.splitlines()
+        assert "✗ Template bundles validation failed:" in lines
+        assert f"  - Template 'nonexistent' specified in {config_path} not found in remote bundles" in lines
 
     def test_main_invalid_bundle_structure_in_remote(self, tmp_path, monkeypatch):
         """Test main function when remote bundle has invalid structure."""
@@ -1203,3 +1241,125 @@ class TestMainNameBlock:
             assert exc_info.value.code == 0
         finally:
             sys.argv = original_argv
+
+
+_MOD = "rhiza_hooks.check_template_bundles"
+
+
+class TestValidateRemoteBundles:
+    """Tests for _validate_remote_bundles (exercises its progress/failure prints)."""
+
+    def test_success_prints_progress(self, monkeypatch, capsys):
+        """Successful fetch+validate prints the exact 'Fetching'/'Checking' lines."""
+        monkeypatch.setattr(
+            f"{_MOD}._fetch_remote_bundles",
+            lambda repo, branch: (True, {"version": 1.0, "bundles": {"core": {"description": "d", "files": ["f"]}}}),
+        )
+        data, errors = _validate_remote_bundles("test/repo", "main", {"core", "python"}, Path("cfg"))
+        assert data is not None
+        assert errors == []
+        # Exact stdout pins both lines and the ', ' join separator (sorted templates).
+        assert capsys.readouterr().out == (
+            "Fetching template bundles from test/repo (branch: main)\nChecking templates: core, python\n"
+        )
+
+    def test_fetch_failure_prints_errors(self, monkeypatch, capsys):
+        """A failed fetch prints the exact failure header and bullet, returning (None, errors)."""
+        monkeypatch.setattr(f"{_MOD}._fetch_remote_bundles", lambda repo, branch: (False, ["boom"]))
+        data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, Path("cfg"))
+        assert data is None
+        assert errors == ["boom"]
+        assert capsys.readouterr().out == (
+            "Fetching template bundles from test/repo (branch: main)\n"
+            "Checking templates: core\n"
+            "\n✗ Failed to fetch template bundles:\n"
+            "  - boom\n"
+        )
+
+    def test_invalid_top_level_returns_none(self, monkeypatch, capsys):
+        """Remote data missing 'version' fails: returns (None, errors), not (data, [])."""
+        monkeypatch.setattr(f"{_MOD}._fetch_remote_bundles", lambda repo, branch: (True, {"bundles": {}}))
+        data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, Path("cfg"))
+        # data is None pins `errors = _validate_top_level_fields(data)` (vs the `errors = None` mutant).
+        assert data is None
+        assert errors == ["Missing required field: version"]
+        lines = capsys.readouterr().out.splitlines()
+        assert "✗ Template bundles validation failed:" in lines
+        assert "  - Missing required field: version" in lines
+
+    def test_bundles_not_dict_returns_none(self, monkeypatch, capsys):
+        """Remote 'bundles' not a dict fails with the exact header and bullet."""
+        monkeypatch.setattr(
+            f"{_MOD}._fetch_remote_bundles", lambda repo, branch: (True, {"version": 1.0, "bundles": []})
+        )
+        data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, Path("cfg"))
+        assert data is None
+        assert errors == ["'bundles' must be a dictionary"]
+        lines = capsys.readouterr().out.splitlines()
+        assert "✗ Template bundles validation failed:" in lines
+        assert "  - 'bundles' must be a dictionary" in lines
+
+
+class TestValidateTemplatesInBundles:
+    """Tests for _validate_templates_in_bundles."""
+
+    def test_missing_template_exact_message(self):
+        """A requested template absent from remote bundles yields the exact message."""
+        errors = _validate_templates_in_bundles(
+            {"nonexistent"}, {"core": {"description": "d", "files": ["f"]}}, Path("cfg")
+        )
+        assert errors == ["Template 'nonexistent' specified in cfg not found in remote bundles"]
+
+
+class TestLoadAndValidateConfig:
+    """Tests for _load_and_validate_config."""
+
+    def test_missing_config_prints_and_returns_none(self, tmp_path, capsys):
+        """A missing config file prints the exact skip message and returns (None, None)."""
+        missing = tmp_path / "template.yml"
+        config, templates = _load_and_validate_config(missing)
+        assert config is None
+        assert templates is None
+        assert capsys.readouterr().out == f"Could not load configuration from {missing}, skipping validation\n"
+
+    def test_templates_not_list_returns_none(self, tmp_path, capsys):
+        """A non-list 'templates' field skips validation (pins the `or` in the guard)."""
+        cfg = tmp_path / "template.yml"
+        cfg.write_text('template-repository: test/repo\ntemplate-branch: main\ntemplates: "not a list"\n')
+        config, templates = _load_and_validate_config(cfg)
+        # With `and` instead of `or`, this would fall through and return (config, set(...)).
+        assert config is None
+        assert templates is None
+        assert capsys.readouterr().out == f"No templates field in {cfg}, skipping bundle validation\n"
+
+
+class TestMainExtraCoverage:
+    """Tests pinning main()'s stdout-encoding reconfigure and --help output."""
+
+    def test_reconfigures_stdout_encoding(self, tmp_path, monkeypatch):
+        """When stdout is a TextIOWrapper, main reconfigures it with the exact encoding/errors."""
+        import io
+        from unittest.mock import MagicMock
+
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+        (rhiza_dir / "template.yml").write_text("# no templates field")
+        monkeypatch.chdir(tmp_path)
+
+        wrapper = io.TextIOWrapper(io.BytesIO())
+        reconfigure = MagicMock()
+        monkeypatch.setattr(wrapper, "reconfigure", reconfigure)
+        monkeypatch.setattr("sys.stdout", wrapper)
+
+        assert main([]) == 0
+        reconfigure.assert_called_once_with(encoding="utf-8", errors="replace")
+
+    def test_help_text(self, capsys):
+        """--help renders the exact argparse description and option help strings."""
+        with pytest.raises(SystemExit) as exc_info:
+            main(["--help"])
+        assert exc_info.value.code == 0
+        out = capsys.readouterr().out
+        assert "XX" not in out  # no mutated literal survived into the rendered help
+        assert "Validate template-bundles.yml from remote template repository" in out
+        assert "Filenames to check (should be .rhiza/template.yml)" in out
