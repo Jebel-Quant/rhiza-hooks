@@ -82,6 +82,28 @@ includes the classifier `Private :: Do Not Upload` (`pyproject.toml:23`), and
 the release workflow treats that classifier as a kill-switch to skip the PyPI
 publish step. This is expected behavior, not a release failure.
 
+## Security posture (OpenSSF Scorecard)
+
+This project tracks its security posture with the
+[OpenSSF Scorecard](https://securityscorecards.dev/). The badge in the README
+reflects the latest score from the weekly CI run.
+
+**Target:** every individual check should score ≥ 8 / 10.
+
+The checks currently below the target are tracked as open issues (search the
+[issue tracker](https://github.com/Jebel-Quant/rhiza-hooks/issues) for
+`label:security` or the check name):
+
+| Check              | Notes                                              |
+|--------------------|-----------------------------------------------------|
+| Token-permissions  | Workflows should declare minimum required permissions |
+| Dependency-pinning | Third-party actions should be pinned by commit SHA   |
+| Branch-protection  | Branch-protection rules should enforce PR reviews    |
+
+When a check reaches ≥ 8 its row is removed from this table.
+The Scorecard workflow runs on every push to `main` and weekly
+(`.github/workflows/rhiza_scorecard.yml`).
+
 ## Commit conventions
 
 We use [Conventional Commits](https://www.conventionalcommits.org/). Every commit message must have a
