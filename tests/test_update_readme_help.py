@@ -20,45 +20,51 @@ class TestGetMakeHelpOutput:
     """Tests for get_make_help_output function."""
 
     def test_success(self) -> None:
-        """Returns stdout on success."""
+        """Returns stdout and invokes subprocess.run with the exact command and options."""
         mock_result = MagicMock()
         mock_result.stdout = "help output"
-        with patch("rhiza_hooks.update_readme_help.subprocess.run", return_value=mock_result):
+        with patch("rhiza_hooks.update_readme_help.subprocess.run", return_value=mock_result) as mock_run:
             result = get_make_help_output()
             assert result == "help output"
+            # Pin the command list and every keyword argument exactly.
+            mock_run.assert_called_once_with(
+                ["make", "help"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=30,
+            )
 
     def test_called_process_error(self, capsys: pytest.CaptureFixture[str]) -> None:
-        """Returns None and prints error on CalledProcessError."""
+        """Returns None and prints the exact error prefix on CalledProcessError."""
         with patch(
             "rhiza_hooks.update_readme_help.subprocess.run",
             side_effect=subprocess.CalledProcessError(1, "make"),
         ):
             result = get_make_help_output()
             assert result is None
-            captured = capsys.readouterr()
-            assert "Error running 'make help'" in captured.out
+            # startswith pins the leading literal; the {e} tail is interpreter-defined.
+            assert capsys.readouterr().out.startswith("Error running 'make help': ")
 
     def test_timeout_expired(self, capsys: pytest.CaptureFixture[str]) -> None:
-        """Returns None and prints error on timeout."""
+        """Returns None and prints the exact timeout message."""
         with patch(
             "rhiza_hooks.update_readme_help.subprocess.run",
             side_effect=subprocess.TimeoutExpired("make", 30),
         ):
             result = get_make_help_output()
             assert result is None
-            captured = capsys.readouterr()
-            assert "timed out" in captured.out
+            assert capsys.readouterr().out == "Error: 'make help' timed out\n"
 
     def test_file_not_found(self, capsys: pytest.CaptureFixture[str]) -> None:
-        """Returns None and prints error when make not found."""
+        """Returns None and prints the exact message when make is not found."""
         with patch(
             "rhiza_hooks.update_readme_help.subprocess.run",
             side_effect=FileNotFoundError(),
         ):
             result = get_make_help_output()
             assert result is None
-            captured = capsys.readouterr()
-            assert "make' command not found" in captured.out
+            assert capsys.readouterr().out == "Error: 'make' command not found\n"
 
 
 class TestFindRepoRoot:
@@ -89,8 +95,8 @@ class TestFindRepoRoot:
 class TestUpdateReadmeWithHelp:
     """Tests for update_readme_with_help function."""
 
-    def test_updates_content_between_markers(self, tmp_path: Path) -> None:
-        """Content between markers is replaced with help output."""
+    def test_updates_content_between_markers(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """Content between markers is replaced with help output and the update is announced."""
         readme = tmp_path / "README.md"
         readme.write_text(
             "# My Project\n\n<!-- MAKE_HELP_START -->\nold content\n<!-- MAKE_HELP_END -->\n\nFooter text"
@@ -103,6 +109,8 @@ class TestUpdateReadmeWithHelp:
         assert "new help output" in content
         assert "old content" not in content
         assert "Footer text" in content
+        # Exact stdout pins the "Updated ..." message.
+        assert capsys.readouterr().out == f"Updated {readme} with make help output\n"
 
     def test_no_markers_returns_false(self, tmp_path: Path) -> None:
         """File without markers is not modified."""
@@ -115,13 +123,14 @@ class TestUpdateReadmeWithHelp:
         assert result is False
         assert readme.read_text() == original
 
-    def test_missing_file_returns_false(self, tmp_path: Path) -> None:
-        """Missing file returns False without error."""
+    def test_missing_file_returns_false(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """Missing file returns False and prints the exact warning."""
         readme = tmp_path / "nonexistent.md"
 
         result = update_readme_with_help(readme, "help output")
 
         assert result is False
+        assert capsys.readouterr().out == f"Warning: {readme} not found, skipping update\n"
 
     def test_no_change_returns_false(self, tmp_path: Path) -> None:
         """Returns False when content hasn't changed."""
