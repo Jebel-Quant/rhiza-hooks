@@ -1,0 +1,74 @@
+# git-cliff configuration (issue #123)
+#
+# Produces a human-facing "Keep a Changelog" CHANGELOG.md instead of a flat dump of
+# commit subjects under "Other"/"Miscellaneous". The release pipeline already runs
+# `git-cliff --output CHANGELOG.md` (and `--latest` for release notes); git-cliff
+# auto-detects this file, so the committed CHANGELOG and the generated release notes
+# stay consistent.
+#
+# How it stays readable:
+#   - Conventional commits are grouped into Added / Changed / Fixed / etc.
+#   - Dependency bumps are collected into a separate, de-emphasized "Dependencies"
+#     section, and template-sync chores into "Maintenance".
+#   - Pure mechanical noise (version bumps, "[skip ci]" CHANGELOG commits) is dropped.
+# Write commits as Conventional Commits (feat:/fix:/docs: …) to get the most out of it.
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n
+"""
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+- {{ commit.message | split(pat="\n") | first | upper_first | trim }}\
+{% endfor %}
+{% endfor %}\n
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+protect_breaking_commits = false
+filter_commits = true
+topo_order = false
+sort_commits = "newest"
+commit_parsers = [
+    # --- Drop pure mechanical noise -------------------------------------------------
+    { message = "(?i)^chore: bump version", skip = true },
+    { message = "(?i)^bump version", skip = true },
+    { message = "(?i)update changelog", skip = true },
+    { message = "\\[skip ci\\]", skip = true },
+
+    # --- De-emphasized: dependency and template maintenance -------------------------
+    { message = "(?i)^chore\\(deps", group = "<!-- 8 -->Dependencies" },
+    { message = "(?i)lock file maintenance", group = "<!-- 8 -->Dependencies" },
+    { message = "(?i)^chore: (update|bump|sync) .*(rhiza|template)", group = "<!-- 7 -->Maintenance" },
+    { message = "(?i)^(update|sync) .*(rhiza|template)", group = "<!-- 7 -->Maintenance" },
+
+    # --- User-relevant Keep a Changelog sections ------------------------------------
+    { message = "(?i)^feat", group = "<!-- 0 -->Added" },
+    { message = "(?i)^fix", group = "<!-- 4 -->Fixed" },
+    { message = "(?i)^perf", group = "<!-- 1 -->Changed" },
+    { message = "(?i)^refactor", group = "<!-- 1 -->Changed" },
+    { message = "(?i)^revert", group = "<!-- 1 -->Changed" },
+    { message = "(?i)^docs", group = "<!-- 6 -->Documentation" },
+    { message = "(?i)^test", group = "<!-- 7 -->Maintenance" },
+    { message = "(?i)^(chore|build|ci|style)", group = "<!-- 7 -->Maintenance" },
+
+    # --- Fallback: anything left is a change worth listing --------------------------
+    { message = ".*", group = "<!-- 1 -->Changed" },
+]
