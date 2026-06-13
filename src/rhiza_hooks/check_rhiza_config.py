@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -100,50 +101,42 @@ def _validate_template_repository(config: dict[str, Any]) -> list[str]:
     return errors
 
 
-def _validate_template_branch(config: dict[str, Any]) -> list[str]:
-    """Validate template-branch field."""
-    errors = []
-    if "template-branch" in config:
-        branch = config["template-branch"]
-        if not isinstance(branch, str):
-            errors.append("template-branch must be a string")
-        elif not branch:
-            errors.append("template-branch cannot be empty")
-    return errors
+@dataclass(frozen=True)
+class _FieldRule:
+    """Declarative rule for a presence-conditional field.
+
+    When the field is present its value must be an instance of one of ``types``,
+    otherwise ``type_error`` is reported. If ``empty_error`` is set, a falsy value
+    (empty list, empty string) is rejected with that message. ``exclude`` permits
+    ``None`` by including ``type(None)`` in its ``types``.
+    """
+
+    key: str
+    types: tuple[type, ...]
+    type_error: str
+    empty_error: str | None = None
 
 
-def _validate_include_field(config: dict[str, Any]) -> list[str]:
-    """Validate include field."""
-    errors = []
-    if "include" in config:
-        include = config["include"]
-        if not isinstance(include, list):
-            errors.append("include must be a list")
-        elif not include:
-            errors.append("include list cannot be empty")
-    return errors
+# Per-field rules sharing the "optional, type-checked, optionally non-empty" shape.
+# template-repository is validated separately because it needs an owner/repo format check.
+_FIELD_RULES: tuple[_FieldRule, ...] = (
+    _FieldRule("template-branch", (str,), "template-branch must be a string", "template-branch cannot be empty"),
+    _FieldRule("include", (list,), "include must be a list", "include list cannot be empty"),
+    _FieldRule("templates", (list,), "templates must be a list", "templates list cannot be empty"),
+    _FieldRule("exclude", (list, type(None)), "exclude must be a list or null"),
+)
 
 
-def _validate_templates_field(config: dict[str, Any]) -> list[str]:
-    """Validate templates field."""
-    errors = []
-    if "templates" in config:
-        templates = config["templates"]
-        if not isinstance(templates, list):
-            errors.append("templates must be a list")
-        elif not templates:
-            errors.append("templates list cannot be empty")
-    return errors
-
-
-def _validate_exclude_field(config: dict[str, Any]) -> list[str]:
-    """Validate exclude field."""
-    errors = []
-    if "exclude" in config:
-        exclude = config["exclude"]
-        if exclude is not None and not isinstance(exclude, list):
-            errors.append("exclude must be a list or null")
-    return errors
+def _validate_field(config: dict[str, Any], rule: _FieldRule) -> list[str]:
+    """Validate a single field against its rule (a no-op when the field is absent)."""
+    if rule.key not in config:
+        return []
+    value = config[rule.key]
+    if not isinstance(value, rule.types):
+        return [rule.type_error]
+    if rule.empty_error is not None and not value:
+        return [rule.empty_error]
+    return []
 
 
 def validate_rhiza_config(filepath: Path) -> list[str]:
@@ -171,10 +164,8 @@ def validate_rhiza_config(filepath: Path) -> list[str]:
     errors.extend(_validate_required_keys(config))
     errors.extend(_validate_include_or_templates(config))
     errors.extend(_validate_template_repository(config))
-    errors.extend(_validate_template_branch(config))
-    errors.extend(_validate_include_field(config))
-    errors.extend(_validate_templates_field(config))
-    errors.extend(_validate_exclude_field(config))
+    for rule in _FIELD_RULES:
+        errors.extend(_validate_field(config, rule))
 
     return errors
 

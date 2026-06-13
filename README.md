@@ -6,6 +6,7 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/jebel-quant/rhiza-hooks/badge/main)](https://www.codefactor.io/repository/github/jebel-quant/rhiza-hooks/overview/main)
 [![Rhiza](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjebel-quant%2Frhiza-hooks%2Fmain%2F.rhiza%2Ftemplate.yml&query=%24.ref&label=rhiza)](https://github.com/jebel-quant/rhiza)
 [![Coverage](https://jebel-quant.github.io/rhiza-hooks/coverage-badge.svg)](https://jebel-quant.github.io/rhiza-hooks/reports/html-coverage/)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Jebel-Quant/rhiza-hooks/badge)](https://scorecard.dev/viewer/?uri=github.com/Jebel-Quant/rhiza-hooks)
 
 Custom [pre-commit](https://pre-commit.com/) hooks for projects using [Rhiza](https://github.com/Jebel-Quant/rhiza) templates.
 
@@ -18,7 +19,7 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/Jebel-Quant/rhiza-hooks
-    rev: v0.1.0  # Use the latest release
+    rev: v0.5.1  # Use the latest release
     hooks:
       # Migrated from rhiza
       - id: check-rhiza-workflow-names
