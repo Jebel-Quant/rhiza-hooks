@@ -74,7 +74,6 @@ files = ["src"]
 strict = true
 
 [tool.coverage.run]
-source = ["rhiza_hooks"]
 branch = true
 
 [tool.coverage.report]
