@@ -5,11 +5,40 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.2] - 2026-06-13
+
+### Added
+
+- Add OpenSSF Scorecard workflow and README badge (#146)
+- Add py.typed marker for PEP 561 type distribution (#138)
 
 ### Changed
 
+- Advertise enforced 100% mutation score in README and testing docs (#157)
+- Remove duplicate Changelog item from MkDocs navigation (#158)
+- Add explicit no-funding metadata for community profile completeness (#159)
+- Collapse repetitive field validators into a rule table (#145)
+- Address open issues #119–#123 (#124)
 - Tighten tooling rigor: type checking, coverage gate, warnings-as-errors (#118)
+
+### Fixed
+
+- Correct unresolvable scorecard-action SHA pin (#148)
+
+### Documentation
+
+- Add Getting help section to README (#156)
+- Surface CODE_OF_CONDUCT and CONTRIBUTING at .github/ path (#143)
+- Surface CHANGELOG.md in MkDocs nav (#140)
+- Surface changelog in MkDocs nav (#144)
+- Document SBOM retrieval for consumers in SECURITY.md (#139)
+- Update README pre-commit rev example to v0.5.1 (#137)
+
+### Maintenance
+
+- Add advisory mutation-testing signal (mutmut) (#147)
+- Add uv.lock integrity gate to CI (#155)
+- Add Hypothesis property-based tests for pure helpers (#141)
 
 ### Dependencies
 
