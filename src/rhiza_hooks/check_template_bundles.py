@@ -29,6 +29,8 @@ from urllib.request import urlopen
 
 import yaml
 
+from rhiza_hooks._repo import find_repo_root
+
 
 def _load_yaml_file(bundles_path: Path) -> tuple[bool, dict[Any, Any] | list[str]]:
     """Load and parse YAML file.
@@ -136,20 +138,6 @@ def _validate_metadata(metadata: dict[Any, Any], bundles: dict[Any, Any]) -> lis
             )
 
     return errors
-
-
-def find_repo_root() -> Path:
-    """Find the repository root directory.
-
-    Returns:
-        Path to the repository root
-    """
-    current = Path.cwd()
-    while current != current.parent:
-        if (current / ".git").exists():
-            return current
-        current = current.parent
-    return Path.cwd()
 
 
 def _get_config_data(config_path: Path) -> dict[str, Any] | None:
