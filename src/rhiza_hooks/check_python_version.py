@@ -49,15 +49,45 @@ def parse_version(version_str: str) -> tuple[int, int]:
     return (int(parts[0]), int(parts[1]))
 
 
-def get_pyproject_requires_python(repo_root: Path) -> tuple[str, str] | None:
-    """Read requires-python constraint from pyproject.toml.
+def _parse_specifier(requires_python: str) -> list[tuple[str, str]]:
+    """Parse a (possibly compound) requires-python specifier into clauses.
+
+    The specifier is split on commas and the leading ``operator`` +
+    ``major.minor`` is extracted from each clause, so ``">=3.11,<3.14"`` yields
+    ``[(">=", "3.11"), ("<", "3.14")]``. A clause with no operator defaults to
+    ``"=="``. Clauses that contain no recognizable ``major.minor`` version are
+    skipped.
+
+    Note: only the ``major.minor`` of each clause is considered; patch-level and
+    wildcard parts (e.g. the ``.*`` in ``!=3.10.*``) are ignored, matching the
+    granularity of :func:`version_satisfies_constraint`.
+
+    Args:
+        requires_python: The raw ``requires-python`` string from pyproject.toml.
+
+    Returns:
+        List of (operator, version) clauses (empty if none are parseable).
+    """
+    clauses: list[tuple[str, str]] = []
+    for part in requires_python.split(","):
+        match = re.match(r"\s*([><=!~]+)?\s*(\d+\.\d+)", part)
+        if match is None:
+            continue
+        operator = match.group(1) or "=="  # Default to exact match if no operator
+        clauses.append((operator, match.group(2)))
+    return clauses
+
+
+def get_pyproject_requires_python(repo_root: Path) -> list[tuple[str, str]] | None:
+    """Read requires-python constraint(s) from pyproject.toml.
 
     Args:
         repo_root: Root directory of the repository
 
     Returns:
-        Tuple of (operator, version) or None if not specified.
-        For example: (">=", "3.11") or ("==", "3.12")
+        List of (operator, version) clauses, or None if not specified or
+        unparseable. A compound specifier yields one entry per comma-separated
+        clause, e.g. ">=3.11,<3.14" -> [(">=", "3.11"), ("<", "3.14")].
     """
     pyproject_file = repo_root / "pyproject.toml"
     if not pyproject_file.exists():
@@ -73,14 +103,9 @@ def get_pyproject_requires_python(repo_root: Path) -> tuple[str, str] | None:
     if not requires_python:
         return None
 
-    # Parse the constraint (e.g., ">=3.11", "==3.12", "~=3.11")
-    match = re.match(r"([><=!~]+)?\s*(\d+\.\d+)", requires_python.strip())
-    if not match:
-        return None
-
-    operator = match.group(1) or "=="  # Default to exact match if no operator
-    version = match.group(2)
-    return (operator, version)
+    clauses = _parse_specifier(requires_python)
+    # No clause parsed (e.g. "invalid-version"): treat as unspecified.
+    return clauses or None
 
 
 def version_satisfies_constraint(version: str, operator: str, constraint_version: str) -> bool:
@@ -135,12 +160,17 @@ def check_version_consistency(repo_root: Path) -> list[str]:
         # One or both files don't specify a version, that's okay
         return []
 
-    operator, constraint_version = requires_python
+    # Every clause of a (possibly compound) specifier must be satisfied.
+    unsatisfied = any(
+        not version_satisfies_constraint(python_version, operator, constraint_version)
+        for operator, constraint_version in requires_python
+    )
 
-    if not version_satisfies_constraint(python_version, operator, constraint_version):
+    if unsatisfied:
+        constraint_str = ",".join(f"{operator}{version}" for operator, version in requires_python)
         errors.append(
             f"Python version mismatch: .python-version has {python_version}, "
-            f"but pyproject.toml requires-python is {operator}{constraint_version}"
+            f"but pyproject.toml requires-python is {constraint_str}"
         )
 
     return errors

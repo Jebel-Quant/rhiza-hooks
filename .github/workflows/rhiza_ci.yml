@@ -47,5 +47,5 @@ jobs:
         run: uv lock --check
 
   ci:
-    uses: jebel-quant/rhiza/.github/workflows/rhiza_ci.yml@v0.18.8
+    uses: jebel-quant/rhiza/.github/workflows/rhiza_ci.yml@ae79c6f0729b21239655abe390269be9171f907d # v0.18.8
     secrets: inherit

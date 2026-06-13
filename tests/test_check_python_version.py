@@ -145,28 +145,44 @@ class TestGetPyprojectRequiresPython:
     """Tests for get_pyproject_requires_python function."""
 
     def test_parses_gte_constraint(self, tmp_path: Path) -> None:
-        """Parses >=3.11 constraint."""
+        """Parses >=3.11 constraint into a single clause."""
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\nrequires-python = ">=3.11"\n')
-        assert get_pyproject_requires_python(tmp_path) == (">=", "3.11")
+        assert get_pyproject_requires_python(tmp_path) == [(">=", "3.11")]
 
     def test_parses_eq_constraint(self, tmp_path: Path) -> None:
-        """Parses ==3.12 constraint."""
+        """Parses ==3.12 constraint into a single clause."""
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\nrequires-python = "==3.12"\n')
-        assert get_pyproject_requires_python(tmp_path) == ("==", "3.12")
+        assert get_pyproject_requires_python(tmp_path) == [("==", "3.12")]
 
     def test_parses_compatible_release(self, tmp_path: Path) -> None:
-        """Parses ~=3.11 constraint."""
+        """Parses ~=3.11 constraint into a single clause."""
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\nrequires-python = "~=3.11"\n')
-        assert get_pyproject_requires_python(tmp_path) == ("~=", "3.11")
+        assert get_pyproject_requires_python(tmp_path) == [("~=", "3.11")]
 
     def test_bare_version_defaults_to_equality_operator(self, tmp_path: Path) -> None:
         """A bare version with no operator defaults to '==' (pins the default literal)."""
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\nrequires-python = "3.11"\n')
-        assert get_pyproject_requires_python(tmp_path) == ("==", "3.11")
+        assert get_pyproject_requires_python(tmp_path) == [("==", "3.11")]
+
+    def test_parses_compound_specifier(self, tmp_path: Path) -> None:
+        """A compound specifier yields one clause per comma-separated part, in order."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nrequires-python = ">=3.11,<3.14"\n')
+        assert get_pyproject_requires_python(tmp_path) == [(">=", "3.11"), ("<", "3.14")]
+
+    def test_compound_specifier_skips_unparseable_clause(self, tmp_path: Path) -> None:
+        """An unparseable clause is skipped (not a stop) so a later valid clause is still kept.
+
+        The bad clause is placed *first* so this distinguishes ``continue`` (skip and
+        keep scanning) from ``break`` (abandon the rest).
+        """
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nrequires-python = "invalid,>=3.11"\n')
+        assert get_pyproject_requires_python(tmp_path) == [(">=", "3.11")]
 
     def test_missing_file_returns_none(self, tmp_path: Path) -> None:
         """Returns None if file doesn't exist."""
@@ -232,6 +248,30 @@ class TestCheckVersionConsistency:
         errors = check_version_consistency(tmp_path)
 
         assert len(errors) == 1
+
+    def test_compound_specifier_satisfied(self, tmp_path: Path) -> None:
+        """No error when .python-version satisfies every clause of a compound specifier."""
+        (tmp_path / ".python-version").write_text("3.12\n")
+        (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11,<3.14"\n')
+
+        errors = check_version_consistency(tmp_path)
+
+        assert errors == []
+
+    def test_compound_specifier_upper_bound_violated(self, tmp_path: Path) -> None:
+        """Error when an upper-bound clause is violated even though the lower bound holds.
+
+        Pins the per-clause check (3.14 satisfies >=3.11 but not <3.14) and the
+        comma-joined constraint string in the message.
+        """
+        (tmp_path / ".python-version").write_text("3.14\n")
+        (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11,<3.14"\n')
+
+        errors = check_version_consistency(tmp_path)
+
+        assert errors == [
+            "Python version mismatch: .python-version has 3.14, but pyproject.toml requires-python is >=3.11,<3.14"
+        ]
 
     def test_no_python_version_file(self, tmp_path: Path) -> None:
         """No error when .python-version doesn't exist."""
