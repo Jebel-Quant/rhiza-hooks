@@ -176,6 +176,11 @@ pre-commit try-repo . check-rhiza-config --files .rhiza/template.yml
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## 💬 Getting help
+
+- Ask questions and get support in [GitHub Discussions](https://github.com/Jebel-Quant/rhiza-hooks/discussions) using the [Q&A template](.github/DISCUSSION_TEMPLATE/q-and-a.yml).
+- Report bugs or request features using the [issue templates](https://github.com/Jebel-Quant/rhiza-hooks/issues/new/choose).
+
 ## 🙏 Acknowledgments
 
 - [Rhiza](https://github.com/Jebel-Quant/rhiza) - The template system these hooks are designed for
