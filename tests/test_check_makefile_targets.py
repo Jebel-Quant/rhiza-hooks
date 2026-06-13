@@ -75,6 +75,28 @@ test:
         # Comments starting with # aren't matched because they don't start at line beginning
         # after the # character
 
+    def test_ignores_recursive_assignment(self) -> None:
+        """`VAR := value` is an assignment, not a target."""
+        targets = extract_targets("PREFIX := /usr/local\ninstall:\n\tcp x $(PREFIX)\n")
+        assert targets == {"install"}
+
+    def test_ignores_simply_expanded_assignment(self) -> None:
+        """`VAR ::= value` (simply-expanded) is an assignment, not a target."""
+        targets = extract_targets("FLAGS ::= -O2\ntest:\n\tpytest\n")
+        assert targets == {"test"}
+
+    def test_extracts_double_colon_rule(self) -> None:
+        """`target:: deps` (double-colon rule) is still a target."""
+        targets = extract_targets("clean:: prep\n\trm -rf build\n")
+        assert "clean" in targets
+
+    def test_ignores_dot_special_and_pattern_targets(self) -> None:
+        """`.PHONY` and pattern rules (`%.o`) are not extracted as recommended targets."""
+        targets = extract_targets(".PHONY: build\n%.o: %.c\n\t$(CC) -c $<\nbuild:\n\techo hi\n")
+        assert "build" in targets
+        assert ".PHONY" not in targets
+        assert "%.o" not in targets
+
 
 class TestCheckMakefile:
     """Tests for check_makefile function."""

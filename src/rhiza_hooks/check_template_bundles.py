@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import io
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 from urllib.error import HTTPError, URLError
@@ -231,6 +232,38 @@ def _fetch_remote_bundles(repo: str, branch: str) -> tuple[bool, dict[Any, Any] 
     return True, data
 
 
+def _validate_selected_bundles(
+    templates: set[str],
+    bundles: dict[Any, Any],
+    missing_message: Callable[[str], str],
+) -> list[str]:
+    """Validate that each requested template exists in ``bundles`` and is well-formed.
+
+    Shared by the local-file and remote-fetch paths; they differ only in the
+    "not found" wording, supplied via ``missing_message``.
+
+    Args:
+        templates: Template names requested in the rhiza config.
+        bundles: The ``bundles`` mapping from a template-bundles document.
+        missing_message: Builds the error string for a template absent from ``bundles``.
+
+    Returns:
+        List of error messages (empty if every requested template is valid).
+    """
+    errors: list[str] = []
+    bundle_names = cast(set[str], set(bundles.keys()))
+
+    for template in templates:
+        if template not in bundle_names:
+            errors.append(missing_message(template))
+
+    for template in templates:
+        if template in bundles:
+            errors.extend(_validate_bundle_structure(template, bundles[template], bundle_names))
+
+    return errors
+
+
 def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] | None = None) -> tuple[bool, list[str]]:
     """Validate template bundles configuration.
 
@@ -262,28 +295,23 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
 
     bundle_names = cast(set[str], set(bundles.keys()))
 
-    # If templates_to_check is specified, verify they exist
     if templates_to_check is not None:
-        for template in templates_to_check:
-            if template not in bundle_names:
-                errors.append(f"Template '{template}' specified in .rhiza/template.yml not found in bundles")
-
-    # Determine which bundles to validate
-    bundles_to_validate = templates_to_check if templates_to_check is not None else bundle_names
-
-    # Validate each bundle
-    for bundle_name in bundles_to_validate:
-        if bundle_name in bundles:
-            bundle_config = bundles[bundle_name]
-            errors.extend(_validate_bundle_structure(bundle_name, bundle_config, bundle_names))
-
-    # Validate examples section (only if validating all bundles)
-    if templates_to_check is None and "examples" in data:
-        errors.extend(_validate_examples(data["examples"], bundle_names))
-
-    # Validate metadata if present (only if validating all bundles)
-    if templates_to_check is None and "metadata" in data:
-        errors.extend(_validate_metadata(data["metadata"], bundles))
+        # Validate only the requested subset (existence + structure).
+        errors.extend(
+            _validate_selected_bundles(
+                templates_to_check,
+                bundles,
+                lambda t: f"Template '{t}' specified in .rhiza/template.yml not found in bundles",
+            )
+        )
+    else:
+        # Validate every declared bundle, plus the examples and metadata sections.
+        for bundle_name in bundle_names:
+            errors.extend(_validate_bundle_structure(bundle_name, bundles[bundle_name], bundle_names))
+        if "examples" in data:
+            errors.extend(_validate_examples(data["examples"], bundle_names))
+        if "metadata" in data:
+            errors.extend(_validate_metadata(data["metadata"], bundles))
 
     return len(errors) == 0, errors
 
@@ -353,22 +381,12 @@ def _validate_remote_bundles(
 
 
 def _validate_templates_in_bundles(templates_set: set[str], bundles: dict[Any, Any], config_path: Path) -> list[str]:
-    """Validate that requested templates exist and have valid structure."""
-    errors = []
-    bundle_names = cast(set[str], set(bundles.keys()))
-
-    # Check if templates exist
-    for template in templates_set:
-        if template not in bundle_names:
-            errors.append(f"Template '{template}' specified in {config_path} not found in remote bundles")
-
-    # Validate structure of each template
-    for template in templates_set:
-        if template in bundles:
-            bundle_config = bundles[template]
-            errors.extend(_validate_bundle_structure(template, bundle_config, bundle_names))
-
-    return errors
+    """Validate that requested templates exist in the remote bundles and are well-formed."""
+    return _validate_selected_bundles(
+        templates_set,
+        bundles,
+        lambda t: f"Template '{t}' specified in {config_path} not found in remote bundles",
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
