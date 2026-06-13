@@ -94,6 +94,7 @@ coverage.json
 .benchmarks/
 .pytest_cache/
 cover/
+.mypy_cache/
 
 # Security scanning baselines (regenerate as needed)
 .bandit-baseline.json
