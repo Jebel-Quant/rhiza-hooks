@@ -15,6 +15,8 @@ import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
+from rhiza_hooks._repo import find_repo_root
+
 # Markers used to identify the section to update in README
 START_MARKER = "<!-- MAKE_HELP_START -->"
 END_MARKER = "<!-- MAKE_HELP_END -->"
@@ -87,20 +89,6 @@ def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
         return True
 
     return False
-
-
-def find_repo_root() -> Path:
-    """Find the repository root directory.
-
-    Returns:
-        Path to the repository root.
-    """
-    current = Path.cwd()
-    while current != current.parent:
-        if (current / ".git").exists():
-            return current
-        current = current.parent
-    return Path.cwd()
 
 
 def main(argv: list[str] | None = None) -> int:

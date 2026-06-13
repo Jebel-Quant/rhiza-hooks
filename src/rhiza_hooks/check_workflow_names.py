@@ -43,6 +43,9 @@ def check_file(filepath: str) -> bool:
     prefix = "(RHIZA) "
     # Remove prefix if present to verify the rest of the string
     clean_name = name[len(prefix) :] if name.startswith(prefix) else name
+    # Collapse any internal/trailing whitespace (e.g. from a folded/block YAML
+    # scalar, where PyYAML yields newlines) so the rewrite is a single line.
+    clean_name = " ".join(clean_name.split())
 
     expected_name = f"{prefix}{clean_name.upper()}"
 
@@ -55,15 +58,24 @@ def check_file(filepath: str) -> bool:
 
         with open(filepath, "w") as f_write:
             replaced = False  # pragma: no mutate  # equivalent: only ever read via `not replaced`
+            skipping_block = False  # pragma: no mutate  # equivalent: only ever read via `if skipping_block`
             for line in lines:
+                if skipping_block:
+                    # Drop the continuation lines of a multi-line/block name scalar.
+                    # YAML indentation is spaces, so they are blank or space-indented;
+                    # the first flush-left line ends the scalar.
+                    if line.strip() == "" or line.startswith(" "):
+                        continue
+                    skipping_block = False  # pragma: no mutate  # equivalent: only ever read via `if skipping_block`
                 # Replace only the top-level name field (assumes it starts at beginning of line)
                 if not replaced and line.startswith("name:"):
-                    # Check if this line corresponds to the extracted name.
-                    # Simple check: does it contain reasonable parts of the name?
-                    # Or just blinding replace top-level name:
-                    # We'll use quotes to be safe
                     f_write.write(f'name: "{expected_name}"\n')
                     replaced = True
+                    # If the value is a block scalar (`name: >` / `name: |`, plus chomping
+                    # indicators like `>-`), its value lives on the following indented
+                    # lines — skip them so we don't leave orphan scalar text behind.
+                    if line[len("name:") :].strip()[:1] in ("|", ">"):
+                        skipping_block = True
                 else:
                     f_write.write(line)
 

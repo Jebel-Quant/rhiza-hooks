@@ -9,6 +9,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+from rhiza_hooks._repo import find_repo_root
+
 
 def get_python_version_file(repo_root: Path) -> str | None:
     """Read Python version from .python-version file.
@@ -142,20 +144,6 @@ def check_version_consistency(repo_root: Path) -> list[str]:
         )
 
     return errors
-
-
-def find_repo_root() -> Path:
-    """Find the repository root directory.
-
-    Returns:
-        Path to the repository root
-    """
-    current = Path.cwd()
-    while current != current.parent:
-        if (current / ".git").exists():
-            return current
-        current = current.parent
-    return Path.cwd()
 
 
 def main(argv: list[str] | None = None) -> int:

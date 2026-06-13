@@ -16,8 +16,16 @@ RECOMMENDED_TARGETS = {
     "help",
 }
 
-# Pattern to match Makefile target definitions
-TARGET_PATTERN = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:", re.MULTILINE)
+# Pattern to match Makefile target definitions.
+#
+# A rule is `name:` or, for double-colon rules, `name::`. Variable assignments
+# (`name := ...`, `name ::= ...`) must NOT be mistaken for targets, so the
+# colon-run is matched possessively (`:++`, Python 3.11+) and a following `=`
+# is rejected with a negative lookahead — `:++` cannot backtrack to a shorter
+# run to dodge the lookahead, so `name :=` and `name ::=` are excluded while
+# `name:` and `name::` still match. Leading `[a-zA-Z_]` already excludes
+# dot-special targets (`.PHONY`) and pattern rules (`%.o`).
+TARGET_PATTERN = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_-]*)[ \t]*:++(?!=)", re.MULTILINE)
 
 
 def extract_targets(content: str) -> set[str]:

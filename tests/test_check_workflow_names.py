@@ -131,6 +131,44 @@ jobs:
 
         assert check_file(str(workflow)) is True
 
+    def test_block_scalar_name_is_collapsed(self, tmp_path: Path) -> None:
+        """A folded/block-scalar top-level name is collapsed to one quoted line.
+
+        The indented and blank continuation lines of the scalar are dropped
+        rather than left behind as orphan text that would corrupt the YAML.
+        """
+        workflow = tmp_path / "workflow.yml"
+        workflow.write_text("name: >\n  My\n\n  Workflow\non: push\n")
+
+        result = check_file(str(workflow))
+
+        assert result is False
+        assert workflow.read_text() == 'name: "(RHIZA) MY WORKFLOW"\non: push\n'
+
+    def test_literal_block_scalar_name_is_collapsed(self, tmp_path: Path) -> None:
+        """A literal (`|`) block-scalar name is collapsed to one quoted line."""
+        workflow = tmp_path / "workflow.yml"
+        workflow.write_text("name: |\n  My\n  Workflow\non: push\n")
+
+        result = check_file(str(workflow))
+
+        assert result is False
+        assert workflow.read_text() == 'name: "(RHIZA) MY WORKFLOW"\non: push\n'
+
+    def test_chomped_folded_block_scalar_name_is_collapsed(self, tmp_path: Path) -> None:
+        """A folded block scalar with a chomping indicator (`>-`) is collapsed too.
+
+        Pins the block-indicator detection to the leading character (`[:1]`): a
+        naive two-char check would miss `>-`/`|-` and leave orphan scalar lines.
+        """
+        workflow = tmp_path / "workflow.yml"
+        workflow.write_text("name: >-\n  My\n  Workflow\non: push\n")
+
+        result = check_file(str(workflow))
+
+        assert result is False
+        assert workflow.read_text() == 'name: "(RHIZA) MY WORKFLOW"\non: push\n'
+
     def test_name_with_special_characters(self, tmp_path: Path) -> None:
         """Name with special characters is handled correctly."""
         workflow = tmp_path / "workflow.yml"
