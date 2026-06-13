@@ -92,7 +92,7 @@ repos:
         files: ^src/
 
   - repo: https://github.com/Jebel-Quant/rhiza-hooks
-    rev: v0.4.0  # Use the latest release
+    rev: v0.6.2  # Use the latest release
     hooks:
       # Migrated from rhiza
       - id: check-rhiza-workflow-names
@@ -101,4 +101,10 @@ repos:
       - id: check-rhiza-config
       - id: check-makefile-targets
       - id: check-python-version-consistency
+      # check-template-bundles is intentionally NOT enabled here: it fetches
+      # template-bundles.yml over the network from the template repo on every
+      # run, which would make local commits depend on network access. It runs
+      # in CI instead. To validate locally on demand, run it directly:
+      #   pre-commit run --hook-stage manual check-template-bundles --all-files
+      # or skip the network with `check-template-bundles --offline`.
       # - id: check-template-bundles

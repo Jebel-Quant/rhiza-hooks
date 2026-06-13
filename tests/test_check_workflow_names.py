@@ -180,6 +180,48 @@ jobs:
         assert "(RHIZA) BUILD & DEPLOY" in content
 
 
+class TestTopLevelVsNestedName:
+    """Regression matrix: only the top-level workflow name is touched (#161)."""
+
+    def test_job_and_step_names_are_not_rewritten(self, tmp_path: Path) -> None:
+        """Indented job/step `name:` keys are preserved; only the top-level name changes."""
+        workflow = tmp_path / "workflow.yml"
+        workflow.write_text(
+            "name: ci\non: push\njobs:\n  build:\n    name: Build Job\n    steps:\n      - name: Checkout\n"
+        )
+
+        result = check_file(str(workflow))
+
+        assert result is False
+        assert workflow.read_text() == (
+            'name: "(RHIZA) CI"\non: push\njobs:\n  build:\n    name: Build Job\n    steps:\n      - name: Checkout\n'
+        )
+
+    def test_missing_top_level_name_with_job_names(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """A workflow with no top-level name (only job names) errors and is left untouched."""
+        workflow = tmp_path / "workflow.yml"
+        original = "on: push\njobs:\n  build:\n    name: Build Job\n    runs-on: ubuntu-latest\n"
+        workflow.write_text(original)
+
+        result = check_file(str(workflow))
+
+        assert result is False
+        assert capsys.readouterr().out == f"Error: {workflow} missing 'name' field.\n"
+        # The job-level name is not mistaken for the workflow name and the file is unchanged.
+        assert workflow.read_text() == original
+
+    def test_already_correct_with_nested_names_is_noop(self, tmp_path: Path) -> None:
+        """A correct top-level name returns True and the file is left byte-for-byte unchanged."""
+        workflow = tmp_path / "workflow.yml"
+        original = 'name: "(RHIZA) CI"\non: push\njobs:\n  build:\n    name: Build Job\n'
+        workflow.write_text(original)
+
+        result = check_file(str(workflow))
+
+        assert result is True
+        assert workflow.read_text() == original
+
+
 class TestMain:
     """Tests for main function."""
 

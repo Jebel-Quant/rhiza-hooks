@@ -829,35 +829,101 @@ class TestFetchRemoteBundles:
         assert errors == ["HTTP error fetching template bundles: 500 Internal Server Error"]
 
     def test_fetch_remote_bundles_url_error(self, monkeypatch):
-        """Test fetching remote bundles with URL error."""
+        """A persistent URL error gives up after the default attempts, retrying once."""
+        from unittest.mock import MagicMock
         from urllib.error import URLError
 
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
-        def mock_urlopen(url, timeout):
-            msg = "Connection refused"
-            raise URLError(msg)
+        calls = MagicMock(side_effect=URLError("Connection refused"))
 
+        def mock_urlopen(url, timeout):
+            return calls(url, timeout)
+
+        sleep = MagicMock()
         monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", sleep)
 
         success, errors = _fetch_remote_bundles("test/repo", "main")
         assert success is False
         url = "https://raw.githubusercontent.com/test/repo/main/.rhiza/template-bundles.yml"
         assert errors == [f"Error fetching template bundles from {url}: Connection refused"]
+        # Default = 2 attempts (1 retry): urlopen twice, one backoff sleep of 1.0s.
+        assert calls.call_count == 2
+        assert sleep.call_args_list == [((1.0,), {})]
 
     def test_fetch_remote_bundles_timeout(self, monkeypatch):
-        """Test fetching remote bundles with timeout reports the exact message."""
+        """A persistent timeout gives up after the default attempts with the exact message."""
+        from unittest.mock import MagicMock
+
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
-        def mock_urlopen(url, timeout):
-            raise TimeoutError("Timeout")
+        calls = MagicMock(side_effect=TimeoutError("Timeout"))
 
+        def mock_urlopen(url, timeout):
+            return calls(url, timeout)
+
+        sleep = MagicMock()
         monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", sleep)
 
         success, errors = _fetch_remote_bundles("test/repo", "main")
         assert success is False
         url = "https://raw.githubusercontent.com/test/repo/main/.rhiza/template-bundles.yml"
         assert errors == [f"Timeout fetching template bundles from {url}"]
+        assert calls.call_count == 2
+        assert sleep.call_args_list == [((1.0,), {})]
+
+    def test_fetch_remote_bundles_retry_then_success(self, monkeypatch):
+        """A transient failure followed by success returns the parsed data after one retry."""
+        from unittest.mock import MagicMock
+        from urllib.error import URLError
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        def make_response():
+            resp = MagicMock()
+            resp.read.return_value = b"version: 1.0\nbundles: {}"
+            resp.__enter__ = lambda self: self
+            resp.__exit__ = lambda self, *args: None
+            return resp
+
+        calls = MagicMock(side_effect=[URLError("flaky"), make_response()])
+
+        def mock_urlopen(url, timeout):
+            return calls(url, timeout)
+
+        sleep = MagicMock()
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", sleep)
+
+        success, data = _fetch_remote_bundles("test/repo", "main")
+        assert success is True
+        assert data == {"version": 1.0, "bundles": {}}
+        assert calls.call_count == 2
+        assert sleep.call_args_list == [((1.0,), {})]
+
+    def test_fetch_remote_bundles_backoff_schedule(self, monkeypatch):
+        """Backoff is linear (backoff, 2*backoff, ...) and the last attempt does not sleep."""
+        from unittest.mock import MagicMock
+        from urllib.error import URLError
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        calls = MagicMock(side_effect=URLError("down"))
+
+        def mock_urlopen(url, timeout):
+            return calls(url, timeout)
+
+        sleep = MagicMock()
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", sleep)
+
+        success, _errors = _fetch_remote_bundles("test/repo", "main", attempts=3, backoff=2.0)
+        assert success is False
+        # 3 attempts -> 2 sleeps between them: 2.0 then 4.0. No sleep after the final attempt.
+        assert calls.call_count == 3
+        assert sleep.call_args_list == [((2.0,), {}), ((4.0,), {})]
 
     def test_fetch_remote_bundles_invalid_yaml(self, monkeypatch):
         """Test fetching remote bundles with invalid YAML."""
@@ -1363,3 +1429,15 @@ class TestMainExtraCoverage:
         assert "XX" not in out  # no mutated literal survived into the rendered help
         assert "Validate template-bundles.yml from remote template repository" in out
         assert "Filenames to check (should be .rhiza/template.yml)" in out
+
+    def test_offline_skips_fetch(self, monkeypatch, capsys):
+        """--offline returns 0 with the exact notice and never touches the network."""
+        from unittest.mock import MagicMock
+
+        # Any attempt to fetch would fail the test, proving the network is skipped.
+        urlopen = MagicMock(side_effect=AssertionError("network must not be used in offline mode"))
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", urlopen)
+
+        assert main(["--offline"]) == 0
+        assert capsys.readouterr().out == "Offline mode: skipping remote template bundles validation\n"
+        urlopen.assert_not_called()

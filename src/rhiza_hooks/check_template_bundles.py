@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import io
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
@@ -31,6 +32,11 @@ from urllib.request import urlopen
 import yaml
 
 from rhiza_hooks._repo import find_repo_root
+
+# Remote fetch is retried on transient network errors before giving up. Two
+# attempts = one initial try plus one retry, with a short linear backoff.
+_FETCH_ATTEMPTS = 2
+_FETCH_BACKOFF_SECONDS = 1.0
 
 
 def _load_yaml_file(bundles_path: Path) -> tuple[bool, dict[Any, Any] | list[str]]:
@@ -188,36 +194,12 @@ def _get_templates_from_config(config_path: Path) -> set[str] | None:
     return cast(set[str], set(templates))
 
 
-def _fetch_remote_bundles(repo: str, branch: str) -> tuple[bool, dict[Any, Any] | list[str]]:
-    """Fetch template-bundles.yml from a remote GitHub repository.
-
-    Args:
-        repo: GitHub repository in 'owner/repo' format
-        branch: Branch name
+def _parse_remote_bundles(content: bytes) -> tuple[bool, dict[Any, Any] | list[str]]:
+    """Parse fetched template-bundles.yml content.
 
     Returns:
         Tuple of (success, data_or_errors)
     """
-    # Construct GitHub raw content URL
-    url = f"https://raw.githubusercontent.com/{repo}/{branch}/.rhiza/template-bundles.yml"
-
-    # Validate URL scheme for security (bandit B310)
-    parsed = urlparse(url)
-    if parsed.scheme != "https":
-        return False, [f"Invalid URL scheme: {parsed.scheme}. Only https is allowed."]
-
-    try:
-        with urlopen(url, timeout=10) as response:  # noqa: S310  # nosec B310
-            content = response.read()
-    except HTTPError as e:
-        if e.code == 404:
-            return False, [f"Template bundles file not found in repository {repo} (branch: {branch})"]
-        return False, [f"HTTP error fetching template bundles: {e.code} {e.reason}"]
-    except URLError as e:
-        return False, [f"Error fetching template bundles from {url}: {e.reason}"]
-    except TimeoutError:
-        return False, [f"Timeout fetching template bundles from {url}"]
-
     try:
         data = yaml.safe_load(content)
     except yaml.YAMLError as e:
@@ -230,6 +212,60 @@ def _fetch_remote_bundles(repo: str, branch: str) -> tuple[bool, dict[Any, Any] 
         return False, ["Remote template bundles must be a dictionary"]
 
     return True, data
+
+
+def _fetch_remote_bundles(
+    repo: str,
+    branch: str,
+    attempts: int = _FETCH_ATTEMPTS,
+    backoff: float = _FETCH_BACKOFF_SECONDS,
+) -> tuple[bool, dict[Any, Any] | list[str]]:
+    """Fetch template-bundles.yml from a remote GitHub repository.
+
+    Transient network failures (`URLError`/`TimeoutError`) are retried up to
+    ``attempts`` times with a linear backoff. HTTP errors (e.g. 404) are
+    permanent and returned immediately without retrying.
+
+    Args:
+        repo: GitHub repository in 'owner/repo' format
+        branch: Branch name
+        attempts: Total number of fetch attempts (initial try + retries)
+        backoff: Base seconds to sleep between attempts (multiplied by attempt number)
+
+    Returns:
+        Tuple of (success, data_or_errors)
+    """
+    # Construct GitHub raw content URL
+    url = f"https://raw.githubusercontent.com/{repo}/{branch}/.rhiza/template-bundles.yml"
+
+    # Validate URL scheme for security (bandit B310)
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        return False, [f"Invalid URL scheme: {parsed.scheme}. Only https is allowed."]
+
+    # pragma below: equivalent mutant — the final `return False, errors` is only reached
+    # after a transient-error iteration has reassigned `errors` (success and HTTP errors
+    # return early), so for attempts >= 1 this initial value is never the one returned.
+    errors: list[str] = []  # pragma: no mutate
+    for attempt in range(attempts):
+        try:
+            with urlopen(url, timeout=10) as response:  # noqa: S310  # nosec B310
+                content = response.read()
+        except HTTPError as e:
+            if e.code == 404:
+                return False, [f"Template bundles file not found in repository {repo} (branch: {branch})"]
+            return False, [f"HTTP error fetching template bundles: {e.code} {e.reason}"]
+        except URLError as e:
+            errors = [f"Error fetching template bundles from {url}: {e.reason}"]
+        except TimeoutError:
+            errors = [f"Timeout fetching template bundles from {url}"]
+        else:
+            return _parse_remote_bundles(content)
+        # Transient failure: back off before the next attempt (linear: backoff, 2*backoff, ...).
+        if attempt + 1 < attempts:
+            time.sleep(backoff * (attempt + 1))
+
+    return False, errors
 
 
 def _validate_selected_bundles(
@@ -399,7 +435,16 @@ def main(argv: list[str] | None = None) -> int:
         nargs="*",
         help="Filenames to check (should be .rhiza/template.yml)",
     )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Skip the remote bundles fetch (e.g. for offline commits) and pass",
+    )
     args = parser.parse_args(argv)
+
+    if args.offline:
+        print("Offline mode: skipping remote template bundles validation")
+        return 0
 
     # Get configuration path
     config_path = _get_config_path(args)

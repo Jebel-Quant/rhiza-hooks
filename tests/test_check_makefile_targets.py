@@ -10,6 +10,7 @@ from rhiza_hooks.check_makefile_targets import (
     check_makefile,
     extract_targets,
     main,
+    resolve_recommended_targets,
 )
 
 
@@ -145,6 +146,35 @@ install:
         # Should not warn about missing targets for non-Makefile files
         assert warnings == []
 
+    def test_custom_recommended_set(self, tmp_path: Path) -> None:
+        """A custom `recommended` set replaces the default expectations."""
+        makefile = tmp_path / "Makefile"
+        makefile.write_text("build:\n\techo hi\n")
+        # `build` satisfies a custom set; the default install/test/fmt/help are not required.
+        assert check_makefile(makefile, {"build"}) == []
+        # A custom target that is absent is reported.
+        assert check_makefile(makefile, {"deploy"}) == ["Missing recommended targets: deploy"]
+
+
+class TestResolveRecommendedTargets:
+    """Tests for resolve_recommended_targets."""
+
+    def test_defaults_when_no_options(self) -> None:
+        """With no options the default recommended set is used."""
+        assert resolve_recommended_targets(None, None) == {"install", "test", "fmt", "help"}
+
+    def test_target_replaces_defaults(self) -> None:
+        """`--target` values replace the defaults entirely."""
+        assert resolve_recommended_targets(["build", "lint"], None) == {"build", "lint"}
+
+    def test_extend_target_adds_to_defaults(self) -> None:
+        """`--extend-target` adds to the active set, keeping the defaults."""
+        assert resolve_recommended_targets(None, ["deploy"]) == {"install", "test", "fmt", "help", "deploy"}
+
+    def test_target_and_extend_combine(self) -> None:
+        """`--target` replaces, then `--extend-target` adds on top."""
+        assert resolve_recommended_targets(["build"], ["deploy"]) == {"build", "deploy"}
+
 
 class TestMain:
     """Tests for main function."""
@@ -187,8 +217,30 @@ help:
         result = main([])
         assert result == 0
 
-    def test_help_text(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_main_target_override_satisfied(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """`--target` replaces the defaults; a Makefile meeting the custom set passes quietly."""
+        makefile = tmp_path / "Makefile"
+        makefile.write_text("build:\n\techo hi\n")
+
+        result = main(["--target", "build", str(makefile)])
+
+        assert result == 0
+        assert capsys.readouterr().out == ""
+
+    def test_main_extend_target_strict_fails(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """`--extend-target` adds a requirement; a missing extra target fails under --strict."""
+        makefile = tmp_path / "Makefile"
+        makefile.write_text("install:\ntest:\nfmt:\nhelp:\n")
+
+        result = main(["--strict", "--extend-target", "deploy", str(makefile)])
+
+        assert result == 1
+        assert capsys.readouterr().out == f"{makefile}:\n  - Missing recommended targets: deploy\n"
+
+    def test_help_text(self, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:
         """--help renders the exact argparse description and option help strings."""
+        # Pin a wide terminal so argparse doesn't wrap the longer option help mid-string.
+        monkeypatch.setenv("COLUMNS", "200")
         with pytest.raises(SystemExit) as exc_info:
             main(["--help"])
         assert exc_info.value.code == 0
@@ -199,6 +251,8 @@ help:
         assert "Check Makefile for recommended targets" in out
         assert "Filenames to check" in out
         assert "Exit with error if recommended targets are missing" in out
+        assert "Required target name; repeatable. When given, replaces the default set." in out
+        assert "Extra required target name; repeatable. Added on top of the active set." in out
 
 
 class TestModuleExecution:
