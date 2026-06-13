@@ -180,6 +180,16 @@ Benchmarks can be run separately or as part of validation:
 make benchmark
 ```
 
+## Mutation Testing
+
+Mutation testing is enforced in CI with `mutmut`, with a required mutation score of **100%**.
+
+You can run the same check locally:
+
+```bash
+make mutation
+```
+
 ## Best Practices
 
 ### Writing Property-Based Tests
