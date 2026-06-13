@@ -65,6 +65,11 @@ Ensures GitHub Actions workflow names have the `(RHIZA)` prefix in uppercase. Au
 - id: check-rhiza-workflow-names
 ```
 
+**Troubleshooting:**
+
+- The hook only scans `.github/workflows/rhiza_*.yml`; if nothing happens, confirm your workflow filename matches that pattern.
+- A hook failure after edits is expected when it auto-fixes `name:` values—re-stage the workflow file and re-run.
+
 #### `update-readme-help`
 
 Embeds the output of `make help` into README.md between marker comments.
@@ -76,6 +81,11 @@ Embeds the output of `make help` into README.md between marker comments.
 ```yaml
 - id: update-readme-help
 ```
+
+**Troubleshooting:**
+
+- If `make` (or `make help`) is unavailable, this hook exits successfully and skips updates by design.
+- If README is not updated, ensure it still contains `<!-- MAKE_HELP_START -->` and `<!-- MAKE_HELP_END -->` markers.
 
 ### Additional Utility Hooks
 
@@ -95,6 +105,11 @@ Validates the `.rhiza/template.yml` configuration file to ensure:
 ```yaml
 - id: check-rhiza-config
 ```
+
+**Troubleshooting:**
+
+- Validate that `.rhiza/template.yml` contains `template-repository` and `template-branch`, plus at least one of `include`, `templates`, or `profiles`.
+- If you see unknown-key errors, compare your keys to the documented schema and remove unsupported entries.
 
 #### `check-makefile-targets`
 
@@ -127,6 +142,11 @@ The expected set can be customised:
   args: [--extend-target, deploy]
 ```
 
+**Troubleshooting:**
+
+- Default mode is warn-only, so missing targets do not fail commits unless you pass `--strict`.
+- If a required target is intentionally different, use `--target`/`--extend-target` to align checks with your Makefile.
+
 #### `check-python-version-consistency`
 
 Ensures Python version is consistent between `.python-version` and `pyproject.toml`'s `requires-python`.
@@ -136,6 +156,11 @@ Ensures Python version is consistent between `.python-version` and `pyproject.to
 ```yaml
 - id: check-python-version-consistency
 ```
+
+**Troubleshooting:**
+
+- Keep `.python-version` aligned with `project.requires-python` in `pyproject.toml`.
+- If ranges are used (for example `>=3.11`), ensure the `.python-version` value satisfies that range exactly.
 
 #### `check-template-bundles`
 
@@ -156,6 +181,11 @@ This hook reaches the network on every run. A transient failure is retried once 
 - id: check-template-bundles
   # args: [--offline]  # Optional: skip the network fetch and pass
 ```
+
+**Troubleshooting:**
+
+- This hook normally fetches `template-bundles.yml` from the configured template repository and retries once on transient network errors.
+- Use `--offline` when committing without network access; it skips the fetch and exits successfully without remote validation.
 
 ## 🛠️ Development
 
