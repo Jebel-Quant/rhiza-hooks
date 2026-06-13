@@ -1,17 +1,26 @@
-# Mutation testing — repo-owned, NOT part of the rhiza template.
+# This file is part of the jebel-quant/rhiza repository
+# (https://github.com/jebel-quant/rhiza).
+#
+# Workflow: Mutation Testing
 #
 # Purpose: Measure test *assertion strength* with mutmut. 100% line/branch
 #          coverage proves code is executed, not that a wrong result would be
 #          caught; surviving mutants reveal assertions that are too weak.
 #
-# This is a blocking gate: the suite is at a 100% mutation score, so any
-# surviving mutant (genuinely-equivalent ones are marked `# pragma: no mutate`)
-# fails the job. The HTML report is uploaded as an artifact for inspection.
+#          This is a blocking gate: `make mutation` exits non-zero on any
+#          surviving mutant (genuinely-equivalent ones are marked
+#          `# pragma: no mutate`), which fails the job. The HTML report is
+#          uploaded as an artifact for inspection.
 #
-# Trigger: weekly schedule (mutation runs are slow) and manual dispatch — it
-# does NOT run per-PR, to avoid adding ~10 minutes to every pull request.
+# Trigger: Weekly schedule (mutation runs are slow) and manual dispatch — it
+#          does NOT run per-PR, to avoid adding minutes to every pull request.
 
 name: "(RHIZA) MUTATION"
+
+# Cancel superseded in-progress runs of this workflow for the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
