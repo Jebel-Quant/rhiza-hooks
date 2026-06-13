@@ -255,6 +255,14 @@ class TestValidateExamples:
         errors = _validate_examples(examples, set())
         assert errors == []
 
+    def test_example_without_templates_key(self):
+        """An example with no 'templates' key is skipped without error."""
+        examples = {
+            "basic": {"description": "no templates listed"},
+        }
+        errors = _validate_examples(examples, {"core"})
+        assert errors == []
+
 
 class TestValidateMetadata:
     """Tests for _validate_metadata function."""
@@ -1125,6 +1133,25 @@ class TestMainErrorPaths:
         # Test with no arguments - should fail
         result = main([])
         assert result == 1
+
+
+class TestMainStdout:
+    """Tests for main()'s stdout-encoding guard."""
+
+    def test_main_with_non_textiowrapper_stdout(self, tmp_path, monkeypatch):
+        """main() skips reconfigure when stdout is not a TextIOWrapper."""
+        import io
+
+        from rhiza_hooks.check_template_bundles import main
+
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+        (rhiza_dir / "template.yml").write_text("# No templates field")
+        monkeypatch.chdir(tmp_path)
+
+        # io.StringIO is not a TextIOWrapper, so the reconfigure branch is skipped.
+        monkeypatch.setattr("sys.stdout", io.StringIO())
+        assert main([]) == 0
 
 
 class TestMainNameBlock:

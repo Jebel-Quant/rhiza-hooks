@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -20,7 +21,7 @@ KEY_ALIASES = {
 }
 
 
-def _normalize_config(config: dict) -> dict:
+def _normalize_config(config: dict[str, Any]) -> dict[str, Any]:
     """Normalize configuration by replacing aliases with canonical keys.
 
     Args:
@@ -29,7 +30,7 @@ def _normalize_config(config: dict) -> dict:
     Returns:
         Normalized configuration with aliases replaced
     """
-    normalized = {}
+    normalized: dict[str, Any] = {}
     for key, value in config.items():
         # Replace alias with canonical name if it exists
         canonical_key = KEY_ALIASES.get(key, key)
@@ -37,7 +38,7 @@ def _normalize_config(config: dict) -> dict:
     return normalized
 
 
-def _load_config(filepath: Path) -> dict | list[str]:
+def _load_config(filepath: Path) -> dict[str, Any] | list[str]:
     """Load configuration from YAML file.
 
     Returns:
@@ -60,7 +61,7 @@ def _load_config(filepath: Path) -> dict | list[str]:
     return config
 
 
-def _validate_required_keys(config: dict) -> list[str]:
+def _validate_required_keys(config: dict[str, Any]) -> list[str]:
     """Validate required keys are present."""
     errors = []
     for key in REQUIRED_KEYS:
@@ -69,7 +70,7 @@ def _validate_required_keys(config: dict) -> list[str]:
     return errors
 
 
-def _validate_unknown_keys(config: dict) -> list[str]:
+def _validate_unknown_keys(config: dict[str, Any]) -> list[str]:
     """Check for unknown keys."""
     errors = []
     # Accept both canonical keys and their aliases
@@ -80,14 +81,14 @@ def _validate_unknown_keys(config: dict) -> list[str]:
     return errors
 
 
-def _validate_include_or_templates(config: dict) -> list[str]:
+def _validate_include_or_templates(config: dict[str, Any]) -> list[str]:
     """Ensure at least one of 'include' or 'templates' is present."""
     if "include" not in config and "templates" not in config:
         return ["At least one of 'include' or 'templates' must be present"]
     return []
 
 
-def _validate_template_repository(config: dict) -> list[str]:
+def _validate_template_repository(config: dict[str, Any]) -> list[str]:
     """Validate template-repository field."""
     errors = []
     if "template-repository" in config:
@@ -99,7 +100,7 @@ def _validate_template_repository(config: dict) -> list[str]:
     return errors
 
 
-def _validate_template_branch(config: dict) -> list[str]:
+def _validate_template_branch(config: dict[str, Any]) -> list[str]:
     """Validate template-branch field."""
     errors = []
     if "template-branch" in config:
@@ -111,7 +112,7 @@ def _validate_template_branch(config: dict) -> list[str]:
     return errors
 
 
-def _validate_include_field(config: dict) -> list[str]:
+def _validate_include_field(config: dict[str, Any]) -> list[str]:
     """Validate include field."""
     errors = []
     if "include" in config:
@@ -123,7 +124,7 @@ def _validate_include_field(config: dict) -> list[str]:
     return errors
 
 
-def _validate_templates_field(config: dict) -> list[str]:
+def _validate_templates_field(config: dict[str, Any]) -> list[str]:
     """Validate templates field."""
     errors = []
     if "templates" in config:
@@ -135,7 +136,7 @@ def _validate_templates_field(config: dict) -> list[str]:
     return errors
 
 
-def _validate_exclude_field(config: dict) -> list[str]:
+def _validate_exclude_field(config: dict[str, Any]) -> list[str]:
     """Validate exclude field."""
     errors = []
     if "exclude" in config:
