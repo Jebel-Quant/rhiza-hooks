@@ -51,6 +51,7 @@ check-rhiza-config = "rhiza_hooks.check_rhiza_config:main"
 check-makefile-targets = "rhiza_hooks.check_makefile_targets:main"
 check-python-version-consistency = "rhiza_hooks.check_python_version:main"
 check-template-bundles = "rhiza_hooks.check_template_bundles:main"
+check-readme-version = "rhiza_hooks.check_readme_version:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rhiza_hooks"]

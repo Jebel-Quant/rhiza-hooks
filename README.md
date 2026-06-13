@@ -28,6 +28,7 @@ repos:
       - id: check-makefile-targets
       - id: check-python-version-consistency
       - id: check-template-bundles
+      - id: check-readme-version
 ```
 
 Then install the hooks:
@@ -126,6 +127,16 @@ Validates templates specified in `.rhiza/template.yml` against the `template-bun
 
 ```yaml
 - id: check-template-bundles
+```
+
+#### `check-readme-version`
+
+Asserts that the `rev:` entry for `https://github.com/Jebel-Quant/rhiza-hooks` in the README quick-start code block matches the `version` field in `pyproject.toml`. This prevents the README from silently falling behind the released version.
+
+**Usage:**
+
+```yaml
+- id: check-readme-version
 ```
 
 ## 🛠️ Development

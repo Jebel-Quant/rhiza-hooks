@@ -7,6 +7,7 @@ This module tests the command-line entry points of all rhiza-hooks scripts:
 - check-makefile-targets
 - check-python-version-consistency
 - check-template-bundles
+- check-readme-version
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ SCRIPTS = [
     "check-makefile-targets",
     "check-python-version-consistency",
     "check-template-bundles",
+    "check-readme-version",
 ]
 
 
@@ -74,6 +76,7 @@ class TestScriptAvailability:
             "check-makefile-targets": "rhiza_hooks.check_makefile_targets",
             "check-python-version-consistency": "rhiza_hooks.check_python_version",
             "check-template-bundles": "rhiza_hooks.check_template_bundles",
+            "check-readme-version": "rhiza_hooks.check_readme_version",
         }
 
         module_name = module_mapping[script_name]
@@ -97,6 +100,7 @@ class TestScriptAvailability:
             "check-makefile-targets": "rhiza_hooks.check_makefile_targets",
             "check-python-version-consistency": "rhiza_hooks.check_python_version",
             "check-template-bundles": "rhiza_hooks.check_template_bundles",
+            "check-readme-version": "rhiza_hooks.check_readme_version",
         }
 
         module_name = module_mapping[script_name]
@@ -407,6 +411,18 @@ class TestScriptsInCurrentProject:
         # We just verify the script runs without crashing
         assert result.returncode in (0, 1)
 
+    def test_check_readme_version_on_project(self, project_root: Path) -> None:
+        """Test check-readme-version on actual project."""
+        result = subprocess.run(  # nosec B603
+            [sys.executable, "-m", "rhiza_hooks.check_readme_version"],
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        # Project README rev should match pyproject.toml version
+        assert result.returncode == 0, f"stdout: {result.stdout}, stderr: {result.stderr}"
+
 
 class TestScriptErrorHandling:
     """Test error handling across all scripts."""
@@ -422,6 +438,7 @@ class TestScriptErrorHandling:
             "check-makefile-targets": "rhiza_hooks.check_makefile_targets",
             "check-python-version-consistency": "rhiza_hooks.check_python_version",
             "check-template-bundles": "rhiza_hooks.check_template_bundles",
+            "check-readme-version": "rhiza_hooks.check_readme_version",
         }
 
         module_name = module_mapping[script_name]
@@ -448,6 +465,7 @@ class TestScriptErrorHandling:
             "check-makefile-targets": "check_makefile_targets",
             "check-python-version-consistency": "check_python_version",
             "check-template-bundles": "check_template_bundles",
+            "check-readme-version": "check_readme_version",
         }
 
         module_name = module_mapping.get(script_name, script_name.replace("-", "_"))

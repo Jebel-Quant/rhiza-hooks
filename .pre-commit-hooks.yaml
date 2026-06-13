@@ -54,3 +54,12 @@
   language: python
   files: ^\.rhiza/template\.yml$
   types: [yaml]
+
+- id: check-readme-version
+  name: Check README rev matches pyproject.toml version
+  description: Asserts the README quick-start rev: matches the pyproject.toml version
+  entry: check-readme-version
+  language: python
+  files: (^README\.md$|^pyproject\.toml$)
+  pass_filenames: false
+  always_run: true
