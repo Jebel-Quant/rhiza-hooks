@@ -11,6 +11,12 @@ This script validates the template bundles configuration file to ensure:
 The script reads .rhiza/template.yml to find the template repository,
 then fetches template-bundles.yml from that remote repository.
 
+The implementation is split across focused modules — :mod:`rhiza_hooks._bundles_fetch`
+(obtaining a document), :mod:`rhiza_hooks._bundles_validate` (structural checks),
+and :mod:`rhiza_hooks._bundles_config` (reading ``.rhiza/template.yml``). This
+module is the CLI/orchestration layer and re-exports those helpers so
+``rhiza_hooks.check_template_bundles`` remains the single public import surface.
+
 Exit codes:
   0 - Validation passed
   1 - Validation failed
@@ -21,353 +27,25 @@ from __future__ import annotations
 import argparse
 import io
 import sys
-import time
-from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
-from urllib.request import urlopen
 
-import yaml
-
+from rhiza_hooks._bundles_config import _get_config_data
+from rhiza_hooks._bundles_config import _get_templates_from_config as _get_templates_from_config  # re-export
+from rhiza_hooks._bundles_fetch import (
+    _FETCH_ATTEMPTS,
+    _FETCH_TIMEOUT_SECONDS,
+    _fetch_remote_bundles,
+)
+from rhiza_hooks._bundles_fetch import BundlesDoc as BundlesDoc  # re-export
+from rhiza_hooks._bundles_fetch import _load_yaml_file as _load_yaml_file  # re-export
+from rhiza_hooks._bundles_fetch import _parse_remote_bundles as _parse_remote_bundles  # re-export
+from rhiza_hooks._bundles_validate import _validate_bundle_structure as _validate_bundle_structure  # re-export
+from rhiza_hooks._bundles_validate import _validate_examples as _validate_examples  # re-export
+from rhiza_hooks._bundles_validate import _validate_metadata as _validate_metadata  # re-export
+from rhiza_hooks._bundles_validate import _validate_selected_bundles, _validate_top_level_fields
+from rhiza_hooks._bundles_validate import validate_template_bundles as validate_template_bundles  # re-export
 from rhiza_hooks._repo import find_repo_root
-
-# Remote fetch is retried on transient network errors before giving up. Two
-# attempts = one initial try plus one retry, with a short linear backoff.
-# These are defaults; the CLI exposes `--retries` and `--timeout` to override.
-_FETCH_ATTEMPTS = 2
-_FETCH_BACKOFF_SECONDS = 1.0
-_FETCH_TIMEOUT_SECONDS = 10.0
-
-
-@dataclass(frozen=True)
-class BundlesDoc:
-    """Outcome of loading/parsing a template-bundles document.
-
-    ``data`` holds the parsed mapping on success and is ``None`` on failure;
-    ``errors`` carries the failure messages (empty on success). The two are
-    mutually exclusive, so callers branch on ``data is None`` — which also lets
-    the type checker narrow ``data`` to ``dict`` on the success path without a
-    cast.
-    """
-
-    data: dict[Any, Any] | None
-    errors: list[str]
-
-
-def _load_yaml_file(bundles_path: Path) -> BundlesDoc:
-    """Load and parse a local YAML file into a :class:`BundlesDoc`."""
-    if not bundles_path.exists():
-        return BundlesDoc(None, [f"Template bundles file not found: {bundles_path}"])
-
-    try:
-        with open(bundles_path) as f:
-            data = yaml.safe_load(f)
-    except yaml.YAMLError as e:
-        return BundlesDoc(None, [f"Invalid YAML: {e}"])
-
-    if data is None:
-        return BundlesDoc(None, ["Template bundles file is empty"])
-
-    return BundlesDoc(data, [])
-
-
-def _validate_top_level_fields(data: dict[Any, Any]) -> list[str]:
-    """Validate required top-level fields."""
-    errors = []
-    required_fields = {"version", "bundles"}
-    for field in required_fields:
-        if field not in data:
-            errors.append(f"Missing required field: {field}")
-    return errors
-
-
-def _validate_bundle_structure(
-    bundle_name: str,
-    bundle_config: Any,
-    bundle_names: set[str],
-) -> list[str]:
-    """Validate a single bundle's structure and dependencies."""
-    errors = []
-
-    if not isinstance(bundle_config, dict):
-        errors.append(f"Bundle '{bundle_name}' must be a dictionary")
-        return errors
-
-    # Check required fields
-    if "description" not in bundle_config:
-        errors.append(f"Bundle '{bundle_name}' missing 'description'")
-
-    if "files" not in bundle_config:
-        errors.append(f"Bundle '{bundle_name}' missing 'files'")
-    elif not isinstance(bundle_config["files"], list):
-        errors.append(f"Bundle '{bundle_name}' 'files' must be a list")
-
-    # Validate dependencies
-    if "requires" in bundle_config:
-        if not isinstance(bundle_config["requires"], list):
-            errors.append(f"Bundle '{bundle_name}' 'requires' must be a list")
-        else:
-            for dep in bundle_config["requires"]:
-                if dep not in bundle_names:
-                    errors.append(f"Bundle '{bundle_name}' requires non-existent bundle '{dep}'")
-
-    if "recommends" in bundle_config:
-        if not isinstance(bundle_config["recommends"], list):
-            errors.append(f"Bundle '{bundle_name}' 'recommends' must be a list")
-        else:
-            for dep in bundle_config["recommends"]:
-                if dep not in bundle_names:
-                    errors.append(f"Bundle '{bundle_name}' recommends non-existent bundle '{dep}'")
-
-    return errors
-
-
-def _validate_examples(examples: Any, bundle_names: set[str]) -> list[str]:
-    """Validate examples section."""
-    errors = []
-
-    if not isinstance(examples, dict):
-        errors.append("'examples' must be a dictionary")
-        return errors
-
-    for example_name, example_config in examples.items():
-        if "templates" in example_config:
-            if not isinstance(example_config["templates"], list):
-                errors.append(f"Example '{example_name}' 'templates' must be a list")
-            else:
-                for template in example_config["templates"]:
-                    # core is auto-included, we don't validate it
-                    if template != "core" and template not in bundle_names:
-                        errors.append(f"Example '{example_name}' references non-existent bundle '{template}'")
-
-    return errors
-
-
-def _validate_metadata(metadata: dict[Any, Any], bundles: dict[Any, Any]) -> list[str]:
-    """Validate metadata section."""
-    errors = []
-
-    if "total_bundles" in metadata:
-        expected_count = len(bundles)
-        actual_count = metadata["total_bundles"]
-        if actual_count != expected_count:
-            errors.append(
-                f"Metadata 'total_bundles' ({actual_count}) doesn't match actual bundle count ({expected_count})"
-            )
-
-    return errors
-
-
-def _get_config_data(config_path: Path) -> dict[str, Any] | None:
-    """Get the configuration from .rhiza/template.yml.
-
-    Args:
-        config_path: Path to .rhiza/template.yml
-
-    Returns:
-        Configuration dictionary, or None if file not found or invalid
-    """
-    if not config_path.exists():
-        return None
-
-    try:
-        with open(config_path) as f:
-            config = yaml.safe_load(f)
-    except yaml.YAMLError:
-        return None
-
-    if not isinstance(config, dict):
-        return None
-
-    return config
-
-
-def _get_templates_from_config(config_path: Path) -> set[str] | None:
-    """Get the list of templates from .rhiza/template.yml.
-
-    Args:
-        config_path: Path to .rhiza/template.yml
-
-    Returns:
-        Set of template names, or None if templates field doesn't exist or file not found
-    """
-    config = _get_config_data(config_path)
-    if config is None:
-        return None
-
-    templates = config.get("templates")
-    if templates is None:
-        return None
-
-    if not isinstance(templates, list):
-        return None
-
-    template_names: set[str] = {str(t) for t in templates}
-    return template_names
-
-
-def _parse_remote_bundles(content: bytes) -> BundlesDoc:
-    """Parse fetched template-bundles.yml content into a :class:`BundlesDoc`."""
-    try:
-        data = yaml.safe_load(content)
-    except yaml.YAMLError as e:
-        return BundlesDoc(None, [f"Invalid YAML in remote template bundles: {e}"])
-
-    if data is None:
-        return BundlesDoc(None, ["Remote template bundles file is empty"])
-
-    if not isinstance(data, dict):
-        return BundlesDoc(None, ["Remote template bundles must be a dictionary"])
-
-    return BundlesDoc(data, [])
-
-
-def _fetch_remote_bundles(
-    repo: str,
-    branch: str,
-    attempts: int = _FETCH_ATTEMPTS,
-    backoff: float = _FETCH_BACKOFF_SECONDS,
-    timeout: float = _FETCH_TIMEOUT_SECONDS,
-) -> BundlesDoc:
-    """Fetch template-bundles.yml from a remote GitHub repository.
-
-    Transient network failures (`URLError`/`TimeoutError`) are retried up to
-    ``attempts`` times with a linear backoff, and each failed attempt is logged
-    so CI failures are diagnosable. HTTP errors (e.g. 404) are permanent and
-    returned immediately without retrying.
-
-    Args:
-        repo: GitHub repository in 'owner/repo' format
-        branch: Branch name
-        attempts: Total number of fetch attempts (initial try + retries)
-        backoff: Base seconds to sleep between attempts (multiplied by attempt number)
-        timeout: Per-request socket timeout in seconds
-
-    Returns:
-        A :class:`BundlesDoc` with the parsed mapping on success, or errors.
-    """
-    # Construct GitHub raw content URL
-    url = f"https://raw.githubusercontent.com/{repo}/{branch}/.rhiza/template-bundles.yml"
-
-    # Validate URL scheme for security (bandit B310)
-    parsed = urlparse(url)
-    if parsed.scheme != "https":
-        return BundlesDoc(None, [f"Invalid URL scheme: {parsed.scheme}. Only https is allowed."])
-
-    # pragma below: equivalent mutant — the final `return BundlesDoc(None, errors)` is only
-    # reached after a transient-error iteration has reassigned `errors` (success and HTTP
-    # errors return early), so for attempts >= 1 this initial value is never the one returned.
-    errors: list[str] = []  # pragma: no mutate
-    for attempt in range(attempts):
-        try:
-            with urlopen(url, timeout=timeout) as response:  # noqa: S310  # nosec B310
-                content = response.read()
-        except HTTPError as e:
-            if e.code == 404:
-                return BundlesDoc(None, [f"Template bundles file not found in repository {repo} (branch: {branch})"])
-            return BundlesDoc(None, [f"HTTP error fetching template bundles: {e.code} {e.reason}"])
-        except URLError as e:
-            errors = [f"Error fetching template bundles from {url}: {e.reason}"]
-        except TimeoutError:
-            errors = [f"Timeout fetching template bundles from {url}"]
-        else:
-            return _parse_remote_bundles(content)
-        # Transient failure: log it, then back off before the next attempt
-        # (linear: backoff, 2*backoff, ...). The last attempt has nowhere to
-        # retry, so it is logged without a backoff.
-        if attempt + 1 < attempts:
-            delay = backoff * (attempt + 1)
-            print(f"  Attempt {attempt + 1}/{attempts} failed: {errors[0]}; retrying in {delay:.1f}s")
-            time.sleep(delay)
-        else:
-            print(f"  Attempt {attempt + 1}/{attempts} failed: {errors[0]}")
-
-    return BundlesDoc(None, errors)
-
-
-def _validate_selected_bundles(
-    templates: set[str],
-    bundles: dict[Any, Any],
-    missing_message: Callable[[str], str],
-) -> list[str]:
-    """Validate that each requested template exists in ``bundles`` and is well-formed.
-
-    Shared by the local-file and remote-fetch paths; they differ only in the
-    "not found" wording, supplied via ``missing_message``.
-
-    Args:
-        templates: Template names requested in the rhiza config.
-        bundles: The ``bundles`` mapping from a template-bundles document.
-        missing_message: Builds the error string for a template absent from ``bundles``.
-
-    Returns:
-        List of error messages (empty if every requested template is valid).
-    """
-    errors: list[str] = []
-    bundle_names: set[str] = set(bundles.keys())
-
-    for template in templates:
-        if template not in bundle_names:
-            errors.append(missing_message(template))
-
-    for template in templates:
-        if template in bundles:
-            errors.extend(_validate_bundle_structure(template, bundles[template], bundle_names))
-
-    return errors
-
-
-def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] | None = None) -> tuple[bool, list[str]]:
-    """Validate template bundles configuration.
-
-    Args:
-        bundles_path: Path to template-bundles.yml
-        templates_to_check: Optional set of template names to validate. If None, validate all.
-
-    Returns:
-        Tuple of (success, error_messages)
-    """
-    # Load YAML file
-    loaded = _load_yaml_file(bundles_path)
-    if loaded.data is None:
-        return False, loaded.errors
-    # data is narrowed to dict[Any, Any] by the `is None` guard above.
-    data = loaded.data
-
-    # Validate top-level fields
-    errors = _validate_top_level_fields(data)
-    if errors:
-        return False, errors
-
-    # Validate bundles section
-    bundles = data.get("bundles", {})
-    if not isinstance(bundles, dict):
-        return False, ["'bundles' must be a dictionary"]
-
-    bundle_names: set[str] = {str(k) for k in bundles}
-
-    if templates_to_check is not None:
-        # Validate only the requested subset (existence + structure).
-        errors.extend(
-            _validate_selected_bundles(
-                templates_to_check,
-                bundles,
-                lambda t: f"Template '{t}' specified in .rhiza/template.yml not found in bundles",
-            )
-        )
-    else:
-        # Validate every declared bundle, plus the examples and metadata sections.
-        for bundle_name in bundle_names:
-            errors.extend(_validate_bundle_structure(bundle_name, bundles[bundle_name], bundle_names))
-        if "examples" in data:
-            errors.extend(_validate_examples(data["examples"], bundle_names))
-        if "metadata" in data:
-            errors.extend(_validate_metadata(data["metadata"], bundles))
-
-    return len(errors) == 0, errors
 
 
 def _get_config_path(args: argparse.Namespace) -> Path:
