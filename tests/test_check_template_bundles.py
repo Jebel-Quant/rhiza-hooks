@@ -471,7 +471,7 @@ templates:
 """)
 
         # Mock _fetch_remote_bundles to return invalid bundles (missing version)
-        def mock_fetch_remote_bundles(repo, branch):
+        def mock_fetch_remote_bundles(repo, branch, **kwargs):
             return BundlesDoc({"bundles": {"core": {"files": [".gitignore"]}}}, [])
 
         monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
@@ -500,7 +500,7 @@ templates:
         )
 
         # Mock _fetch_remote_bundles to return valid bundles
-        def mock_fetch_remote_bundles(repo, branch):
+        def mock_fetch_remote_bundles(repo, branch, **kwargs):
             return BundlesDoc(
                 {"version": 1.0, "bundles": {"core": {"description": "Core files", "files": [".gitignore"]}}}, []
             )
@@ -782,7 +782,7 @@ class TestModuleExecution:
 
             from rhiza_hooks.check_template_bundles import BundlesDoc
 
-            def mock_fetch_remote_bundles(repo, branch):
+            def mock_fetch_remote_bundles(repo, branch, **kwargs):
                 return BundlesDoc(
                     {
                         "version": 1.0,
@@ -1049,6 +1049,72 @@ class TestFetchRemoteBundles:
         # Pin the request timeout so a mutated value is caught.
         assert seen["timeout"] == 10
 
+    def test_fetch_remote_bundles_custom_timeout(self, monkeypatch):
+        """A custom timeout is forwarded to urlopen verbatim."""
+        from unittest.mock import MagicMock
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        seen = {}
+
+        def mock_urlopen(url, timeout):
+            seen["timeout"] = timeout
+            resp = MagicMock()
+            resp.read.return_value = b"version: 1.0\nbundles: {}"
+            resp.__enter__ = lambda self: self
+            resp.__exit__ = lambda self, *args: None
+            return resp
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+
+        _fetch_remote_bundles("test/repo", "main", timeout=42.5)
+        assert seen["timeout"] == 42.5
+
+    def test_fetch_remote_bundles_no_retries(self, monkeypatch):
+        """attempts=1 makes a single request and never sleeps."""
+        from unittest.mock import MagicMock
+        from urllib.error import URLError
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        calls = MagicMock(side_effect=URLError("down"))
+
+        def mock_urlopen(url, timeout):
+            return calls(url, timeout)
+
+        sleep = MagicMock()
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", sleep)
+
+        result = _fetch_remote_bundles("test/repo", "main", attempts=1)
+        assert result.data is None
+        assert calls.call_count == 1
+        assert sleep.call_args_list == []
+
+    def test_fetch_remote_bundles_logs_each_attempt(self, monkeypatch, capsys):
+        """Every failed attempt is logged; retried ones mention the backoff delay."""
+        from unittest.mock import MagicMock
+        from urllib.error import URLError
+
+        from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
+
+        calls = MagicMock(side_effect=URLError("down"))
+
+        def mock_urlopen(url, timeout):
+            return calls(url, timeout)
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", MagicMock())
+
+        _fetch_remote_bundles("test/repo", "main", attempts=2, backoff=1.0)
+        out = capsys.readouterr().out
+        assert "Attempt 1/2 failed" in out
+        assert "retrying in 1.0s" in out
+        # The final attempt is logged but has nothing to retry.
+        assert "Attempt 2/2 failed" in out
+        assert "Attempt 2/2 failed: " in out
+        assert out.count("retrying in") == 1
+
 
 class TestMainErrorPaths:
     """Tests for main function error paths."""
@@ -1074,7 +1140,7 @@ class TestMainErrorPaths:
         # A fetch stub guards against the mutant branch attempting a real network call.
         monkeypatch.setattr(
             "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
-            lambda repo, branch: BundlesDoc(None, ["stub"]),
+            lambda repo, branch, **kwargs: BundlesDoc(None, ["stub"]),
         )
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
@@ -1108,7 +1174,7 @@ class TestMainErrorPaths:
 
         monkeypatch.setattr(
             "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
-            lambda repo, branch: BundlesDoc(None, ["stub"]),
+            lambda repo, branch, **kwargs: BundlesDoc(None, ["stub"]),
         )
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
@@ -1141,7 +1207,7 @@ class TestMainErrorPaths:
         )
 
         # Mock _fetch_remote_bundles to return failure
-        def mock_fetch_remote_bundles(repo, branch):
+        def mock_fetch_remote_bundles(repo, branch, **kwargs):
             return BundlesDoc(None, ["Failed to fetch remote bundles"])
 
         monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
@@ -1173,7 +1239,7 @@ class TestMainErrorPaths:
         )
 
         # Mock _fetch_remote_bundles to return bundles as a list instead of dict
-        def mock_fetch_remote_bundles(repo, branch):
+        def mock_fetch_remote_bundles(repo, branch, **kwargs):
             return BundlesDoc({"version": 1.0, "bundles": []}, [])
 
         monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
@@ -1206,7 +1272,7 @@ class TestMainErrorPaths:
         )
 
         # Mock _fetch_remote_bundles to return bundles without the requested template
-        def mock_fetch_remote_bundles(repo, branch):
+        def mock_fetch_remote_bundles(repo, branch, **kwargs):
             return BundlesDoc(
                 {
                     "version": 1.0,
@@ -1249,7 +1315,7 @@ class TestMainErrorPaths:
         )
 
         # Mock _fetch_remote_bundles to return invalid bundle structure (missing description)
-        def mock_fetch_remote_bundles(repo, branch):
+        def mock_fetch_remote_bundles(repo, branch, **kwargs):
             return BundlesDoc({"version": 1.0, "bundles": {"core": {"files": [".gitignore"]}}}, [])
 
         monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
@@ -1342,7 +1408,7 @@ class TestValidateRemoteBundles:
         """Successful fetch+validate prints the exact 'Fetching'/'Checking' lines."""
         monkeypatch.setattr(
             f"{_MOD}._fetch_remote_bundles",
-            lambda repo, branch: BundlesDoc(
+            lambda repo, branch, **kwargs: BundlesDoc(
                 {"version": 1.0, "bundles": {"core": {"description": "d", "files": ["f"]}}}, []
             ),
         )
@@ -1356,7 +1422,7 @@ class TestValidateRemoteBundles:
 
     def test_fetch_failure_prints_errors(self, monkeypatch, capsys):
         """A failed fetch prints the exact failure header and bullet, returning (None, errors)."""
-        monkeypatch.setattr(f"{_MOD}._fetch_remote_bundles", lambda repo, branch: BundlesDoc(None, ["boom"]))
+        monkeypatch.setattr(f"{_MOD}._fetch_remote_bundles", lambda repo, branch, **kwargs: BundlesDoc(None, ["boom"]))
         data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, Path("cfg"))
         assert data is None
         assert errors == ["boom"]
@@ -1369,7 +1435,9 @@ class TestValidateRemoteBundles:
 
     def test_invalid_top_level_returns_none(self, monkeypatch, capsys):
         """Remote data missing 'version' fails: returns (None, errors), not (data, [])."""
-        monkeypatch.setattr(f"{_MOD}._fetch_remote_bundles", lambda repo, branch: BundlesDoc({"bundles": {}}, []))
+        monkeypatch.setattr(
+            f"{_MOD}._fetch_remote_bundles", lambda repo, branch, **kwargs: BundlesDoc({"bundles": {}}, [])
+        )
         data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, Path("cfg"))
         # data is None pins `errors = _validate_top_level_fields(data)` (vs the `errors = None` mutant).
         assert data is None
@@ -1381,7 +1449,8 @@ class TestValidateRemoteBundles:
     def test_bundles_not_dict_returns_none(self, monkeypatch, capsys):
         """Remote 'bundles' not a dict fails with the exact header and bullet."""
         monkeypatch.setattr(
-            f"{_MOD}._fetch_remote_bundles", lambda repo, branch: BundlesDoc({"version": 1.0, "bundles": []}, [])
+            f"{_MOD}._fetch_remote_bundles",
+            lambda repo, branch, **kwargs: BundlesDoc({"version": 1.0, "bundles": []}, []),
         )
         data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, Path("cfg"))
         assert data is None
@@ -1466,3 +1535,80 @@ class TestMainExtraCoverage:
         assert main(["--offline"]) == 0
         assert capsys.readouterr().out == "Offline mode: skipping remote template bundles validation\n"
         urlopen.assert_not_called()
+
+
+class TestRetryTimeoutFlags:
+    """Tests for the --retries / --timeout CLI flags (issue #179)."""
+
+    def _make_config(self, tmp_path, monkeypatch):
+        """Create a minimal template.yml with a templates field and chdir into it."""
+        rhiza_dir = tmp_path / ".rhiza"
+        rhiza_dir.mkdir()
+        (rhiza_dir / "template.yml").write_text(
+            dedent("""
+            template-repository: test/repo
+            template-branch: main
+            templates:
+              - core
+            """)
+        )
+        monkeypatch.chdir(tmp_path)
+
+    def test_flags_forwarded_to_fetch(self, tmp_path, monkeypatch):
+        """--retries/--timeout are translated to attempts (retries + 1) and timeout."""
+        self._make_config(tmp_path, monkeypatch)
+
+        seen = {}
+
+        def mock_fetch_remote_bundles(repo, branch, *, attempts, timeout):
+            seen["attempts"] = attempts
+            seen["timeout"] = timeout
+            return BundlesDoc(
+                {"version": 1.0, "bundles": {"core": {"description": "Core", "files": [".gitignore"]}}}, []
+            )
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+
+        assert main(["--retries", "4", "--timeout", "7.5"]) == 0
+        # --retries counts retries after the first attempt, so attempts = retries + 1.
+        assert seen == {"attempts": 5, "timeout": 7.5}
+
+    def test_defaults_when_flags_absent(self, tmp_path, monkeypatch):
+        """Without flags, the documented defaults (2 attempts, 10s) are used."""
+        from rhiza_hooks.check_template_bundles import _FETCH_ATTEMPTS, _FETCH_TIMEOUT_SECONDS
+
+        self._make_config(tmp_path, monkeypatch)
+
+        seen = {}
+
+        def mock_fetch_remote_bundles(repo, branch, *, attempts, timeout):
+            seen["attempts"] = attempts
+            seen["timeout"] = timeout
+            return BundlesDoc(
+                {"version": 1.0, "bundles": {"core": {"description": "Core", "files": [".gitignore"]}}}, []
+            )
+
+        monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+
+        assert main([]) == 0
+        assert seen == {"attempts": _FETCH_ATTEMPTS, "timeout": _FETCH_TIMEOUT_SECONDS}
+
+    def test_negative_retries_rejected(self):
+        """--retries below zero is rejected by argument validation."""
+        with pytest.raises(SystemExit) as exc_info:
+            main(["--retries", "-1"])
+        assert exc_info.value.code == 2
+
+    def test_non_positive_timeout_rejected(self):
+        """--timeout of zero (or less) is rejected by argument validation."""
+        with pytest.raises(SystemExit) as exc_info:
+            main(["--timeout", "0"])
+        assert exc_info.value.code == 2
+
+    def test_flags_in_help(self, capsys):
+        """--help advertises the new flags."""
+        with pytest.raises(SystemExit):
+            main(["--help"])
+        out = capsys.readouterr().out
+        assert "--retries" in out
+        assert "--timeout" in out

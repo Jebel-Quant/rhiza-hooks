@@ -96,7 +96,10 @@ def get_pyproject_requires_python(repo_root: Path) -> list[tuple[str, str]] | No
     try:
         with pyproject_file.open("rb") as f:
             data = tomllib.load(f)
-    except Exception:
+    except (tomllib.TOMLDecodeError, OSError):
+        # Malformed TOML or an unreadable/disappeared file is treated as
+        # "unspecified" rather than crashing the hook. Anything else (e.g. a
+        # genuine bug) is left to surface.
         return None
 
     requires_python = data.get("project", {}).get("requires-python")

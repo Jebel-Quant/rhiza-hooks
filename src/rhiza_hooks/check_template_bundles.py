@@ -36,8 +36,10 @@ from rhiza_hooks._repo import find_repo_root
 
 # Remote fetch is retried on transient network errors before giving up. Two
 # attempts = one initial try plus one retry, with a short linear backoff.
+# These are defaults; the CLI exposes `--retries` and `--timeout` to override.
 _FETCH_ATTEMPTS = 2
 _FETCH_BACKOFF_SECONDS = 1.0
+_FETCH_TIMEOUT_SECONDS = 10.0
 
 
 @dataclass(frozen=True)
@@ -228,18 +230,21 @@ def _fetch_remote_bundles(
     branch: str,
     attempts: int = _FETCH_ATTEMPTS,
     backoff: float = _FETCH_BACKOFF_SECONDS,
+    timeout: float = _FETCH_TIMEOUT_SECONDS,
 ) -> BundlesDoc:
     """Fetch template-bundles.yml from a remote GitHub repository.
 
     Transient network failures (`URLError`/`TimeoutError`) are retried up to
-    ``attempts`` times with a linear backoff. HTTP errors (e.g. 404) are
-    permanent and returned immediately without retrying.
+    ``attempts`` times with a linear backoff, and each failed attempt is logged
+    so CI failures are diagnosable. HTTP errors (e.g. 404) are permanent and
+    returned immediately without retrying.
 
     Args:
         repo: GitHub repository in 'owner/repo' format
         branch: Branch name
         attempts: Total number of fetch attempts (initial try + retries)
         backoff: Base seconds to sleep between attempts (multiplied by attempt number)
+        timeout: Per-request socket timeout in seconds
 
     Returns:
         A :class:`BundlesDoc` with the parsed mapping on success, or errors.
@@ -258,7 +263,7 @@ def _fetch_remote_bundles(
     errors: list[str] = []  # pragma: no mutate
     for attempt in range(attempts):
         try:
-            with urlopen(url, timeout=10) as response:  # noqa: S310  # nosec B310
+            with urlopen(url, timeout=timeout) as response:  # noqa: S310  # nosec B310
                 content = response.read()
         except HTTPError as e:
             if e.code == 404:
@@ -270,9 +275,15 @@ def _fetch_remote_bundles(
             errors = [f"Timeout fetching template bundles from {url}"]
         else:
             return _parse_remote_bundles(content)
-        # Transient failure: back off before the next attempt (linear: backoff, 2*backoff, ...).
+        # Transient failure: log it, then back off before the next attempt
+        # (linear: backoff, 2*backoff, ...). The last attempt has nowhere to
+        # retry, so it is logged without a backoff.
         if attempt + 1 < attempts:
-            time.sleep(backoff * (attempt + 1))
+            delay = backoff * (attempt + 1)
+            print(f"  Attempt {attempt + 1}/{attempts} failed: {errors[0]}; retrying in {delay:.1f}s")
+            time.sleep(delay)
+        else:
+            print(f"  Attempt {attempt + 1}/{attempts} failed: {errors[0]}")
 
     return BundlesDoc(None, errors)
 
@@ -387,7 +398,12 @@ def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any] | None,
 
 
 def _validate_remote_bundles(
-    template_repo: str, template_branch: str, templates_set: set[str], config_path: Path
+    template_repo: str,
+    template_branch: str,
+    templates_set: set[str],
+    config_path: Path,
+    attempts: int = _FETCH_ATTEMPTS,
+    timeout: float = _FETCH_TIMEOUT_SECONDS,
 ) -> tuple[dict[Any, Any] | None, list[str]]:
     """Fetch and validate remote bundles.
 
@@ -397,7 +413,7 @@ def _validate_remote_bundles(
     print(f"Fetching template bundles from {template_repo} (branch: {template_branch})")
     print(f"Checking templates: {', '.join(sorted(templates_set))}")
 
-    fetched = _fetch_remote_bundles(template_repo, template_branch)
+    fetched = _fetch_remote_bundles(template_repo, template_branch, attempts=attempts, timeout=timeout)
     if fetched.data is None:
         print("\n✗ Failed to fetch template bundles:")
         for error in fetched.errors:
@@ -448,7 +464,24 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip the remote bundles fetch (e.g. for offline commits) and pass",
     )
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=_FETCH_ATTEMPTS - 1,
+        help="Number of retries for transient network failures, after the initial attempt (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=_FETCH_TIMEOUT_SECONDS,
+        help="Per-request network timeout in seconds (default: %(default)s)",
+    )
     args = parser.parse_args(argv)
+
+    if args.retries < 0:
+        parser.error("--retries must be non-negative")
+    if args.timeout <= 0:
+        parser.error("--timeout must be positive")
 
     if args.offline:
         print("Offline mode: skipping remote template bundles validation")
@@ -474,7 +507,14 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     # Fetch and validate remote bundles
-    data, _fetch_errors = _validate_remote_bundles(template_repo, template_branch, templates_set, config_path)
+    data, _fetch_errors = _validate_remote_bundles(
+        template_repo,
+        template_branch,
+        templates_set,
+        config_path,
+        attempts=args.retries + 1,
+        timeout=args.timeout,
+    )
     if data is None:
         return 1
 

@@ -206,6 +206,26 @@ class TestGetPyprojectRequiresPython:
         pyproject.write_text('[project]\nrequires-python = "invalid-version"\n')
         assert get_pyproject_requires_python(tmp_path) is None
 
+    def test_unreadable_file_returns_none(self, tmp_path: Path) -> None:
+        """An OSError opening pyproject.toml (e.g. it is a directory) is treated as unspecified."""
+        # A directory at the expected path exists() == True but raises OSError on open().
+        (tmp_path / "pyproject.toml").mkdir()
+        assert get_pyproject_requires_python(tmp_path) is None
+
+    def test_unexpected_error_propagates(self, tmp_path: Path) -> None:
+        """Errors other than TOMLDecodeError/OSError are no longer swallowed (issue #174)."""
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nrequires-python = ">=3.11"\n')
+
+        def boom(_f: object) -> None:
+            raise RuntimeError("unexpected")
+
+        with (
+            patch("rhiza_hooks.check_python_version.tomllib.load", side_effect=boom),
+            pytest.raises(RuntimeError, match="unexpected"),
+        ):
+            get_pyproject_requires_python(tmp_path)
+
 
 class TestCheckVersionConsistency:
     """Tests for check_version_consistency function."""
