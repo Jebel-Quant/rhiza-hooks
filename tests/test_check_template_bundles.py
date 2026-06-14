@@ -827,7 +827,7 @@ class TestFetchRemoteBundles:
         def mock_urlopen(url, timeout):
             raise HTTPError(url, 404, "Not Found", {}, None)
 
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
         result = _fetch_remote_bundles("test/repo", "main")
         assert result.data is None
@@ -842,7 +842,7 @@ class TestFetchRemoteBundles:
         def mock_urlopen(url, timeout):
             raise HTTPError(url, 500, "Internal Server Error", {}, None)
 
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
         result = _fetch_remote_bundles("test/repo", "main")
         assert result.data is None
@@ -861,8 +861,8 @@ class TestFetchRemoteBundles:
             return calls(url, timeout)
 
         sleep = MagicMock()
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", sleep)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.time.sleep", sleep)
 
         result = _fetch_remote_bundles("test/repo", "main")
         assert result.data is None
@@ -884,8 +884,8 @@ class TestFetchRemoteBundles:
             return calls(url, timeout)
 
         sleep = MagicMock()
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", sleep)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.time.sleep", sleep)
 
         result = _fetch_remote_bundles("test/repo", "main")
         assert result.data is None
@@ -914,8 +914,8 @@ class TestFetchRemoteBundles:
             return calls(url, timeout)
 
         sleep = MagicMock()
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", sleep)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.time.sleep", sleep)
 
         result = _fetch_remote_bundles("test/repo", "main")
         assert result.data == {"version": 1.0, "bundles": {}}
@@ -936,8 +936,8 @@ class TestFetchRemoteBundles:
             return calls(url, timeout)
 
         sleep = MagicMock()
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", sleep)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.time.sleep", sleep)
 
         result = _fetch_remote_bundles("test/repo", "main", attempts=3, backoff=2.0)
         assert result.data is None
@@ -958,7 +958,7 @@ class TestFetchRemoteBundles:
             mock_response.__exit__ = lambda self, *args: None
             return mock_response
 
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
         result = _fetch_remote_bundles("test/repo", "main")
         assert result.data is None
@@ -978,7 +978,7 @@ class TestFetchRemoteBundles:
             mock_response.__exit__ = lambda self, *args: None
             return mock_response
 
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
         result = _fetch_remote_bundles("test/repo", "main")
         assert result.data is None
@@ -997,7 +997,7 @@ class TestFetchRemoteBundles:
             mock_response.__exit__ = lambda self, *args: None
             return mock_response
 
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
         result = _fetch_remote_bundles("test/repo", "main")
         assert result.data is None
@@ -1015,7 +1015,7 @@ class TestFetchRemoteBundles:
                 scheme="http", netloc="raw.githubusercontent.com", path="", params="", query="", fragment=""
             )
 
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlparse", mock_urlparse)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlparse", mock_urlparse)
 
         result = _fetch_remote_bundles("test/repo", "main")
         assert result.data is None
@@ -1039,7 +1039,7 @@ class TestFetchRemoteBundles:
             mock_response.__exit__ = lambda self, *args: None
             return mock_response
 
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
         result = _fetch_remote_bundles("test/repo", "main")
         assert isinstance(result.data, dict)
@@ -1065,7 +1065,7 @@ class TestFetchRemoteBundles:
             resp.__exit__ = lambda self, *args: None
             return resp
 
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
         _fetch_remote_bundles("test/repo", "main", timeout=42.5)
         assert seen["timeout"] == 42.5
@@ -1083,8 +1083,8 @@ class TestFetchRemoteBundles:
             return calls(url, timeout)
 
         sleep = MagicMock()
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", sleep)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.time.sleep", sleep)
 
         result = _fetch_remote_bundles("test/repo", "main", attempts=1)
         assert result.data is None
@@ -1103,8 +1103,8 @@ class TestFetchRemoteBundles:
         def mock_urlopen(url, timeout):
             return calls(url, timeout)
 
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", mock_urlopen)
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.time.sleep", MagicMock())
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.time.sleep", MagicMock())
 
         _fetch_remote_bundles("test/repo", "main", attempts=2, backoff=1.0)
         out = capsys.readouterr().out
@@ -1530,7 +1530,7 @@ class TestMainExtraCoverage:
 
         # Any attempt to fetch would fail the test, proving the network is skipped.
         urlopen = MagicMock(side_effect=AssertionError("network must not be used in offline mode"))
-        monkeypatch.setattr("rhiza_hooks.check_template_bundles.urlopen", urlopen)
+        monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", urlopen)
 
         assert main(["--offline"]) == 0
         assert capsys.readouterr().out == "Offline mode: skipping remote template bundles validation\n"
