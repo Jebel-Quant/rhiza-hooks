@@ -172,18 +172,27 @@ Validates templates specified in `.rhiza/template.yml` against the `template-bun
 
 **Triggers on:** Changes to `.rhiza/template.yml`
 
-This hook reaches the network on every run. A transient failure is retried once with a short backoff before giving up; pass `--offline` to skip the remote fetch entirely (the hook then passes without validating), which is useful for offline commits.
+This hook reaches the network on every run. Transient failures are retried with a short linear backoff, and each failed attempt is logged so CI failures are diagnosable. The retry count and per-request timeout are configurable, and `--offline` skips the remote fetch entirely (the hook then passes without validating), which is useful for offline commits.
+
+**Options:**
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `--offline` | off | Skip the remote fetch and pass without validating |
+| `--retries N` | `1` | Retries after the first attempt on transient network errors (`0` disables retrying) |
+| `--timeout S` | `10.0` | Per-request network timeout, in seconds |
 
 **Usage:**
 
 ```yaml
 - id: check-template-bundles
-  # args: [--offline]  # Optional: skip the network fetch and pass
+  # args: [--offline]              # Optional: skip the network fetch and pass
+  # args: [--retries, "3", --timeout, "20"]  # Optional: tune flaky-network behaviour
 ```
 
 **Troubleshooting:**
 
-- This hook normally fetches `template-bundles.yml` from the configured template repository and retries once on transient network errors.
+- This hook normally fetches `template-bundles.yml` from the configured template repository and retries on transient network errors; raise `--retries`/`--timeout` if your network is slow or flaky, and read the per-attempt log lines to see what failed.
 - Use `--offline` when committing without network access; it skips the fetch and exits successfully without remote validation.
 
 ## 🛠️ Development
