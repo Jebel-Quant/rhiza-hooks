@@ -85,7 +85,6 @@ Embeds the output of `make help` into README.md between marker comments.
 **Troubleshooting:**
 
 - If `make` (or `make help`) is unavailable, this hook exits successfully and skips updates by design.
-- If README is not updated, ensure it still contains `<!-- MAKE_HELP_START -->` and `<!-- MAKE_HELP_END -->` markers.
 
 ### Additional Utility Hooks
 
