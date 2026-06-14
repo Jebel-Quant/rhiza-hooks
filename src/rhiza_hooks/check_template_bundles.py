@@ -203,7 +203,7 @@ def _get_templates_from_config(config_path: Path) -> set[str] | None:
     if not isinstance(templates, list):
         return None
 
-    template_names: set[str] = set(templates)
+    template_names: set[str] = {str(t) for t in templates}
     return template_names
 
 
@@ -336,7 +336,7 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
     if not isinstance(bundles, dict):
         return False, ["'bundles' must be a dictionary"]
 
-    bundle_names: set[str] = set(bundles.keys())
+    bundle_names: set[str] = {str(k) for k in bundles}
 
     if templates_to_check is not None:
         # Validate only the requested subset (existence + structure).
@@ -382,7 +382,7 @@ def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any] | None,
         print(f"No templates field in {config_path}, skipping bundle validation")
         return None, None
 
-    templates_set: set[str] = set(templates_to_check)
+    templates_set: set[str] = {str(t) for t in templates_to_check}
     return config, templates_set
 
 
