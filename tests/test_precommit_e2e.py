@@ -26,9 +26,10 @@ from pathlib import Path
 
 import pytest
 
-# Phrases that indicate pre-commit could not *build/install* the hook environment
-# (network, build backend, resolver) rather than a genuine wiring failure. When
-# any appears we skip instead of failing, so an offline box does not break CI.
+# Phrases that indicate pre-commit itself could not run the hook environment
+# (network, build backend, resolver, or an internal pre-commit crash) rather
+# than a genuine wiring failure. When any appears we skip instead of failing,
+# so a hostile environment does not break CI.
 _ENV_FAILURE_MARKERS = (
     "InstallError",
     "Failed to install",
@@ -39,6 +40,14 @@ _ENV_FAILURE_MARKERS = (
     "Network is unreachable",
     "ReadTimeoutError",
     "SSLError",
+    # pre-commit's generic banner for an internal crash (exit code 3). It is
+    # printed for environment problems, never for hook-wiring errors (those get
+    # clean messages like "No hook with id ..."). The most common offender is
+    # GitHub's Windows runner, where the workspace (D:) and the pre-commit cache
+    # (C:) sit on different drives: `ValueError: path is on mount 'D:', start on
+    # mount 'C:'`.
+    "An unexpected error has occurred",
+    "path is on mount",
 )
 
 # A self-contained hook with no network use and ``pass_filenames: false`` /
