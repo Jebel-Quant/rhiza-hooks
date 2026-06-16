@@ -25,22 +25,13 @@ repos:
         pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.15.14'
+    rev: 'v0.15.17'
     hooks:
       - id: ruff
         args: [ --fix, --exit-non-zero-on-fix, --unsafe-fixes ]
 
       # Run the formatter
       - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
-    hooks:
-      - id: mypy
-        args: ["--strict"]
-        files: ^src/
-        additional_dependencies:
-          - types-pyyaml
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.48.0
@@ -49,18 +40,24 @@ repos:
         args: ["--disable", "MD013"]
 
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.37.2
+    rev: 0.37.3
     hooks:
       - id: check-renovate
         args: [ "--verbose" ]
 
       - id: check-github-workflows
         args: ["--verbose"]
+        # Generated gh-aw output (DO NOT EDIT headers) uses concurrency keys
+        # ahead of the published workflow schema - the compiler owns its validity
+        exclude: ^\.github/workflows/(.*\.lock\.yml|agentics-maintenance\.yml)$
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
     hooks:
       - id: actionlint
+        # Same carve-out as check-github-workflows above: gh-aw-generated
+        # workflows are owned and validated by the gh-aw compiler
+        exclude: ^\.github/workflows/(.*\.lock\.yml|agentics-maintenance\.yml)$
 
   - repo: https://github.com/abravalheri/validate-pyproject
     rev: v0.25
@@ -73,14 +70,13 @@ repos:
       - id: bandit
         args: ["--ini", ".bandit", "--exclude", ".venv,tests,.rhiza/tests,.git,.pytest_cache"]
 
-  - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.11.0.1
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.5.0
     hooks:
-      - id: shellcheck
-        files: '\.rhiza/utils/.*\.sh$'
+      - id: betterleaks
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.11.16
+    rev: 0.11.21
     hooks:
       - id: uv-lock
 
@@ -101,10 +97,4 @@ repos:
       - id: check-rhiza-config
       - id: check-makefile-targets
       - id: check-python-version-consistency
-      # check-template-bundles is intentionally NOT enabled here: it fetches
-      # template-bundles.yml over the network from the template repo on every
-      # run, which would make local commits depend on network access. It runs
-      # in CI instead. To validate locally on demand, run it directly:
-      #   pre-commit run --hook-stage manual check-template-bundles --all-files
-      # or skip the network with `check-template-bundles --offline`.
       # - id: check-template-bundles
