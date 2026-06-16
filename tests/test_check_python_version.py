@@ -218,6 +218,7 @@ class TestGetPyprojectRequiresPython:
         pyproject.write_text('[project]\nrequires-python = ">=3.11"\n')
 
         def boom(_f: object) -> None:
+            """Raise a RuntimeError to simulate an unexpected tomllib failure."""
             raise RuntimeError("unexpected")
 
         with (
