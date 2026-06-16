@@ -51,6 +51,7 @@ def mock_project(tmp_path: Path) -> Callable[[dict[str, str]], Path]:
     """
 
     def _create_project(files: dict[str, str]) -> Path:
+        """Create project files from a {filename: content} mapping and return the root."""
         for filepath, content in files.items():
             file_path = tmp_path / filepath
             file_path.parent.mkdir(parents=True, exist_ok=True)
