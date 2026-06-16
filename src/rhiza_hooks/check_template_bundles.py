@@ -79,7 +79,6 @@ def _validate_remote_bundles(
     template_repo: str,
     template_branch: str,
     templates_set: set[str],
-    config_path: Path,
     attempts: int = _FETCH_ATTEMPTS,
     timeout: float = _FETCH_TIMEOUT_SECONDS,
 ) -> tuple[dict[Any, Any] | None, list[str]]:
@@ -189,7 +188,6 @@ def main(argv: list[str] | None = None) -> int:
         template_repo,
         template_branch,
         templates_set,
-        config_path,
         attempts=args.retries + 1,
         timeout=args.timeout,
     )

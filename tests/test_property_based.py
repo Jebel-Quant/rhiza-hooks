@@ -19,6 +19,7 @@ _components = st.integers(min_value=0, max_value=99)
 
 
 def _version_str(major: int, minor: int) -> str:
+    """Format a (major, minor) pair as a dotted version string."""
     return f"{major}.{minor}"
 
 

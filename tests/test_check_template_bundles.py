@@ -29,6 +29,7 @@ def temp_bundles_file(tmp_path: Path):
     """Create a temporary bundles file."""
 
     def _create(content: str) -> Path:
+        """Write the dedented content to a template-bundles.yml and return its path."""
         bundles_file = tmp_path / "template-bundles.yml"
         bundles_file.write_text(dedent(content))
         return bundles_file
@@ -472,6 +473,7 @@ templates:
 
         # Mock _fetch_remote_bundles to return invalid bundles (missing version)
         def mock_fetch_remote_bundles(repo, branch, **kwargs):
+            """Return bundles missing the version field to trigger validation failure."""
             return BundlesDoc({"bundles": {"core": {"files": [".gitignore"]}}}, [])
 
         monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
@@ -501,6 +503,7 @@ templates:
 
         # Mock _fetch_remote_bundles to return valid bundles
         def mock_fetch_remote_bundles(repo, branch, **kwargs):
+            """Return a valid bundles doc with a single core bundle."""
             return BundlesDoc(
                 {"version": 1.0, "bundles": {"core": {"description": "Core files", "files": [".gitignore"]}}}, []
             )
@@ -825,6 +828,7 @@ class TestFetchRemoteBundles:
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
+            """Raise an HTTP 404 error in place of opening the URL."""
             raise HTTPError(url, 404, "Not Found", {}, None)
 
         monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
@@ -840,6 +844,7 @@ class TestFetchRemoteBundles:
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
+            """Raise an HTTP 500 error in place of opening the URL."""
             raise HTTPError(url, 500, "Internal Server Error", {}, None)
 
         monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
@@ -858,6 +863,7 @@ class TestFetchRemoteBundles:
         calls = MagicMock(side_effect=URLError("Connection refused"))
 
         def mock_urlopen(url, timeout):
+            """Delegate to the mock that always raises a URLError."""
             return calls(url, timeout)
 
         sleep = MagicMock()
@@ -881,6 +887,7 @@ class TestFetchRemoteBundles:
         calls = MagicMock(side_effect=TimeoutError("Timeout"))
 
         def mock_urlopen(url, timeout):
+            """Delegate to the mock that always raises a TimeoutError."""
             return calls(url, timeout)
 
         sleep = MagicMock()
@@ -902,6 +909,7 @@ class TestFetchRemoteBundles:
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def make_response():
+            """Build a context-manager response yielding minimal valid bundles YAML."""
             resp = MagicMock()
             resp.read.return_value = b"version: 1.0\nbundles: {}"
             resp.__enter__ = lambda self: self
@@ -911,6 +919,7 @@ class TestFetchRemoteBundles:
         calls = MagicMock(side_effect=[URLError("flaky"), make_response()])
 
         def mock_urlopen(url, timeout):
+            """Delegate to the mock that fails once then returns a response."""
             return calls(url, timeout)
 
         sleep = MagicMock()
@@ -933,6 +942,7 @@ class TestFetchRemoteBundles:
         calls = MagicMock(side_effect=URLError("down"))
 
         def mock_urlopen(url, timeout):
+            """Delegate to the mock that always raises a URLError for backoff testing."""
             return calls(url, timeout)
 
         sleep = MagicMock()
@@ -952,6 +962,7 @@ class TestFetchRemoteBundles:
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
+            """Return a response yielding malformed YAML content."""
             mock_response = MagicMock()
             mock_response.read.return_value = b"invalid: yaml: syntax:"
             mock_response.__enter__ = lambda self: self
@@ -972,6 +983,7 @@ class TestFetchRemoteBundles:
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
+            """Return a response yielding empty content."""
             mock_response = MagicMock()
             mock_response.read.return_value = b""
             mock_response.__enter__ = lambda self: self
@@ -991,6 +1003,7 @@ class TestFetchRemoteBundles:
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
+            """Return a response yielding a YAML list rather than a mapping."""
             mock_response = MagicMock()
             mock_response.read.return_value = b"- item1\n- item2"
             mock_response.__enter__ = lambda self: self
@@ -1010,6 +1023,7 @@ class TestFetchRemoteBundles:
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlparse(url):
+            """Return a parsed URL with an http scheme to trigger scheme rejection."""
             # Return a parsed URL with http scheme instead of https
             return ParseResult(
                 scheme="http", netloc="raw.githubusercontent.com", path="", params="", query="", fragment=""
@@ -1030,6 +1044,7 @@ class TestFetchRemoteBundles:
         seen = {}
 
         def mock_urlopen(url, timeout):
+            """Record the timeout and return a response with valid bundles YAML."""
             seen["timeout"] = timeout
             mock_response = MagicMock()
             mock_response.read.return_value = (
@@ -1058,6 +1073,7 @@ class TestFetchRemoteBundles:
         seen = {}
 
         def mock_urlopen(url, timeout):
+            """Record the custom timeout and return a minimal valid bundles response."""
             seen["timeout"] = timeout
             resp = MagicMock()
             resp.read.return_value = b"version: 1.0\nbundles: {}"
@@ -1080,6 +1096,7 @@ class TestFetchRemoteBundles:
         calls = MagicMock(side_effect=URLError("down"))
 
         def mock_urlopen(url, timeout):
+            """Delegate to the mock that always raises a URLError for the no-retry case."""
             return calls(url, timeout)
 
         sleep = MagicMock()
@@ -1101,6 +1118,7 @@ class TestFetchRemoteBundles:
         calls = MagicMock(side_effect=URLError("down"))
 
         def mock_urlopen(url, timeout):
+            """Delegate to the mock that always raises a URLError for attempt logging."""
             return calls(url, timeout)
 
         monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
@@ -1208,6 +1226,7 @@ class TestMainErrorPaths:
 
         # Mock _fetch_remote_bundles to return failure
         def mock_fetch_remote_bundles(repo, branch, **kwargs):
+            """Return a fetch failure with no data and an error message."""
             return BundlesDoc(None, ["Failed to fetch remote bundles"])
 
         monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
@@ -1240,6 +1259,7 @@ class TestMainErrorPaths:
 
         # Mock _fetch_remote_bundles to return bundles as a list instead of dict
         def mock_fetch_remote_bundles(repo, branch, **kwargs):
+            """Return remote data whose bundles field is a list instead of a dict."""
             return BundlesDoc({"version": 1.0, "bundles": []}, [])
 
         monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
@@ -1273,6 +1293,7 @@ class TestMainErrorPaths:
 
         # Mock _fetch_remote_bundles to return bundles without the requested template
         def mock_fetch_remote_bundles(repo, branch, **kwargs):
+            """Return bundles lacking the requested 'nonexistent' template."""
             return BundlesDoc(
                 {
                     "version": 1.0,
@@ -1316,6 +1337,7 @@ class TestMainErrorPaths:
 
         # Mock _fetch_remote_bundles to return invalid bundle structure (missing description)
         def mock_fetch_remote_bundles(repo, branch, **kwargs):
+            """Return a bundle with invalid structure missing its description."""
             return BundlesDoc({"version": 1.0, "bundles": {"core": {"files": [".gitignore"]}}}, [])
 
         monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
@@ -1412,7 +1434,7 @@ class TestValidateRemoteBundles:
                 {"version": 1.0, "bundles": {"core": {"description": "d", "files": ["f"]}}}, []
             ),
         )
-        data, errors = _validate_remote_bundles("test/repo", "main", {"core", "python"}, Path("cfg"))
+        data, errors = _validate_remote_bundles("test/repo", "main", {"core", "python"})
         assert data is not None
         assert errors == []
         # Exact stdout pins both lines and the ', ' join separator (sorted templates).
@@ -1423,7 +1445,7 @@ class TestValidateRemoteBundles:
     def test_fetch_failure_prints_errors(self, monkeypatch, capsys):
         """A failed fetch prints the exact failure header and bullet, returning (None, errors)."""
         monkeypatch.setattr(f"{_MOD}._fetch_remote_bundles", lambda repo, branch, **kwargs: BundlesDoc(None, ["boom"]))
-        data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, Path("cfg"))
+        data, errors = _validate_remote_bundles("test/repo", "main", {"core"})
         assert data is None
         assert errors == ["boom"]
         assert capsys.readouterr().out == (
@@ -1438,7 +1460,7 @@ class TestValidateRemoteBundles:
         monkeypatch.setattr(
             f"{_MOD}._fetch_remote_bundles", lambda repo, branch, **kwargs: BundlesDoc({"bundles": {}}, [])
         )
-        data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, Path("cfg"))
+        data, errors = _validate_remote_bundles("test/repo", "main", {"core"})
         # data is None pins `errors = _validate_top_level_fields(data)` (vs the `errors = None` mutant).
         assert data is None
         assert errors == ["Missing required field: version"]
@@ -1452,7 +1474,7 @@ class TestValidateRemoteBundles:
             f"{_MOD}._fetch_remote_bundles",
             lambda repo, branch, **kwargs: BundlesDoc({"version": 1.0, "bundles": []}, []),
         )
-        data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, Path("cfg"))
+        data, errors = _validate_remote_bundles("test/repo", "main", {"core"})
         assert data is None
         assert errors == ["'bundles' must be a dictionary"]
         lines = capsys.readouterr().out.splitlines()
@@ -1561,6 +1583,7 @@ class TestRetryTimeoutFlags:
         seen = {}
 
         def mock_fetch_remote_bundles(repo, branch, *, attempts, timeout):
+            """Record the forwarded attempts and timeout and return valid bundles."""
             seen["attempts"] = attempts
             seen["timeout"] = timeout
             return BundlesDoc(
@@ -1582,6 +1605,7 @@ class TestRetryTimeoutFlags:
         seen = {}
 
         def mock_fetch_remote_bundles(repo, branch, *, attempts, timeout):
+            """Record the default attempts and timeout and return valid bundles."""
             seen["attempts"] = attempts
             seen["timeout"] = timeout
             return BundlesDoc(

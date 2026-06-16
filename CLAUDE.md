@@ -31,27 +31,26 @@ snapshot:
 
 ### Root
 `.bandit`, `.editorconfig`, `.gitignore`, `.pre-commit-config.yaml`,
-`.python-version`, `LICENSE`, `Makefile`, `SECURITY.md`, `pytest.ini`, `ruff.toml`
+`.python-version`, `cliff.toml`, `LICENSE`, `Makefile`, `SECURITY.md`,
+`pytest.ini`, `ruff.toml`
+
+### `.claude/`
+`commands/rhiza_book.md`, `commands/rhiza_quality.md`, `commands/rhiza_update.md`
 
 ### `.github/`
 - Workflows: `rhiza_benchmark.yml`, `rhiza_book.yml`, `rhiza_ci.yml`,
   `rhiza_codeql.yml`, `rhiza_marimo.yml`, `rhiza_release.yml`, `rhiza_sync.yml`,
   `rhiza_weekly.yml`, `rhiza_fuzzing.yml`, `rhiza_scorecard.yml`,
   `rhiza_mutation.yml` (opt-in mutation gate — `MUTATION_ENABLED`)
-- `rulesets/main-branch-protection.json`, `rulesets/README.md` (branch
-  protection — shipped by the `github` bundle)
-- `dependabot.yml`, `release.yml`, `secret_scanning.yml`,
+- `CONFIG.md`, `dependabot.yml`, `release.yml`, `secret_scanning.yml`,
   `pull_request_template.md`
 - `DISCUSSION_TEMPLATE/`, `ISSUE_TEMPLATE/`
 
-> The list reflects the **current** rhiza template. This repo is pinned to an
-> older `ref:`, so its `.rhiza/template.lock` snapshot is smaller — the extra
-> files (`rhiza_fuzzing.yml`, `rhiza_scorecard.yml`, `rhiza_mutation.yml`,
-> `.github/rulesets/*`) only land once you bump `ref:` and run `make sync`.
-
-> Note: `rhiza-hooks` currently hand-maintains its own
-> `.github/workflows/rhiza_mutation.yml`. Once the reusable mutation workflow +
-> stub ship in rhiza, delete the bespoke copy and let it sync from the bundle.
+> This snapshot reflects the files synced at the pinned `ref:` (currently
+> `v0.19.3`); the `files:` block of `.rhiza/template.lock` is always
+> authoritative. Note that `.github/rulesets/*` is **not** shipped by the rhiza
+> template at this `ref:` — if branch-protection rulesets are needed here,
+> manage them separately (they are not synced).
 
 ### `.rhiza/` (the sync engine — treat the whole directory as managed)
 - `rhiza.mk`, `make.d/*.mk`, `requirements/*.txt`, `semgrep.yml`,

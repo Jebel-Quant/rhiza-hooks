@@ -15,6 +15,7 @@ def temp_config(tmp_path: Path):
     """Create a temporary config file."""
 
     def _create(content: str) -> Path:
+        """Write the dedented content to a template.yml and return its path."""
         config_file = tmp_path / "template.yml"
         config_file.write_text(dedent(content))
         return config_file

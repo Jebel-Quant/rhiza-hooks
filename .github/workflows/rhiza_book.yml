@@ -22,9 +22,12 @@ on:
       - main
       - master
 
+permissions:
+  contents: read
+
 jobs:
   book:
-    uses: jebel-quant/rhiza/.github/workflows/rhiza_book.yml@ae79c6f0729b21239655abe390269be9171f907d # v0.18.8
+    uses: jebel-quant/rhiza/.github/workflows/rhiza_book.yml@v0.19.3
     secrets: inherit
     permissions:
       contents: read
