@@ -1,49 +1,45 @@
 # This file is part of the jebel-quant/rhiza repository
 # (https://github.com/jebel-quant/rhiza).
 #
-# Workflow: OpenSSF Scorecard
+# Workflow: OSSF Scorecard
 #
-# Purpose: Runs the OpenSSF Scorecard security analysis to provide an external,
-#          quantified security grade and automatically catch gaps (e.g. unpinned
-#          actions). Results are uploaded to GitHub's security dashboard (SARIF)
-#          and published to the public Scorecard API so the README badge updates.
+# Purpose: Run the OpenSSF Scorecard supply-chain security analysis and upload
+#          the results to GitHub code scanning. On public repositories the
+#          results are also published to the OpenSSF REST API, which powers
+#          the README badge and lets adopters verify the score independently.
+#          Set the SCORECARD_ENABLED repository variable to 'true' to
+#          force-enable on private repos, 'false' to disable, or leave unset
+#          for auto-detect (public repositories only).
 #
-# Trigger: On push to main/master and weekly schedule.
+#          Thin stub: the analysis logic and its enablement/visibility gate
+#          live in the reusable workflow in jebel-quant/rhiza; this file only
+#          wires up the triggers and grants the token scopes Scorecard needs.
+#
+# Trigger: Weekly schedule, pushes to main, branch-protection changes, and
+#          manual dispatch.
 
 name: "(RHIZA) SCORECARD"
 
-permissions: read-all
-
 on:
+  # Re-evaluate when branch protection rules change (Scorecard's
+  # Branch-Protection check reads them).
+  branch_protection_rule:
+  schedule:
+    - cron: '34 2 * * 2'
   push:
     branches: [ "main", "master" ]
-  schedule:
-    - cron: '27 1 * * 1'
+  workflow_dispatch:
+
+# Least privilege by default; the called workflow grants its job only what
+# Scorecard needs (see the job-level permissions below).
+permissions: read-all
 
 jobs:
   scorecard:
-    name: OpenSSF Scorecard
-    runs-on: ubuntu-latest
+    uses: jebel-quant/rhiza/.github/workflows/rhiza_scorecard.yml@v0.19.3
+    secrets: inherit
     permissions:
-      security-events: write
-      id-token: write
+      security-events: write   # Upload the SARIF results to code scanning
+      id-token: write          # Publish results to the OpenSSF REST API (badge)
       contents: read
       actions: read
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          persist-credentials: false
-
-      - name: Run Scorecard analysis
-        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
-        with:
-          results_file: results.sarif
-          results_format: sarif
-          publish_results: true
-
-      - name: Upload SARIF results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3.36.2
-        with:
-          sarif_file: results.sarif
