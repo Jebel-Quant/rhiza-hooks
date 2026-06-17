@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `check-template-bundles`: `--retries` and `--timeout` flags to make the remote-fetch
+  retry/backoff configurable, and per-attempt logging so CI failures are diagnosable (#179)
+- End-to-end test that runs a hook through `pre-commit try-repo`, exercising the
+  `.pre-commit-hooks.yaml` ↔ `[project.scripts]` wiring (#184)
+
+### Changed
+
+- `check-template-bundles`: replace union return types with a typed `BundlesDoc` result and
+  remove all `cast()` calls (#173)
+- `check-template-bundles`: split the module into focused `_bundles_fetch` / `_bundles_validate` /
+  `_bundles_config` units behind an unchanged public surface (#191)
+- `check-python-version-consistency`: narrow the broad `except Exception` in
+  `get_pyproject_requires_python` to `(tomllib.TOMLDecodeError, OSError)` so unexpected errors
+  surface (#174)
+
 ## [0.6.2] - 2026-06-13
 
 ### Added
