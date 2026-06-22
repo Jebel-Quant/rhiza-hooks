@@ -110,7 +110,7 @@ class TestProjectFields:
 class TestProjectUrls:
     """Tests for [project.urls] — Homepage and Repository links."""
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     def urls(self, project: dict) -> dict:
         """Return the [project.urls] table."""
         table = project.get("urls")
@@ -136,7 +136,7 @@ class TestProjectUrls:
 class TestProjectClassifiers:
     """Tests for [project].classifiers — Python version and licence entries."""
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     def classifiers(self, project: dict) -> list[str]:
         """Return the classifiers list."""
         cl = project.get("classifiers", [])
@@ -160,7 +160,7 @@ class TestProjectClassifiers:
 class TestDependencyGroups:
     """Tests for [dependency-groups] — ensures required groups are declared."""
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     def dependency_groups(self, pyproject: dict) -> dict:
         """Return the [dependency-groups] table."""
         dg = pyproject.get("dependency-groups")

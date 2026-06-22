@@ -7,6 +7,7 @@ exclude:
 - .rhiza/tests/api/test_gh_aw_targets.py
 - .rhiza/tests/api/test_github_targets.py
 - .rhiza/tests/integration/test_lfs.py
+- .rhiza/tests/structure/test_pyproject.py
 templates:
 - legal
 files:
@@ -105,5 +106,5 @@ files:
 - ruff.toml
 profiles:
 - github-project
-synced_at: '2026-06-22T11:29:12Z'
+synced_at: '2026-06-22T11:50:55Z'
 strategy: merge
