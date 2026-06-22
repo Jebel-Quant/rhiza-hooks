@@ -67,10 +67,14 @@ snapshot:
 
 ### Excluded from sync (locally owned, see `exclude:` in `template.yml`)
 
-These template tests do not apply to this repo and are intentionally excluded:
-`.rhiza/tests/api/test_gh_aw_targets.py`,
-`.rhiza/tests/api/test_github_targets.py`,
-`.rhiza/tests/integration/test_lfs.py`.
+This template test is owned by a **selected** bundle (so it would otherwise be
+synced) but does not apply to this repo, and is intentionally excluded:
+
+- `.rhiza/tests/api/test_github_targets.py` — owned by the `github` bundle; its
+  `github.mk` targets do not apply here (skips at runtime).
+
+> Tests owned by bundles this repo does **not** select (e.g. `gh-aw`, `lfs`)
+> are never synced in the first place, so they need no `exclude:` entry.
 
 ## Locally owned (safe to edit)
 
@@ -78,3 +82,27 @@ Everything **not** listed above — notably `pyproject.toml`, `README.md`, `uv.l
 `src/rhiza_hooks/`, your own `tests/`, project-specific docs, and
 `.rhiza/template.yml`. Project-specific Make hooks (`pre-install::`,
 `post-install::`, …) go in the thin root `Makefile` above the `include` line.
+
+## Local-dev gotcha: `TestGitTagVersion` and template-remote tags
+
+`.rhiza/tests/structure/test_pyproject.py::TestGitTagVersion` asserts that the
+**highest version-sorted `v*` git tag** equals `[project].version`. It passes in
+CI (a clean checkout only ever sees this repo's own tags — highest `v0.6.3`,
+matching `pyproject.toml`).
+
+It can fail **locally** if you have added a git remote for the template repo
+(e.g. `git remote add rhiza …jebel-quant/rhiza`): a plain `git fetch` pulls that
+remote's release tags (`v0.18.x`, etc.) into your local tag namespace, where they
+outrank this repo's tags and break the assertion. They are template tags, not
+rhiza-hooks tags. To clean them up (reversible — `git fetch rhiza --tags`
+restores them):
+
+```sh
+# delete every local tag that is NOT on origin (rhiza-hooks)
+comm -23 <(git tag | sort -u) \
+         <(git ls-remote --tags origin | sed 's#.*refs/tags/##' | grep -v '\^{}' | sort -u) \
+  | xargs -r git tag -d
+```
+
+Prefer fetching the template with `git fetch rhiza --no-tags` to avoid the
+pollution in the first place.
