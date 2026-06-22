@@ -5,7 +5,6 @@ ref: v0.19.4
 include: []
 exclude:
 - .rhiza/tests/api/test_github_targets.py
-- .rhiza/tests/structure/test_pyproject.py
 templates:
 - legal
 files:
@@ -104,5 +103,5 @@ files:
 - ruff.toml
 profiles:
 - github-project
-synced_at: '2026-06-22T12:07:29Z'
+synced_at: '2026-06-22T12:20:47Z'
 strategy: merge
