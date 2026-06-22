@@ -82,3 +82,27 @@ Everything **not** listed above — notably `pyproject.toml`, `README.md`, `uv.l
 `src/rhiza_hooks/`, your own `tests/`, project-specific docs, and
 `.rhiza/template.yml`. Project-specific Make hooks (`pre-install::`,
 `post-install::`, …) go in the thin root `Makefile` above the `include` line.
+
+## Local-dev gotcha: `TestGitTagVersion` and template-remote tags
+
+`.rhiza/tests/structure/test_pyproject.py::TestGitTagVersion` asserts that the
+**highest version-sorted `v*` git tag** equals `[project].version`. It passes in
+CI (a clean checkout only ever sees this repo's own tags — highest `v0.6.3`,
+matching `pyproject.toml`).
+
+It can fail **locally** if you have added a git remote for the template repo
+(e.g. `git remote add rhiza …jebel-quant/rhiza`): a plain `git fetch` pulls that
+remote's release tags (`v0.18.x`, etc.) into your local tag namespace, where they
+outrank this repo's tags and break the assertion. They are template tags, not
+rhiza-hooks tags. To clean them up (reversible — `git fetch rhiza --tags`
+restores them):
+
+```sh
+# delete every local tag that is NOT on origin (rhiza-hooks)
+comm -23 <(git tag | sort -u) \
+         <(git ls-remote --tags origin | sed 's#.*refs/tags/##' | grep -v '\^{}' | sort -u) \
+  | xargs -r git tag -d
+```
+
+Prefer fetching the template with `git fetch rhiza --no-tags` to avoid the
+pollution in the first place.
