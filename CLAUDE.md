@@ -67,16 +67,11 @@ snapshot:
 
 ### Excluded from sync (locally owned, see `exclude:` in `template.yml`)
 
-These template tests are owned by a **selected** bundle (so they would
-otherwise be synced) but do not apply to this repo, and are intentionally
-excluded:
+This template test is owned by a **selected** bundle (so it would otherwise be
+synced) but does not apply to this repo, and is intentionally excluded:
 
 - `.rhiza/tests/api/test_github_targets.py` — owned by the `github` bundle; its
   `github.mk` targets do not apply here (skips at runtime).
-- `.rhiza/tests/structure/test_pyproject.py` — owned by the `tests` bundle; its
-  `TestGitTagVersion` check (added upstream in v0.19.4) can't pass given this
-  repo's legacy `v0.18.x` tag series alongside its real `v0.6.x` release line.
-  The local copy keeps the rest of the upstream tests.
 
 > Tests owned by bundles this repo does **not** select (e.g. `gh-aw`, `lfs`)
 > are never synced in the first place, so they need no `exclude:` entry.

@@ -12,9 +12,3 @@ exclude:
   # it would otherwise be synced; excluded because its github.mk targets do not
   # apply here (it skips at runtime).
   - .rhiza/tests/api/test_github_targets.py
-  # TestGitTagVersion (added upstream in v0.19.4) asserts the highest
-  # version-sorted git tag equals the pyproject version. This repo carries a
-  # legacy v0.18.x tag series alongside its real v0.6.x release line, so that
-  # test can never pass here. The rest of the file's tests do apply, but the
-  # exclude mechanism is file-granular.
-  - .rhiza/tests/structure/test_pyproject.py
