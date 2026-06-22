@@ -8,9 +8,10 @@ templates:
   - legal
 
 exclude:
-  - .rhiza/tests/api/test_gh_aw_targets.py
+  # Owned by the `github` bundle (selected by the github-project profile), so
+  # it would otherwise be synced; excluded because its github.mk targets do not
+  # apply here (it skips at runtime).
   - .rhiza/tests/api/test_github_targets.py
-  - .rhiza/tests/integration/test_lfs.py
   # TestGitTagVersion (added upstream in v0.19.4) asserts the highest
   # version-sorted git tag equals the pyproject version. This repo carries a
   # legacy v0.18.x tag series alongside its real v0.6.x release line, so that
