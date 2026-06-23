@@ -66,14 +66,14 @@ dev = [
     "types-pyyaml>=6.0.12.20260518",
 ]
 test = [
-    "pytest>=9.1.0",
+    "pytest>=9.1.1",
     "pytest-cov>=5.0",
     "pytest-timeout>=2.3",
     "mutmut>=2.0,<3.0",
-    "hypothesis>=6.155.3",
+    "hypothesis>=6.155.7",
 ]
 lint = [
-    "ruff>=0.15.16,<1.0",
+    "ruff>=0.15.18,<1.0",
     "interrogate>=1.7,<2.0",
     "pre-commit>=3.7,<5.0",
     "mypy>=1.11,<2.0",
