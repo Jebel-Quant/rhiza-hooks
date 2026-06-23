@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com),
 and entries are generated from [Conventional Commits](https://www.conventionalcommits.org).
 
+## [0.6.4] - 2026-06-23
+
+### Maintenance
+- Chore(deps-dev)(deps-dev): bump the python-dependencies group with 3 updates (#204)
+- Chore(deps)(deps): bump actions/checkout in the github-actions group (#203)
+
+### Other Changes
+- Sync Rhiza template v0.19.3 → v0.19.4 (#202)
+
 ## [0.6.3] - 2026-06-17
 
 ### Documentation
@@ -27,18 +36,9 @@ and entries are generated from [Conventional Commits](https://www.conventionalco
 - Address open enhancement issues (#174, #179, #184) (#190)
 - Sync Rhiza template v0.18.8 → v0.19.3 (#197)
 - Install rhiza_hooks into the book build env for mkdocstrings (#201)
+- Bump version 0.6.2 → 0.6.3
 
 ## [0.6.2] - 2026-06-13
-
-### Other Changes
-- Bump version 0.6.1 → 0.6.2
-
-## [0.6.1] - 2026-06-13
-
-### Other Changes
-- Bump version 0.6.0 → 0.6.1
-
-## [0.6.0] - 2026-06-13
 
 ### New Features
 - Add py.typed marker for PEP 561 type distribution (#138)
@@ -70,6 +70,8 @@ and entries are generated from [Conventional Commits](https://www.conventionalco
 - Remove duplicate Changelog item from MkDocs navigation (#158)
 - Advertise enforced 100% mutation score in README and testing docs (#157)
 - Bump version 0.5.1 → 0.6.0
+- Bump version 0.6.0 → 0.6.1
+- Bump version 0.6.1 → 0.6.2
 
 ## [0.5.1] - 2026-06-08
 
