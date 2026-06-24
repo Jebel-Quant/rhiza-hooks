@@ -107,6 +107,13 @@ class TestLoadYamlFile:
         assert len(result.errors) == 1
         assert result.errors[0].startswith("Invalid YAML: ")
 
+    @pytest.mark.parametrize("scalar", ["5", "just a string", "[1, 2, 3]"])
+    def test_load_non_dict_document(self, temp_bundles_file, scalar):
+        """A YAML document that isn't a mapping is reported, not crashed on (fuzzing regression)."""
+        result = _load_yaml_file(temp_bundles_file(scalar))
+        assert result.data is None
+        assert result.errors == ["Template bundles file must be a dictionary"]
+
 
 class TestValidateTopLevelFields:
     """Tests for _validate_top_level_fields function."""
@@ -147,6 +154,13 @@ class TestValidateBundleStructure:
         }
         errors = _validate_bundle_structure("test", bundle_config, {"test"})
         assert errors == []
+
+    @pytest.mark.parametrize("key", ["requires", "recommends"])
+    def test_unhashable_dependency_entry(self, key):
+        """An unhashable dependency entry is reported, not crashed on (fuzzing regression)."""
+        bundle_config = {"description": "x", "files": [], key: [["nested"]]}
+        errors = _validate_bundle_structure("test", bundle_config, {"test"})
+        assert errors == [f"Bundle 'test' {key} non-existent bundle '['nested']'"]
 
     def test_bundle_not_dict(self):
         """Test with bundle not being a dictionary reports the exact message."""
@@ -296,6 +310,12 @@ class TestValidateExamples:
         """A non-dict example value is reported, not crashed on (fuzzing regression)."""
         errors = _validate_examples({"basic": bad_value}, {"core"})
         assert errors == ["Example 'basic' must be a dictionary"]
+
+    def test_unhashable_template_entry(self):
+        """An unhashable template entry is reported, not crashed on (fuzzing regression)."""
+        examples = {"basic": {"templates": [["nested"]]}}
+        errors = _validate_examples(examples, {"core"})
+        assert errors == ["Example 'basic' references non-existent bundle '['nested']'"]
 
 
 class TestValidateMetadata:

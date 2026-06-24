@@ -56,6 +56,9 @@ def _load_yaml_file(bundles_path: Path) -> BundlesDoc:
     if data is None:
         return BundlesDoc(None, ["Template bundles file is empty"])
 
+    if not isinstance(data, dict):
+        return BundlesDoc(None, ["Template bundles file must be a dictionary"])
+
     return BundlesDoc(data, [])
 
 
