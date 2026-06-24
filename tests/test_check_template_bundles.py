@@ -98,6 +98,22 @@ class TestLoadYamlFile:
         assert result.data is None
         assert result.errors == ["Template bundles file is empty"]
 
+    def test_load_non_utf8_file(self, tmp_path: Path):
+        """A non-UTF-8 file is reported, not crashed on (fuzzing regression)."""
+        bundles_file = tmp_path / "bad-encoding.yml"
+        bundles_file.write_bytes(b"\xb5\n")
+        result = _load_yaml_file(bundles_file)
+        assert result.data is None
+        assert len(result.errors) == 1
+        assert result.errors[0].startswith("Invalid YAML: ")
+
+    @pytest.mark.parametrize("scalar", ["5", "just a string", "[1, 2, 3]"])
+    def test_load_non_dict_document(self, temp_bundles_file, scalar):
+        """A YAML document that isn't a mapping is reported, not crashed on (fuzzing regression)."""
+        result = _load_yaml_file(temp_bundles_file(scalar))
+        assert result.data is None
+        assert result.errors == ["Template bundles file must be a dictionary"]
+
 
 class TestValidateTopLevelFields:
     """Tests for _validate_top_level_fields function."""
@@ -138,6 +154,13 @@ class TestValidateBundleStructure:
         }
         errors = _validate_bundle_structure("test", bundle_config, {"test"})
         assert errors == []
+
+    @pytest.mark.parametrize("key", ["requires", "recommends"])
+    def test_unhashable_dependency_entry(self, key):
+        """An unhashable dependency entry is reported, not crashed on (fuzzing regression)."""
+        bundle_config = {"description": "x", "files": [], key: [["nested"]]}
+        errors = _validate_bundle_structure("test", bundle_config, {"test"})
+        assert errors == [f"Bundle 'test' {key} non-existent bundle '['nested']'"]
 
     def test_bundle_not_dict(self):
         """Test with bundle not being a dictionary reports the exact message."""
@@ -282,6 +305,18 @@ class TestValidateExamples:
         errors = _validate_examples(examples, {"core"})
         assert errors == []
 
+    @pytest.mark.parametrize("bad_value", [None, 5, "string", ["list"]])
+    def test_example_value_not_dict(self, bad_value):
+        """A non-dict example value is reported, not crashed on (fuzzing regression)."""
+        errors = _validate_examples({"basic": bad_value}, {"core"})
+        assert errors == ["Example 'basic' must be a dictionary"]
+
+    def test_unhashable_template_entry(self):
+        """An unhashable template entry is reported, not crashed on (fuzzing regression)."""
+        examples = {"basic": {"templates": [["nested"]]}}
+        errors = _validate_examples(examples, {"core"})
+        assert errors == ["Example 'basic' references non-existent bundle '['nested']'"]
+
 
 class TestValidateMetadata:
     """Tests for _validate_metadata function."""
@@ -306,6 +341,12 @@ class TestValidateMetadata:
         bundles = {"bundle1": {}, "bundle2": {}}
         errors = _validate_metadata(metadata, bundles)
         assert errors == []
+
+    @pytest.mark.parametrize("bad_value", [None, 5, "string", ["list"]])
+    def test_metadata_not_dict(self, bad_value):
+        """A non-dict metadata section is reported, not crashed on (fuzzing regression)."""
+        errors = _validate_metadata(bad_value, {"bundle1": {}})
+        assert errors == ["'metadata' must be a dictionary"]
 
 
 class TestValidateTemplateBundles:
@@ -582,6 +623,13 @@ class TestGetTemplatesFromConfig:
     def test_get_templates_from_nonexistent_file(self, tmp_path):
         """Test with non-existent config file."""
         config_file = tmp_path / "nonexistent.yml"
+        templates = _get_templates_from_config(config_file)
+        assert templates is None
+
+    def test_get_templates_from_non_utf8_file(self, tmp_path):
+        """A non-UTF-8 config file is treated as unusable, not crashed on (fuzzing regression)."""
+        config_file = tmp_path / "bad-encoding.yml"
+        config_file.write_bytes(b"\xb5\n")
         templates = _get_templates_from_config(config_file)
         assert templates is None
 

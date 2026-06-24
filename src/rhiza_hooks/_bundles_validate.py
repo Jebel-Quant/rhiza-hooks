@@ -17,6 +17,19 @@ from typing import Any
 from rhiza_hooks._bundles_fetch import _load_yaml_file
 
 
+def _not_a_known_bundle(value: Any, bundle_names: set[Any]) -> bool:
+    """Return True if ``value`` is not a declared bundle name.
+
+    A plain ``value not in bundle_names`` raises ``TypeError`` when ``value`` is
+    unhashable (e.g. a list or dict produced by malformed YAML). Such a value
+    can never be a bundle name, so it is reported as unknown rather than crashing.
+    """
+    try:
+        return value not in bundle_names
+    except TypeError:
+        return True
+
+
 def _validate_top_level_fields(data: dict[Any, Any]) -> list[str]:
     """Validate required top-level fields."""
     errors = []
@@ -54,7 +67,7 @@ def _validate_bundle_structure(
             errors.append(f"Bundle '{bundle_name}' 'requires' must be a list")
         else:
             for dep in bundle_config["requires"]:
-                if dep not in bundle_names:
+                if _not_a_known_bundle(dep, bundle_names):
                     errors.append(f"Bundle '{bundle_name}' requires non-existent bundle '{dep}'")
 
     if "recommends" in bundle_config:
@@ -62,7 +75,7 @@ def _validate_bundle_structure(
             errors.append(f"Bundle '{bundle_name}' 'recommends' must be a list")
         else:
             for dep in bundle_config["recommends"]:
-                if dep not in bundle_names:
+                if _not_a_known_bundle(dep, bundle_names):
                     errors.append(f"Bundle '{bundle_name}' recommends non-existent bundle '{dep}'")
 
     return errors
@@ -77,21 +90,28 @@ def _validate_examples(examples: Any, bundle_names: set[str]) -> list[str]:
         return errors
 
     for example_name, example_config in examples.items():
+        if not isinstance(example_config, dict):
+            errors.append(f"Example '{example_name}' must be a dictionary")
+            continue
         if "templates" in example_config:
             if not isinstance(example_config["templates"], list):
                 errors.append(f"Example '{example_name}' 'templates' must be a list")
             else:
                 for template in example_config["templates"]:
                     # core is auto-included, we don't validate it
-                    if template != "core" and template not in bundle_names:
+                    if template != "core" and _not_a_known_bundle(template, bundle_names):
                         errors.append(f"Example '{example_name}' references non-existent bundle '{template}'")
 
     return errors
 
 
-def _validate_metadata(metadata: dict[Any, Any], bundles: dict[Any, Any]) -> list[str]:
+def _validate_metadata(metadata: Any, bundles: dict[Any, Any]) -> list[str]:
     """Validate metadata section."""
     errors = []
+
+    if not isinstance(metadata, dict):
+        errors.append("'metadata' must be a dictionary")
+        return errors
 
     if "total_bundles" in metadata:
         expected_count = len(bundles)
