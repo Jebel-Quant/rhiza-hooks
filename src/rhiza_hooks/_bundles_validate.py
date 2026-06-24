@@ -77,6 +77,9 @@ def _validate_examples(examples: Any, bundle_names: set[str]) -> list[str]:
         return errors
 
     for example_name, example_config in examples.items():
+        if not isinstance(example_config, dict):
+            errors.append(f"Example '{example_name}' must be a dictionary")
+            continue
         if "templates" in example_config:
             if not isinstance(example_config["templates"], list):
                 errors.append(f"Example '{example_name}' 'templates' must be a list")
@@ -89,9 +92,13 @@ def _validate_examples(examples: Any, bundle_names: set[str]) -> list[str]:
     return errors
 
 
-def _validate_metadata(metadata: dict[Any, Any], bundles: dict[Any, Any]) -> list[str]:
+def _validate_metadata(metadata: Any, bundles: dict[Any, Any]) -> list[str]:
     """Validate metadata section."""
     errors = []
+
+    if not isinstance(metadata, dict):
+        errors.append("'metadata' must be a dictionary")
+        return errors
 
     if "total_bundles" in metadata:
         expected_count = len(bundles)

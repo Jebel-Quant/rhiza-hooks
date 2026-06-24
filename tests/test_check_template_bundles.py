@@ -282,6 +282,12 @@ class TestValidateExamples:
         errors = _validate_examples(examples, {"core"})
         assert errors == []
 
+    @pytest.mark.parametrize("bad_value", [None, 5, "string", ["list"]])
+    def test_example_value_not_dict(self, bad_value):
+        """A non-dict example value is reported, not crashed on (fuzzing regression)."""
+        errors = _validate_examples({"basic": bad_value}, {"core"})
+        assert errors == ["Example 'basic' must be a dictionary"]
+
 
 class TestValidateMetadata:
     """Tests for _validate_metadata function."""
@@ -306,6 +312,12 @@ class TestValidateMetadata:
         bundles = {"bundle1": {}, "bundle2": {}}
         errors = _validate_metadata(metadata, bundles)
         assert errors == []
+
+    @pytest.mark.parametrize("bad_value", [None, 5, "string", ["list"]])
+    def test_metadata_not_dict(self, bad_value):
+        """A non-dict metadata section is reported, not crashed on (fuzzing regression)."""
+        errors = _validate_metadata(bad_value, {"bundle1": {}})
+        assert errors == ["'metadata' must be a dictionary"]
 
 
 class TestValidateTemplateBundles:
