@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com),
 and entries are generated from [Conventional Commits](https://www.conventionalcommits.org).
 
+## [0.7.0] - 2026-06-24
+
+### New Features
+- Add ClusterFuzzLite fuzzing for the template-bundles parser (#206)
+
+### Maintenance
+- Add main-branch-protection ruleset (copied from jebel-quant/rhiza) (#205)
+- *(fuzz)* Copy source into $SRC directly and pin pip in the build
+
 ## [0.6.4] - 2026-06-23
 
 ### Maintenance
@@ -13,6 +22,7 @@ and entries are generated from [Conventional Commits](https://www.conventionalco
 
 ### Other Changes
 - Sync Rhiza template v0.19.3 → v0.19.4 (#202)
+- Bump version 0.6.3 → 0.6.4
 
 ## [0.6.3] - 2026-06-17
 
