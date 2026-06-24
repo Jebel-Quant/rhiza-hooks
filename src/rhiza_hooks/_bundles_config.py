@@ -28,7 +28,7 @@ def _get_config_data(config_path: Path) -> dict[str, Any] | None:
         return None
 
     try:
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
     except (yaml.YAMLError, UnicodeDecodeError):
         return None

@@ -48,7 +48,7 @@ def _load_yaml_file(bundles_path: Path) -> BundlesDoc:
         return BundlesDoc(None, [f"Template bundles file not found: {bundles_path}"])
 
     try:
-        with open(bundles_path) as f:
+        with open(bundles_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
     except (yaml.YAMLError, UnicodeDecodeError) as e:
         return BundlesDoc(None, [f"Invalid YAML: {e}"])
