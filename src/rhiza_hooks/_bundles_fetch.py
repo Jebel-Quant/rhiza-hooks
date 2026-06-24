@@ -50,7 +50,7 @@ def _load_yaml_file(bundles_path: Path) -> BundlesDoc:
     try:
         with open(bundles_path) as f:
             data = yaml.safe_load(f)
-    except yaml.YAMLError as e:
+    except (yaml.YAMLError, UnicodeDecodeError) as e:
         return BundlesDoc(None, [f"Invalid YAML: {e}"])
 
     if data is None:

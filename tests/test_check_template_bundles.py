@@ -98,6 +98,15 @@ class TestLoadYamlFile:
         assert result.data is None
         assert result.errors == ["Template bundles file is empty"]
 
+    def test_load_non_utf8_file(self, tmp_path: Path):
+        """A non-UTF-8 file is reported, not crashed on (fuzzing regression)."""
+        bundles_file = tmp_path / "bad-encoding.yml"
+        bundles_file.write_bytes(b"\xb5\n")
+        result = _load_yaml_file(bundles_file)
+        assert result.data is None
+        assert len(result.errors) == 1
+        assert result.errors[0].startswith("Invalid YAML: ")
+
 
 class TestValidateTopLevelFields:
     """Tests for _validate_top_level_fields function."""
@@ -594,6 +603,13 @@ class TestGetTemplatesFromConfig:
     def test_get_templates_from_nonexistent_file(self, tmp_path):
         """Test with non-existent config file."""
         config_file = tmp_path / "nonexistent.yml"
+        templates = _get_templates_from_config(config_file)
+        assert templates is None
+
+    def test_get_templates_from_non_utf8_file(self, tmp_path):
+        """A non-UTF-8 config file is treated as unusable, not crashed on (fuzzing regression)."""
+        config_file = tmp_path / "bad-encoding.yml"
+        config_file.write_bytes(b"\xb5\n")
         templates = _get_templates_from_config(config_file)
         assert templates is None
 
