@@ -28,23 +28,19 @@ with atheris.instrument_imports():
 
 def test_one_input(data: bytes) -> None:
     """Exercise the YAML loader, config readers and structural validators."""
-    fdp = atheris.FuzzedDataProvider(data)
-    # Carve a few template names off the front, leave the rest as the YAML body.
-    template_count = fdp.ConsumeIntInRange(0, 4)
-    templates = {fdp.ConsumeUnicodeNoSurrogates(16) for _ in range(template_count)}
-    body = fdp.ConsumeRemainingBytes()
-
     with tempfile.TemporaryDirectory() as tmpdir:
         path = Path(tmpdir) / "template-bundles.yml"
-        path.write_bytes(body)
+        path.write_bytes(data)
 
         # Config readers (operate on .rhiza/template.yml-shaped input).
         _get_config_data(path)
-        _get_templates_from_config(path)
+        templates = _get_templates_from_config(path)
 
         # Full validation, both code paths: validate-all and validate-subset.
+        # Reuse any template names the input declared so the subset path sees
+        # realistic values; fall back to a fixed name otherwise.
         validate_template_bundles(path, None)
-        validate_template_bundles(path, templates or None)
+        validate_template_bundles(path, templates or {"core"})
 
 
 def main() -> None:
