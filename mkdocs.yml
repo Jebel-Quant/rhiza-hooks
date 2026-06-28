@@ -18,6 +18,11 @@ nav:
       - check_template_bundles: api-reference/check_template_bundles.md
       - check_workflow_names: api-reference/check_workflow_names.md
       - update_readme_help: api-reference/update_readme_help.md
+      - Internals:
+          - _bundles_config: api-reference/_bundles_config.md
+          - _bundles_fetch: api-reference/_bundles_fetch.md
+          - _bundles_validate: api-reference/_bundles_validate.md
+          - _repo: api-reference/_repo.md
   - Reports:
       - Test Report: reports/html-report/report.html
       - Coverage Report: reports/html-coverage/index.html
