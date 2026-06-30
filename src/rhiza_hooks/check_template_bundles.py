@@ -46,21 +46,21 @@ def _get_config_path(args: argparse.Namespace) -> Path:
     return _repo.find_repo_root() / ".rhiza" / "template.yml"
 
 
-def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any] | None, set[str] | None]:
+def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any], set[str]] | None:
     """Load and validate configuration file.
 
     Returns:
-        Tuple of (config, templates_set) or (None, None) if validation fails
+        (config, templates_set) if validation succeeds, otherwise ``None``
     """
     config = _get_config_data(config_path)
     if config is None:
         print(f"Could not load configuration from {config_path}, skipping validation")
-        return None, None
+        return None
 
     templates_to_check = config.get("templates")
     if templates_to_check is None or not isinstance(templates_to_check, list):
         print(f"No templates field in {config_path}, skipping bundle validation")
-        return None, None
+        return None
 
     templates_set: set[str] = {str(t) for t in templates_to_check}
     return config, templates_set
@@ -158,15 +158,12 @@ def main(argv: list[str] | None = None) -> int:
     # Get configuration path
     config_path = _get_config_path(args)
 
-    # Load and validate configuration
-    config, templates_set = _load_and_validate_config(config_path)
-    # _load_and_validate_config returns these values in lockstep:
-    #   - success path: (config_dict, templates_set)  -> both are not None
-    #   - early-exit path: (None, None)               -> both are None
-    # Therefore `config is None` and `templates_set is None` are equivalent here.
-    # Under this invariant, mutating `or` to `and` does not change behavior.
-    if config is None or templates_set is None:  # pragma: no mutate
+    # Load and validate configuration. A None result means validation was
+    # skipped (missing config or no templates field); both cases pass.
+    result = _load_and_validate_config(config_path)
+    if result is None:
         return 0
+    config, templates_set = result
 
     # Get template repository and branch
     template_repo = config.get("template-repository")

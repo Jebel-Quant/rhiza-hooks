@@ -1562,21 +1562,18 @@ class TestLoadAndValidateConfig:
     """Tests for _load_and_validate_config."""
 
     def test_missing_config_prints_and_returns_none(self, tmp_path, capsys):
-        """A missing config file prints the exact skip message and returns (None, None)."""
+        """A missing config file prints the exact skip message and returns None."""
         missing = tmp_path / "template.yml"
-        config, templates = _load_and_validate_config(missing)
-        assert config is None
-        assert templates is None
+        result = _load_and_validate_config(missing)
+        assert result is None
         assert capsys.readouterr().out == f"Could not load configuration from {missing}, skipping validation\n"
 
     def test_templates_not_list_returns_none(self, tmp_path, capsys):
-        """A non-list 'templates' field skips validation (pins the `or` in the guard)."""
+        """A non-list 'templates' field skips validation (returns None)."""
         cfg = tmp_path / "template.yml"
         cfg.write_text('template-repository: test/repo\ntemplate-branch: main\ntemplates: "not a list"\n')
-        config, templates = _load_and_validate_config(cfg)
-        # With `and` instead of `or`, this would fall through and return (config, set(...)).
-        assert config is None
-        assert templates is None
+        result = _load_and_validate_config(cfg)
+        assert result is None
         assert capsys.readouterr().out == f"No templates field in {cfg}, skipping bundle validation\n"
 
 
