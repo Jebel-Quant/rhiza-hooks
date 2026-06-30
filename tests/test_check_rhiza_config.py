@@ -364,11 +364,15 @@ class TestModuleExecution:
     def test_module_executes_main(self) -> None:
         """Module execution calls main and exits with its return value."""
         import runpy
+        import sys
         from unittest.mock import patch
 
         with (
             patch("rhiza_hooks.check_rhiza_config.sys.argv", ["check_rhiza_config"]),
             patch("rhiza_hooks.check_rhiza_config.sys.exit") as mock_exit,
         ):
+            # Drop the pre-imported module so runpy executes a fresh copy without
+            # the "found in sys.modules ... prior to execution" RuntimeWarning.
+            sys.modules.pop("rhiza_hooks.check_rhiza_config", None)
             runpy.run_module("rhiza_hooks.check_rhiza_config", run_name="__main__")
             mock_exit.assert_called_once_with(0)

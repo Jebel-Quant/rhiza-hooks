@@ -218,6 +218,7 @@ class TestModuleExecution:
     def test_module_executes_main(self) -> None:
         """Module execution calls main and exits with its return value."""
         import runpy
+        import sys
 
         # Patch subprocess.run to raise FileNotFoundError so get_make_help_output returns None
         # This needs to be patched at subprocess level since runpy creates a fresh module namespace
@@ -225,5 +226,8 @@ class TestModuleExecution:
             patch("subprocess.run", side_effect=FileNotFoundError()),
             patch("sys.exit") as mock_exit,
         ):
+            # Drop the pre-imported module so runpy executes a fresh copy without
+            # the "found in sys.modules ... prior to execution" RuntimeWarning.
+            sys.modules.pop("rhiza_hooks.update_readme_help", None)
             runpy.run_module("rhiza_hooks.update_readme_help", run_name="__main__")
             mock_exit.assert_called_once_with(0)
