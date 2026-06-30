@@ -1447,6 +1447,7 @@ class TestMainNameBlock:
             cwd=tmp_path,
             capture_output=True,
             text=True,
+            timeout=10,
         )
 
         assert result.returncode == 0
