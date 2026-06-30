@@ -47,7 +47,8 @@ def parse_version(version_str: str) -> tuple[int, int]:
     """
     normalized = version_str.strip()
     if re.fullmatch(r"\d+\.\d+", normalized) is None:
-        raise ValueError(f"Invalid version string: {version_str!r}. Expected 'major.minor'.")
+        msg = f"Invalid version string: {version_str!r}. Expected 'major.minor'."
+        raise ValueError(msg)
 
     parts = normalized.split(".")
     return (int(parts[0]), int(parts[1]))
