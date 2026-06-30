@@ -48,7 +48,7 @@ class TestCheckFile:
     def test_invalid_yaml_returns_false(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Invalid YAML returns False with the exact error prefix (no mutated wrapper)."""
         workflow = tmp_path / "workflow.yml"
-        workflow.write_text("name: test\n  invalid: yaml: syntax:\n")
+        workflow.write_text('name: "unterminated\non: push\n')
 
         result = check_file(str(workflow))
 
@@ -277,4 +277,6 @@ class TestModuleExecution:
         monkeypatch.setattr("sys.argv", ["check_workflow_names"])
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
-            runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")
+            module_globals = runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")
+
+        assert module_globals["exit_code"] == 0

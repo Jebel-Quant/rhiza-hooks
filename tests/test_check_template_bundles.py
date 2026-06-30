@@ -872,15 +872,23 @@ class TestModuleExecution:
 class TestFetchRemoteBundles:
     """Tests for _fetch_remote_bundles function."""
 
-    def test_fetch_remote_bundles_http_404(self, monkeypatch):
-        """Test fetching remote bundles returns 404 error."""
+    @staticmethod
+    def _mock_http_error(url: str, code: int, msg: str):
+        """Create an HTTPError with consistent mock headers/fp defaults."""
+        from http.client import HTTPMessage
+        from io import BytesIO
         from urllib.error import HTTPError
 
+        headers = HTTPMessage()
+        return HTTPError(url, code, msg, headers, BytesIO(b""))
+
+    def test_fetch_remote_bundles_http_404(self, monkeypatch):
+        """Test fetching remote bundles returns 404 error."""
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
             """Raise an HTTP 404 error in place of opening the URL."""
-            raise HTTPError(url, 404, "Not Found", {}, None)
+            raise self._mock_http_error(url, 404, "Not Found")
 
         monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
@@ -890,13 +898,11 @@ class TestFetchRemoteBundles:
 
     def test_fetch_remote_bundles_http_error_non_404(self, monkeypatch):
         """Test fetching remote bundles with non-404 HTTP error."""
-        from urllib.error import HTTPError
-
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
             """Raise an HTTP 500 error in place of opening the URL."""
-            raise HTTPError(url, 500, "Internal Server Error", {}, None)
+            raise self._mock_http_error(url, 500, "Internal Server Error")
 
         monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
@@ -1601,7 +1607,8 @@ class TestMainExtraCoverage:
             main(["--help"])
         assert exc_info.value.code == 0
         out = capsys.readouterr().out
-        assert "XX" not in out  # no mutated literal survived into the rendered help
+        # mutation-test sentinel: catches mutated argparse help/description literals.
+        assert "XX" not in out
         assert "Validate template-bundles.yml from remote template repository" in out
         assert "Filenames to check (should be .rhiza/template.yml)" in out
 

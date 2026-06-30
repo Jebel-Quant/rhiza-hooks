@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import runpy
 import subprocess  # nosec B404
+import warnings
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -217,9 +219,6 @@ class TestModuleExecution:
 
     def test_module_executes_main(self) -> None:
         """Module execution calls main and exits with its return value."""
-        import runpy
-        import warnings
-
         # runpy executes the module in a *fresh* namespace, so the module-level
         # `main`/`get_make_help_output` references are redefined and cannot be
         # patched here — only globals from other modules (subprocess, sys) survive.
