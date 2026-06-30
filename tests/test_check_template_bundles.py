@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess  # nosec B404
 from pathlib import Path
 from textwrap import dedent
 
@@ -809,7 +810,6 @@ class TestModuleExecution:
 
     def test_module_executes_main(self, tmp_path, monkeypatch):
         """Test that the module can be executed directly."""
-        import subprocess  # nosec B404
         import sys
 
         # Create a valid template.yml with templates field
@@ -857,7 +857,9 @@ class TestModuleExecution:
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
 
-        # Execute the mock script
+        # Execute the mock script.
+        # Safe: sys.executable is the running interpreter and mock_script is a
+        # file created above under pytest's tmp_path — no external/user input.
         result = subprocess.run(  # nosec B603
             [sys.executable, str(mock_script)],
             capture_output=True,
@@ -1423,7 +1425,6 @@ class TestMainNameBlock:
 
     def test_main_name_block_execution(self, tmp_path):
         """Test that the module can be run as __main__."""
-        import subprocess  # nosec B404
         import sys
 
         # Create a temporary directory with a .rhiza/template.yml that won't trigger validation
@@ -1432,7 +1433,9 @@ class TestMainNameBlock:
         template_file = rhiza_dir / "template.yml"
         template_file.write_text("# No templates field")
 
-        # Run the module as __main__ using python -m
+        # Run the module as __main__ using python -m.
+        # Safe: sys.executable is the running interpreter and the argument list is
+        # a fixed module name — no external/user input.
         result = subprocess.run(  # nosec B603
             [sys.executable, "-m", "rhiza_hooks.check_template_bundles"],
             cwd=tmp_path,
