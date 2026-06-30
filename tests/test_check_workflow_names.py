@@ -48,7 +48,7 @@ class TestCheckFile:
     def test_invalid_yaml_returns_false(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Invalid YAML returns False with the exact error prefix (no mutated wrapper)."""
         workflow = tmp_path / "workflow.yml"
-        workflow.write_text("name: test\n  invalid: yaml: syntax:\n")
+        workflow.write_text('name: "unterminated\non: push\n')
 
         result = check_file(str(workflow))
 
@@ -265,16 +265,21 @@ class TestModuleExecution:
     """Tests for module execution via if __name__ == '__main__'."""
 
     def test_module_executes_main(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Module execution calls main."""
+        """Module execution calls main and threads its return value into sys.exit."""
         import runpy
         import warnings
+        from unittest.mock import patch
 
-        # main() returns 0 when no files provided, doesn't call sys.exit.
-        # The module is already imported (top-level test import), so runpy warns
-        # it was "found in sys.modules ... prior to execution"; filter just that
-        # warning rather than mutating sys.modules, which would break module
-        # identity for other tests that monkeypatch this module.
+        # main() returns 0 when no files are provided; the __main__ block threads
+        # that into sys.exit. Patch sys.exit so runpy returns instead of raising
+        # SystemExit, then assert the exit code propagated unchanged.
         monkeypatch.setattr("sys.argv", ["check_workflow_names"])
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
-            runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")
+        with patch("sys.exit") as mock_exit:
+            # The module is already imported (top-level test import), so runpy warns
+            # it was "found in sys.modules ... prior to execution"; filter just that
+            # warning rather than mutating sys.modules, which would break module
+            # identity for other tests that monkeypatch this module.
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
+                runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")
+            mock_exit.assert_called_once_with(0)
