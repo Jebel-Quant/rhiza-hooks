@@ -416,6 +416,10 @@ class TestModuleExecution:
             patch("rhiza_hooks.check_python_version.sys.exit") as mock_exit,
         ):
             import runpy
+            import sys
 
+            # Drop the pre-imported module so runpy executes a fresh copy without
+            # the "found in sys.modules ... prior to execution" RuntimeWarning.
+            sys.modules.pop("rhiza_hooks.check_python_version", None)
             runpy.run_module("rhiza_hooks.check_python_version", run_name="__main__")
             mock_exit.assert_called_once_with(0)
