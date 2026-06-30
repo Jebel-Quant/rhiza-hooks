@@ -30,21 +30,20 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from rhiza_hooks import _bundles_validate, _repo
 from rhiza_hooks._bundles_config import _get_config_data
 from rhiza_hooks._bundles_fetch import (
     _FETCH_ATTEMPTS,
     _FETCH_TIMEOUT_SECONDS,
     _fetch_remote_bundles,
 )
-from rhiza_hooks._bundles_validate import _validate_selected_bundles, _validate_top_level_fields
-from rhiza_hooks._repo import find_repo_root
 
 
 def _get_config_path(args: argparse.Namespace) -> Path:
     """Get the configuration file path from arguments or default location."""
     if args.filenames:
         return Path(args.filenames[0])
-    return find_repo_root() / ".rhiza" / "template.yml"
+    return _repo.find_repo_root() / ".rhiza" / "template.yml"
 
 
 def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any] | None, set[str] | None]:
@@ -93,7 +92,7 @@ def _validate_remote_bundles(
     data = fetched.data
 
     # Validate top-level structure
-    errors = _validate_top_level_fields(data)
+    errors = _bundles_validate._validate_top_level_fields(data)
     if errors:
         print("\n✗ Template bundles validation failed:")
         for error in errors:
@@ -111,7 +110,7 @@ def _validate_remote_bundles(
 
 def _validate_templates_in_bundles(templates_set: set[str], bundles: dict[Any, Any], config_path: Path) -> list[str]:
     """Validate that requested templates exist in the remote bundles and are well-formed."""
-    return _validate_selected_bundles(
+    return _bundles_validate._validate_selected_bundles(
         templates_set,
         bundles,
         lambda t: f"Template '{t}' specified in {config_path} not found in remote bundles",
