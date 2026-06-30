@@ -34,6 +34,12 @@ class TestParseVersion:
         # Note: our parse_version only handles major.minor
         assert parse_version("3.11") == (3, 11)
 
+    @pytest.mark.parametrize("bad", ["", "3", "3.x", "3.11.5", "abc", "3,11"])
+    def test_parse_version_rejects_invalid(self, bad: str) -> None:
+        """Reject anything that is not exactly 'major.minor'."""
+        with pytest.raises(ValueError, match="Invalid version string"):
+            parse_version(bad)
+
 
 class TestVersionSatisfiesConstraint:
     """Tests for version_satisfies_constraint function."""
@@ -416,6 +422,13 @@ class TestModuleExecution:
             patch("rhiza_hooks.check_python_version.sys.exit") as mock_exit,
         ):
             import runpy
+            import warnings
 
-            runpy.run_module("rhiza_hooks.check_python_version", run_name="__main__")
+            # The module is already imported (top-level test import), so runpy warns
+            # it was "found in sys.modules ... prior to execution"; filter just that
+            # warning rather than mutating sys.modules, which would break module
+            # identity for other tests that monkeypatch this module.
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
+                runpy.run_module("rhiza_hooks.check_python_version", run_name="__main__")
             mock_exit.assert_called_once_with(0)

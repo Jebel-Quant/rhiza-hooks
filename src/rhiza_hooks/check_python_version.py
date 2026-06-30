@@ -45,7 +45,12 @@ def parse_version(version_str: str) -> tuple[int, int]:
     >>> parse_version("3.12")
     (3, 12)
     """
-    parts = version_str.split(".")
+    normalized = version_str.strip()
+    if re.fullmatch(r"\d+\.\d+", normalized) is None:
+        msg = f"Invalid version string: {version_str!r}. Expected 'major.minor'."
+        raise ValueError(msg)
+
+    parts = normalized.split(".")
     return (int(parts[0]), int(parts[1]))
 
 
@@ -133,7 +138,10 @@ def version_satisfies_constraint(version: str, operator: str, constraint_version
         return v <= cv
     elif operator == "<":
         return v < cv
-    elif operator == "==" or operator == "":
+    elif operator == "==":
+        return v == cv
+    elif operator == "":
+        # Bare version specifier (no explicit operator) is treated as equality.
         return v == cv
     elif operator == "!=":
         return v != cv

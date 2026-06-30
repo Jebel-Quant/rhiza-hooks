@@ -7,20 +7,21 @@ from textwrap import dedent
 
 import pytest
 
-from rhiza_hooks.check_template_bundles import (
-    BundlesDoc,
-    _get_templates_from_config,
-    _load_and_validate_config,
-    _load_yaml_file,
+from rhiza_hooks._bundles_config import _get_templates_from_config
+from rhiza_hooks._bundles_fetch import BundlesDoc, _load_yaml_file
+from rhiza_hooks._bundles_validate import (
     _validate_bundle_structure,
     _validate_examples,
     _validate_metadata,
+    _validate_top_level_fields,
+    validate_template_bundles,
+)
+from rhiza_hooks._repo import find_repo_root
+from rhiza_hooks.check_template_bundles import (
+    _load_and_validate_config,
     _validate_remote_bundles,
     _validate_templates_in_bundles,
-    _validate_top_level_fields,
-    find_repo_root,
     main,
-    validate_template_bundles,
 )
 
 
@@ -831,7 +832,7 @@ class TestModuleExecution:
             import sys
             from unittest.mock import patch
 
-            from rhiza_hooks.check_template_bundles import BundlesDoc
+            from rhiza_hooks._bundles_fetch import BundlesDoc
 
             def mock_fetch_remote_bundles(repo, branch, **kwargs):
                 return BundlesDoc(
@@ -1445,6 +1446,7 @@ class TestMainNameBlock:
         """Test the __main__ block using runpy to maintain coverage."""
         import runpy
         import sys
+        import warnings
 
         # Create a temporary directory with a .rhiza/template.yml that won't trigger validation
         rhiza_dir = tmp_path / ".rhiza"
@@ -1460,9 +1462,15 @@ class TestMainNameBlock:
         sys.argv = ["rhiza_hooks.check_template_bundles"]
 
         try:
-            # Run the module as __main__ using runpy - it should exit with code 0
-            with pytest.raises(SystemExit) as exc_info:
-                runpy.run_module("rhiza_hooks.check_template_bundles", run_name="__main__")
+            # Run the module as __main__ using runpy - it should exit with code 0.
+            # The module is already imported (top-level test import), so runpy warns
+            # it was "found in sys.modules ... prior to execution"; filter just that
+            # warning rather than mutating sys.modules, which would break module
+            # identity for other tests that monkeypatch this module.
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
+                with pytest.raises(SystemExit) as exc_info:
+                    runpy.run_module("rhiza_hooks.check_template_bundles", run_name="__main__")
             assert exc_info.value.code == 0
         finally:
             sys.argv = original_argv
