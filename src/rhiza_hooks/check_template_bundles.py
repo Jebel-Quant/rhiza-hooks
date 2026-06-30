@@ -31,20 +31,12 @@ from pathlib import Path
 from typing import Any
 
 from rhiza_hooks._bundles_config import _get_config_data
-from rhiza_hooks._bundles_config import _get_templates_from_config as _get_templates_from_config  # re-export
 from rhiza_hooks._bundles_fetch import (
     _FETCH_ATTEMPTS,
     _FETCH_TIMEOUT_SECONDS,
     _fetch_remote_bundles,
 )
-from rhiza_hooks._bundles_fetch import BundlesDoc as BundlesDoc  # re-export
-from rhiza_hooks._bundles_fetch import _load_yaml_file as _load_yaml_file  # re-export
-from rhiza_hooks._bundles_fetch import _parse_remote_bundles as _parse_remote_bundles  # re-export
-from rhiza_hooks._bundles_validate import _validate_bundle_structure as _validate_bundle_structure  # re-export
-from rhiza_hooks._bundles_validate import _validate_examples as _validate_examples  # re-export
-from rhiza_hooks._bundles_validate import _validate_metadata as _validate_metadata  # re-export
 from rhiza_hooks._bundles_validate import _validate_selected_bundles, _validate_top_level_fields
-from rhiza_hooks._bundles_validate import validate_template_bundles as validate_template_bundles  # re-export
 from rhiza_hooks._repo import find_repo_root
 
 
