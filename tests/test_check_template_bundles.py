@@ -874,13 +874,16 @@ class TestFetchRemoteBundles:
 
     def test_fetch_remote_bundles_http_404(self, monkeypatch):
         """Test fetching remote bundles returns 404 error."""
+        from http.client import HTTPMessage
+        from io import BytesIO
         from urllib.error import HTTPError
 
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
             """Raise an HTTP 404 error in place of opening the URL."""
-            raise HTTPError(url, 404, "Not Found", {}, None)
+            headers = HTTPMessage()
+            raise HTTPError(url, 404, "Not Found", headers, BytesIO(b""))
 
         monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
@@ -890,13 +893,16 @@ class TestFetchRemoteBundles:
 
     def test_fetch_remote_bundles_http_error_non_404(self, monkeypatch):
         """Test fetching remote bundles with non-404 HTTP error."""
+        from http.client import HTTPMessage
+        from io import BytesIO
         from urllib.error import HTTPError
 
         from rhiza_hooks.check_template_bundles import _fetch_remote_bundles
 
         def mock_urlopen(url, timeout):
             """Raise an HTTP 500 error in place of opening the URL."""
-            raise HTTPError(url, 500, "Internal Server Error", {}, None)
+            headers = HTTPMessage()
+            raise HTTPError(url, 500, "Internal Server Error", headers, BytesIO(b""))
 
         monkeypatch.setattr("rhiza_hooks._bundles_fetch.urlopen", mock_urlopen)
 
@@ -1601,7 +1607,9 @@ class TestMainExtraCoverage:
             main(["--help"])
         assert exc_info.value.code == 0
         out = capsys.readouterr().out
-        assert "XX" not in out  # no mutated literal survived into the rendered help
+        assert (
+            "XX" not in out
+        )  # mutation-test sentinel: catches mutated argparse description/help literals leaking into --help output
         assert "Validate template-bundles.yml from remote template repository" in out
         assert "Filenames to check (should be .rhiza/template.yml)" in out
 
