@@ -264,20 +264,17 @@ class TestMain:
 class TestModuleExecution:
     """Tests for module execution via if __name__ == '__main__'."""
 
-    def test_module_executes_main(self) -> None:
+    def test_module_executes_main(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Module execution calls main."""
         import runpy
         import warnings
-        from unittest.mock import patch
 
         # main() returns 0 when no files provided, doesn't call sys.exit.
         # The module is already imported (top-level test import), so runpy warns
         # it was "found in sys.modules ... prior to execution"; filter just that
         # warning rather than mutating sys.modules, which would break module
         # identity for other tests that monkeypatch this module.
-        with (
-            patch("rhiza_hooks.check_workflow_names.sys.argv", ["check_workflow_names"]),
-            warnings.catch_warnings(),
-        ):
+        monkeypatch.setattr("sys.argv", ["check_workflow_names"])
+        with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
             runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")
