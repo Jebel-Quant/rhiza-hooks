@@ -6,6 +6,7 @@ from pathlib import Path
 from textwrap import dedent
 
 import pytest
+import subprocess  # nosec B404
 
 from rhiza_hooks._bundles_config import _get_templates_from_config
 from rhiza_hooks._bundles_fetch import BundlesDoc, _load_yaml_file
@@ -809,7 +810,6 @@ class TestModuleExecution:
 
     def test_module_executes_main(self, tmp_path, monkeypatch):
         """Test that the module can be executed directly."""
-        import subprocess  # nosec B404
         import sys
 
         # Create a valid template.yml with templates field
