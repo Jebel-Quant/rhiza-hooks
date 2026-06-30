@@ -34,6 +34,12 @@ class TestParseVersion:
         # Note: our parse_version only handles major.minor
         assert parse_version("3.11") == (3, 11)
 
+    @pytest.mark.parametrize("bad", ["", "3", "3.x", "3.11.5", "abc", "3,11"])
+    def test_parse_version_rejects_invalid(self, bad: str) -> None:
+        """Reject anything that is not exactly 'major.minor'."""
+        with pytest.raises(ValueError, match="Invalid version string"):
+            parse_version(bad)
+
 
 class TestVersionSatisfiesConstraint:
     """Tests for version_satisfies_constraint function."""
