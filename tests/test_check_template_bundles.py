@@ -1446,6 +1446,7 @@ class TestMainNameBlock:
         """Test the __main__ block using runpy to maintain coverage."""
         import runpy
         import sys
+        import warnings
 
         # Create a temporary directory with a .rhiza/template.yml that won't trigger validation
         rhiza_dir = tmp_path / ".rhiza"
@@ -1462,11 +1463,14 @@ class TestMainNameBlock:
 
         try:
             # Run the module as __main__ using runpy - it should exit with code 0.
-            # Drop the pre-imported module so runpy executes a fresh copy without
-            # the "found in sys.modules ... prior to execution" RuntimeWarning.
-            sys.modules.pop("rhiza_hooks.check_template_bundles", None)
-            with pytest.raises(SystemExit) as exc_info:
-                runpy.run_module("rhiza_hooks.check_template_bundles", run_name="__main__")
+            # The module is already imported (top-level test import), so runpy warns
+            # it was "found in sys.modules ... prior to execution"; filter just that
+            # warning rather than mutating sys.modules, which would break module
+            # identity for other tests that monkeypatch this module.
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
+                with pytest.raises(SystemExit) as exc_info:
+                    runpy.run_module("rhiza_hooks.check_template_bundles", run_name="__main__")
             assert exc_info.value.code == 0
         finally:
             sys.argv = original_argv

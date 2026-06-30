@@ -261,15 +261,18 @@ class TestModuleExecution:
     def test_module_executes_main(self) -> None:
         """Module execution calls main and exits with its return value."""
         import runpy
-        import sys
+        import warnings
         from unittest.mock import patch
 
         with (
             patch("rhiza_hooks.check_makefile_targets.sys.argv", ["check_makefile_targets"]),
             patch("rhiza_hooks.check_makefile_targets.sys.exit") as mock_exit,
         ):
-            # Drop the pre-imported module so runpy executes a fresh copy without
-            # the "found in sys.modules ... prior to execution" RuntimeWarning.
-            sys.modules.pop("rhiza_hooks.check_makefile_targets", None)
-            runpy.run_module("rhiza_hooks.check_makefile_targets", run_name="__main__")
+            # The module is already imported (top-level test import), so runpy warns
+            # it was "found in sys.modules ... prior to execution"; filter just that
+            # warning rather than mutating sys.modules, which would break module
+            # identity for other tests that monkeypatch this module.
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
+                runpy.run_module("rhiza_hooks.check_makefile_targets", run_name="__main__")
             mock_exit.assert_called_once_with(0)
