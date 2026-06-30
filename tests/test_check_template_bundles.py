@@ -864,6 +864,7 @@ class TestModuleExecution:
             [sys.executable, str(mock_script)],
             capture_output=True,
             text=True,
+            timeout=10,
         )
 
         assert result.returncode == 0
