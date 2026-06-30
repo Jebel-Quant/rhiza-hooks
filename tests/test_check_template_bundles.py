@@ -857,7 +857,9 @@ class TestModuleExecution:
         # Change to the tmp_path directory
         monkeypatch.chdir(tmp_path)
 
-        # Execute the mock script
+        # Execute the mock script.
+        # Safe in this test context: sys.executable is the current interpreter,
+        # and mock_script is created above in pytest's tmp_path (not user input).
         result = subprocess.run(  # nosec B603
             [sys.executable, str(mock_script)],
             capture_output=True,
