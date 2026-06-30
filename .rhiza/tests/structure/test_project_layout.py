@@ -8,6 +8,8 @@ expected files/directories exist, enabling other tests to locate resources
 reliably.
 """
 
+import warnings
+
 import pytest
 
 
@@ -49,6 +51,10 @@ class TestRootFixture:
         for filename in required_files:
             assert (root / filename).exists(), f"Required file {filename} not found"
 
-        missing_optional_files = [filename for filename in optional_files if not (root / filename).exists()]
-        if missing_optional_files:
-            pytest.skip("Optional files not present in this project: " + ", ".join(missing_optional_files))
+        for filename in optional_files:
+            if not (root / filename).exists():
+                warnings.warn(
+                    f"Optional file {filename} not present in this project",
+                    UserWarning,
+                    stacklevel=2,
+                )
