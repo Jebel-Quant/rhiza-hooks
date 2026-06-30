@@ -142,9 +142,6 @@ def version_satisfies_constraint(version: str, operator: str, constraint_version
         return v < cv
     elif operator == "==":
         return v == cv
-    elif operator == "":
-        # Bare version specifier (no explicit operator) is treated as equality.
-        return v == cv
     elif operator == "!=":
         return v != cv
     elif operator == "~=":
