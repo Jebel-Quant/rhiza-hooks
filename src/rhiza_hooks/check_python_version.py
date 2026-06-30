@@ -187,7 +187,7 @@ def main(argv: list[str] | None = None) -> int:
         nargs="*",
         help="Filenames (ignored, checks repo root)",
     )
-    args = parser.parse_args(argv)  # noqa: F841
+    parser.parse_args(argv)  # validate/consume pre-commit's filename args; result unused
 
     repo_root = find_repo_root()
     errors = check_version_consistency(repo_root)
