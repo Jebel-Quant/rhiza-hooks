@@ -277,4 +277,6 @@ class TestModuleExecution:
         monkeypatch.setattr("sys.argv", ["check_workflow_names"])
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
-            runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")
+            module_globals = runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")
+
+        assert module_globals["exit_code"] == 0
