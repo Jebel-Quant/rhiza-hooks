@@ -48,7 +48,7 @@ class TestCheckFile:
     def test_invalid_yaml_returns_false(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Invalid YAML returns False with the exact error prefix (no mutated wrapper)."""
         workflow = tmp_path / "workflow.yml"
-        workflow.write_text("name: test\n  invalid: yaml: syntax:\n")
+        workflow.write_text('name: "unterminated\non: push\n')
 
         result = check_file(str(workflow))
 
