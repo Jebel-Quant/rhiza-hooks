@@ -220,8 +220,12 @@ class TestModuleExecution:
         import runpy
         import warnings
 
-        # Patch subprocess.run to raise FileNotFoundError so get_make_help_output returns None
-        # This needs to be patched at subprocess level since runpy creates a fresh module namespace
+        # runpy executes the module in a *fresh* namespace, so the module-level
+        # `main`/`get_make_help_output` references are redefined and cannot be
+        # patched here — only globals from other modules (subprocess, sys) survive.
+        # Patch subprocess.run to raise FileNotFoundError so get_make_help_output
+        # returns None and main() returns 0; asserting sys.exit(0) proves the
+        # __main__ block ran main and threaded its return value into sys.exit.
         with (
             patch("subprocess.run", side_effect=FileNotFoundError()),
             patch("sys.exit") as mock_exit,
