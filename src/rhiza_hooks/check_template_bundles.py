@@ -163,9 +163,8 @@ def main(argv: list[str] | None = None) -> int:
     # _load_and_validate_config returns these values in lockstep:
     #   - success path: (config_dict, templates_set)  -> both are not None
     #   - early-exit path: (None, None)               -> both are None
-    # Therefore `config is None` and `templates_set is None` are equivalent here.
-    # Under this invariant, mutating `or` to `and` does not change behavior.
-    if config is None or templates_set is None:  # pragma: no mutate
+    assert (config is None) == (templates_set is None)
+    if config is None:  # pragma: no mutate
         return 0
 
     # Get template repository and branch
