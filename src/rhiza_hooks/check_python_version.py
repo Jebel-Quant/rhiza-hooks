@@ -45,7 +45,11 @@ def parse_version(version_str: str) -> tuple[int, int]:
     >>> parse_version("3.12")
     (3, 12)
     """
-    parts = version_str.split(".")
+    normalized = version_str.strip()
+    if re.fullmatch(r"\d+\.\d+", normalized) is None:
+        raise ValueError(f"Invalid version string: {version_str!r}. Expected 'major.minor'.")
+
+    parts = normalized.split(".")
     return (int(parts[0]), int(parts[1]))
 
 
