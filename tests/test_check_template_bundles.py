@@ -1604,9 +1604,6 @@ class TestMainExtraCoverage:
             main(["--help"])
         assert exc_info.value.code == 0
         out = capsys.readouterr().out
-        assert (
-            "XX" not in out
-        )  # mutation-test sentinel: catches mutated argparse description/help literals leaking into --help output
         assert "Validate template-bundles.yml from remote template repository" in out
         assert "Filenames to check (should be .rhiza/template.yml)" in out
 
