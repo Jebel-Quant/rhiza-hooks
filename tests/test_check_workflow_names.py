@@ -270,16 +270,18 @@ class TestModuleExecution:
         import warnings
         from unittest.mock import patch
 
-        # main() returns 0 when no files are provided; the __main__ block threads
-        # that into sys.exit. Patch sys.exit so runpy returns instead of raising
-        # SystemExit, then assert the exit code propagated unchanged.
+        # Set argv so the __main__ block should call main([]).
         monkeypatch.setattr("sys.argv", ["check_workflow_names"])
-        with patch("sys.exit") as mock_exit:
-            # The module is already imported (top-level test import), so runpy warns
-            # it was "found in sys.modules ... prior to execution"; filter just that
-            # warning rather than mutating sys.modules, which would break module
-            # identity for other tests that monkeypatch this module.
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
-                runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")
+        # Patch both main and sys.exit so we can assert delegation and exit code
+        # propagation without terminating the test process.
+        with patch("rhiza_hooks.check_workflow_names.main", return_value=0) as mock_main:
+            with patch("sys.exit") as mock_exit:
+                # The module is already imported (top-level test import), so runpy warns
+                # it was "found in sys.modules ... prior to execution"; filter just that
+                # warning rather than mutating sys.modules, which would break module
+                # identity for other tests that monkeypatch this module.
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
+                    runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")
+            mock_main.assert_called_once_with([])
             mock_exit.assert_called_once_with(0)
