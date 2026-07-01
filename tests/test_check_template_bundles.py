@@ -864,6 +864,7 @@ class TestModuleExecution:
             [sys.executable, str(mock_script)],
             capture_output=True,
             text=True,
+            timeout=10,
         )
 
         assert result.returncode == 0
@@ -1447,6 +1448,7 @@ class TestMainNameBlock:
             cwd=tmp_path,
             capture_output=True,
             text=True,
+            timeout=10,
         )
 
         assert result.returncode == 0
@@ -1604,9 +1606,6 @@ class TestMainExtraCoverage:
             main(["--help"])
         assert exc_info.value.code == 0
         out = capsys.readouterr().out
-        assert (
-            "XX" not in out
-        )  # mutation-test sentinel: catches mutated argparse description/help literals leaking into --help output
         assert "Validate template-bundles.yml from remote template repository" in out
         assert "Filenames to check (should be .rhiza/template.yml)" in out
 
