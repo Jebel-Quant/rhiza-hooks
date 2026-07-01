@@ -100,5 +100,10 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-if __name__ == "__main__":  # pragma: no mutate
+def _run() -> None:
+    """Entry point: delegate to :func:`main` and exit with its return code."""
     sys.exit(main())
+
+
+if __name__ == "__main__":  # pragma: no cover  # pragma: no mutate
+    _run()
