@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from rhiza_hooks.check_workflow_names import check_file, main
+from rhiza_hooks.check_workflow_names import _run, check_file, main
 
 
 class TestCheckFile:
@@ -262,24 +262,22 @@ class TestMain:
 
 
 class TestModuleExecution:
-    """Tests for module execution via if __name__ == '__main__'."""
+    """Tests for the module entry point invoked by ``if __name__ == '__main__'``."""
 
-    def test_module_executes_main(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Module execution calls main and threads its return value into sys.exit."""
-        import runpy
-        import warnings
+    def test_run_delegates_to_main_and_exits(self) -> None:
+        """_run() calls main() and threads its return value into sys.exit.
+
+        _run() looks up the module-level ``main`` at call time, so patching
+        ``rhiza_hooks.check_workflow_names.main`` intercepts the delegation
+        directly (no runpy fresh-namespace indirection, which cannot see it).
+        """
         from unittest.mock import patch
 
-        # main() returns 0 when no files are provided; the __main__ block threads
-        # that into sys.exit. Patch sys.exit so runpy returns instead of raising
-        # SystemExit, then assert the exit code propagated unchanged.
-        monkeypatch.setattr("sys.argv", ["check_workflow_names"])
-        with patch("sys.exit") as mock_exit:
-            # The module is already imported (top-level test import), so runpy warns
-            # it was "found in sys.modules ... prior to execution"; filter just that
-            # warning rather than mutating sys.modules, which would break module
-            # identity for other tests that monkeypatch this module.
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
-                runpy.run_module("rhiza_hooks.check_workflow_names", run_name="__main__")
-            mock_exit.assert_called_once_with(0)
+        with (
+            patch("rhiza_hooks.check_workflow_names.main", return_value=7) as mock_main,
+            patch("sys.exit") as mock_exit,
+        ):
+            _run()
+
+        mock_main.assert_called_once_with()
+        mock_exit.assert_called_once_with(7)

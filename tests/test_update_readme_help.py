@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import runpy
 import subprocess  # nosec B404
-import warnings
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from rhiza_hooks.update_readme_help import (
+    _run,
     find_repo_root,
     get_make_help_output,
     main,
@@ -215,27 +214,20 @@ class TestMain:
 
 
 class TestModuleExecution:
-    """Tests for module execution via if __name__ == '__main__'."""
+    """Tests for the module entry point invoked by ``if __name__ == '__main__'``."""
 
-    def test_module_executes_main(self) -> None:
-        """Module execution calls main and exits with its return value."""
-        # runpy executes the module in a *fresh* namespace, so the module-level
-        # `main`/`get_make_help_output` references are redefined and cannot be
-        # patched here — only globals from other modules (subprocess, sys) survive.
-        # Patch subprocess.run to raise FileNotFoundError so get_make_help_output
-        # returns None and main() returns 0; asserting subprocess.run was invoked
-        # and sys.exit(0) was called proves the __main__ block executed main and
-        # threaded its return value into sys.exit.
+    def test_run_delegates_to_main_and_exits(self) -> None:
+        """_run() calls main() and threads its return value into sys.exit.
+
+        _run() looks up the module-level ``main`` at call time, so patching
+        ``rhiza_hooks.update_readme_help.main`` intercepts the delegation
+        directly (no runpy fresh-namespace indirection, which cannot see it).
+        """
         with (
-            patch("subprocess.run", side_effect=FileNotFoundError()) as mock_run,
+            patch("rhiza_hooks.update_readme_help.main", return_value=7) as mock_main,
             patch("sys.exit") as mock_exit,
         ):
-            # The module is already imported (top-level test import), so runpy warns
-            # it was "found in sys.modules ... prior to execution"; filter just that
-            # warning rather than mutating sys.modules, which would break module
-            # identity for other tests that monkeypatch this module.
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
-                runpy.run_module("rhiza_hooks.update_readme_help", run_name="__main__")
-            mock_run.assert_called_once()
-            mock_exit.assert_called_once_with(0)
+            _run()
+
+        mock_main.assert_called_once_with()
+        mock_exit.assert_called_once_with(7)
