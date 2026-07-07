@@ -15,6 +15,50 @@ import sys
 import yaml
 
 
+def _expected_name(name: str) -> str:
+    """Return the canonical ``(RHIZA) <UPPERCASE>`` form of a workflow name."""
+    prefix = "(RHIZA) "
+    # Remove prefix if present to verify the rest of the string
+    clean_name = name[len(prefix) :] if name.startswith(prefix) else name
+    # Collapse any internal/trailing whitespace (e.g. from a folded/block YAML
+    # scalar, where PyYAML yields newlines) so the rewrite is a single line.
+    clean_name = " ".join(clean_name.split())
+    return f"{prefix}{clean_name.upper()}"
+
+
+def _rewrite_workflow_name(filepath: str, expected_name: str) -> None:
+    """Rewrite the top-level ``name:`` of a workflow file, preserving comments."""
+    # Read file lines to perform replacement while preserving comments
+    with open(filepath) as f_read:
+        lines = f_read.readlines()
+
+    with open(filepath, "w") as f_write:
+        replaced = False  # pragma: no mutate  # equivalent: only ever read via `not replaced`
+        skipping_block = False  # pragma: no mutate  # equivalent: only ever read via `if skipping_block`
+        for line in lines:
+            if skipping_block:
+                # Drop the continuation lines of a multi-line/block name scalar.
+                # YAML indentation is spaces, so they are blank or space-indented;
+                # the first flush-left line ends the scalar.
+                if line.strip() == "" or line.startswith(" "):
+                    continue
+                skipping_block = False  # pragma: no mutate  # equivalent: only ever read via `if skipping_block`
+            # Replace only the top-level workflow `name`. It is the sole `name:` key
+            # at column 0; job- and step-level `name:` keys are nested and therefore
+            # indented, so `startswith("name:")` never matches them. `not replaced`
+            # also stops us after the first match (a duplicate top-level key).
+            if not replaced and line.startswith("name:"):
+                f_write.write(f'name: "{expected_name}"\n')
+                replaced = True
+                # If the value is a block scalar (`name: >` / `name: |`, plus chomping
+                # indicators like `>-`), its value lives on the following indented
+                # lines — skip them so we don't leave orphan scalar text behind.
+                if line[len("name:") :].strip()[:1] in ("|", ">"):
+                    skipping_block = True
+            else:
+                f_write.write(line)
+
+
 def check_file(filepath: str) -> bool:
     """Check if the workflow file has the correct name prefix and update if needed.
 
@@ -40,51 +84,14 @@ def check_file(filepath: str) -> bool:
         print(f"Error: {filepath} missing 'name' field.")
         return False
 
-    prefix = "(RHIZA) "
-    # Remove prefix if present to verify the rest of the string
-    clean_name = name[len(prefix) :] if name.startswith(prefix) else name
-    # Collapse any internal/trailing whitespace (e.g. from a folded/block YAML
-    # scalar, where PyYAML yields newlines) so the rewrite is a single line.
-    clean_name = " ".join(clean_name.split())
+    expected_name = _expected_name(name)
 
-    expected_name = f"{prefix}{clean_name.upper()}"
+    if name == expected_name:
+        return True
 
-    if name != expected_name:
-        print(f"Updating {filepath}: name '{name}' -> '{expected_name}'")
-
-        # Read file lines to perform replacement while preserving comments
-        with open(filepath) as f_read:
-            lines = f_read.readlines()
-
-        with open(filepath, "w") as f_write:
-            replaced = False  # pragma: no mutate  # equivalent: only ever read via `not replaced`
-            skipping_block = False  # pragma: no mutate  # equivalent: only ever read via `if skipping_block`
-            for line in lines:
-                if skipping_block:
-                    # Drop the continuation lines of a multi-line/block name scalar.
-                    # YAML indentation is spaces, so they are blank or space-indented;
-                    # the first flush-left line ends the scalar.
-                    if line.strip() == "" or line.startswith(" "):
-                        continue
-                    skipping_block = False  # pragma: no mutate  # equivalent: only ever read via `if skipping_block`
-                # Replace only the top-level workflow `name`. It is the sole `name:` key
-                # at column 0; job- and step-level `name:` keys are nested and therefore
-                # indented, so `startswith("name:")` never matches them. `not replaced`
-                # also stops us after the first match (a duplicate top-level key).
-                if not replaced and line.startswith("name:"):
-                    f_write.write(f'name: "{expected_name}"\n')
-                    replaced = True
-                    # If the value is a block scalar (`name: >` / `name: |`, plus chomping
-                    # indicators like `>-`), its value lives on the following indented
-                    # lines — skip them so we don't leave orphan scalar text behind.
-                    if line[len("name:") :].strip()[:1] in ("|", ">"):
-                        skipping_block = True
-                else:
-                    f_write.write(line)
-
-        return False  # Fail so pre-commit knows files were modified
-
-    return True
+    print(f"Updating {filepath}: name '{name}' -> '{expected_name}'")
+    _rewrite_workflow_name(filepath, expected_name)
+    return False  # Fail so pre-commit knows files were modified
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -19,6 +19,8 @@ from urllib.request import urlopen
 
 import yaml
 
+from rhiza_hooks._yaml import YamlError, YamlFailure, load_yaml_mapping
+
 # Remote fetch is retried on transient network errors before giving up. Two
 # attempts = one initial try plus one retry, with a short linear backoff.
 # These are defaults; the CLI exposes `--retries` and `--timeout` to override.
@@ -44,22 +46,17 @@ class BundlesDoc:
 
 def _load_yaml_file(bundles_path: Path) -> BundlesDoc:
     """Load and parse a local YAML file into a :class:`BundlesDoc`."""
-    if not bundles_path.exists():
-        return BundlesDoc(None, [f"Template bundles file not found: {bundles_path}"])
+    result = load_yaml_mapping(bundles_path)
+    if not isinstance(result, YamlFailure):
+        return BundlesDoc(result, [])
 
-    try:
-        with open(bundles_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-    except (yaml.YAMLError, UnicodeDecodeError) as e:
-        return BundlesDoc(None, [f"Invalid YAML: {e}"])
-
-    if data is None:
-        return BundlesDoc(None, ["Template bundles file is empty"])
-
-    if not isinstance(data, dict):
-        return BundlesDoc(None, ["Template bundles file must be a dictionary"])
-
-    return BundlesDoc(data, [])
+    messages = {
+        YamlError.NOT_FOUND: f"Template bundles file not found: {bundles_path}",
+        YamlError.INVALID: f"Invalid YAML: {result.detail}",
+        YamlError.EMPTY: "Template bundles file is empty",
+        YamlError.NOT_MAPPING: "Template bundles file must be a dictionary",
+    }
+    return BundlesDoc(None, [messages[result.kind]])
 
 
 def _parse_remote_bundles(content: bytes) -> BundlesDoc:

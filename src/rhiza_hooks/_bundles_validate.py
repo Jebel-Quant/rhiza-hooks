@@ -40,17 +40,31 @@ def _validate_top_level_fields(data: dict[Any, Any]) -> list[str]:
     return errors
 
 
+def _validate_dep_list(bundle_name: str, field: str, deps: Any, bundle_names: set[str]) -> list[str]:
+    """Validate one dependency list (``requires`` / ``recommends``) of a bundle.
+
+    The ``field`` name doubles as the verb in the "non-existent bundle" message
+    (e.g. ``requires``/``recommends``), so the two call sites share this logic.
+    """
+    if not isinstance(deps, list):
+        return [f"Bundle '{bundle_name}' '{field}' must be a list"]
+    return [
+        f"Bundle '{bundle_name}' {field} non-existent bundle '{dep}'"
+        for dep in deps
+        if _not_a_known_bundle(dep, bundle_names)
+    ]
+
+
 def _validate_bundle_structure(
     bundle_name: str,
     bundle_config: Any,
     bundle_names: set[str],
 ) -> list[str]:
     """Validate a single bundle's structure and dependencies."""
-    errors = []
-
     if not isinstance(bundle_config, dict):
-        errors.append(f"Bundle '{bundle_name}' must be a dictionary")
-        return errors
+        return [f"Bundle '{bundle_name}' must be a dictionary"]
+
+    errors = []
 
     # Check required fields
     if "description" not in bundle_config:
@@ -62,21 +76,9 @@ def _validate_bundle_structure(
         errors.append(f"Bundle '{bundle_name}' 'files' must be a list")
 
     # Validate dependencies
-    if "requires" in bundle_config:
-        if not isinstance(bundle_config["requires"], list):
-            errors.append(f"Bundle '{bundle_name}' 'requires' must be a list")
-        else:
-            for dep in bundle_config["requires"]:
-                if _not_a_known_bundle(dep, bundle_names):
-                    errors.append(f"Bundle '{bundle_name}' requires non-existent bundle '{dep}'")
-
-    if "recommends" in bundle_config:
-        if not isinstance(bundle_config["recommends"], list):
-            errors.append(f"Bundle '{bundle_name}' 'recommends' must be a list")
-        else:
-            for dep in bundle_config["recommends"]:
-                if _not_a_known_bundle(dep, bundle_names):
-                    errors.append(f"Bundle '{bundle_name}' recommends non-existent bundle '{dep}'")
+    for field in ("requires", "recommends"):
+        if field in bundle_config:
+            errors.extend(_validate_dep_list(bundle_name, field, bundle_config[field], bundle_names))
 
     return errors
 

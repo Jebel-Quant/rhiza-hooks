@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
+from rhiza_hooks._yaml import YamlError, YamlFailure, load_yaml_mapping
 
 REQUIRED_KEYS = {"template-repository", "template-branch"}
 OPTIONAL_KEYS = {"include", "exclude", "templates"}
@@ -45,21 +45,17 @@ def _load_config(filepath: Path) -> dict[str, Any] | list[str]:
     Returns:
         Config dict on success, or list of error messages on failure
     """
-    try:
-        with filepath.open() as f:
-            config = yaml.safe_load(f)
-    except yaml.YAMLError as e:
-        return [f"Invalid YAML: {e}"]
-    except FileNotFoundError:
-        return [f"File not found: {filepath}"]
+    result = load_yaml_mapping(filepath)
+    if not isinstance(result, YamlFailure):
+        return result
 
-    if config is None:
-        return ["Configuration file is empty"]
-
-    if not isinstance(config, dict):
-        return ["Configuration must be a YAML mapping"]
-
-    return config
+    messages = {
+        YamlError.NOT_FOUND: f"File not found: {filepath}",
+        YamlError.INVALID: f"Invalid YAML: {result.detail}",
+        YamlError.EMPTY: "Configuration file is empty",
+        YamlError.NOT_MAPPING: "Configuration must be a YAML mapping",
+    }
+    return [messages[result.kind]]
 
 
 def _validate_required_keys(config: dict[str, Any]) -> list[str]:

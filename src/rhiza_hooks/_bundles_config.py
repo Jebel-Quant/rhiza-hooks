@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import yaml
+from rhiza_hooks._yaml import YamlFailure, load_yaml_mapping
 
 
 def _get_config_data(config_path: Path) -> dict[str, Any] | None:
@@ -24,19 +24,8 @@ def _get_config_data(config_path: Path) -> dict[str, Any] | None:
     Returns:
         Configuration dictionary, or None if file not found or invalid
     """
-    if not config_path.exists():
-        return None
-
-    try:
-        with open(config_path, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-    except (yaml.YAMLError, UnicodeDecodeError):
-        return None
-
-    if not isinstance(config, dict):
-        return None
-
-    return config
+    result = load_yaml_mapping(config_path)
+    return None if isinstance(result, YamlFailure) else result
 
 
 def _get_templates_from_config(config_path: Path) -> set[str] | None:

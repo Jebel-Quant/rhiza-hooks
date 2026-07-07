@@ -117,10 +117,8 @@ def _validate_templates_in_bundles(templates_set: set[str], bundles: dict[Any, A
     )
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Main entry point."""
-    if isinstance(sys.stdout, io.TextIOWrapper):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Build the argument parser, then parse and validate ``argv``."""
     parser = argparse.ArgumentParser(description="Validate template-bundles.yml from remote template repository")
     parser.add_argument(
         "filenames",
@@ -150,6 +148,16 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--retries must be non-negative")
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
+
+    return args
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Main entry point."""
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    args = _parse_args(argv)
 
     if args.offline:
         print("Offline mode: skipping remote template bundles validation")
