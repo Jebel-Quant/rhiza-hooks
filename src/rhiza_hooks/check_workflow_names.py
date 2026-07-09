@@ -26,37 +26,59 @@ def _expected_name(name: str) -> str:
     return f"{prefix}{clean_name.upper()}"
 
 
+def _is_block_scalar_name(line: str) -> bool:
+    """True if a top-level ``name:`` line opens a block scalar (``|`` / ``>``).
+
+    Detection keys on the leading indicator character (``[:1]``) so chomping
+    variants like ``>-`` / ``|-`` are recognised too.
+    """
+    return line[len("name:") :].strip()[:1] in ("|", ">")
+
+
+def _is_block_continuation(line: str) -> bool:
+    """True if ``line`` continues a block scalar's value.
+
+    YAML indentation is spaces, so a scalar's continuation lines are blank or
+    space-indented; the first flush-left line ends the scalar.
+    """
+    return line.strip() == "" or line.startswith(" ")
+
+
+def _count_block_continuations(following: list[str]) -> int:
+    """Count the leading block-scalar continuation lines in ``following``."""
+    count = 0
+    for line in following:
+        if not _is_block_continuation(line):
+            break
+        count += 1
+    return count
+
+
+def _replace_name_lines(lines: list[str], expected_name: str) -> list[str]:
+    """Return ``lines`` with the first top-level ``name:`` set to ``expected_name``.
+
+    Only the top-level workflow ``name`` is rewritten: it is the sole ``name:``
+    key at column 0, so job- and step-level ``name:`` keys (always indented)
+    never match, and only the first match is replaced. If the value is a block
+    scalar (``name: >`` / ``name: |``), its continuation lines are dropped so no
+    orphan scalar text is left behind. When no top-level ``name:`` line exists,
+    the lines are returned unchanged.
+    """
+    for idx, line in enumerate(lines):
+        if line.startswith("name:"):
+            tail = idx + 1
+            if _is_block_scalar_name(line):
+                tail += _count_block_continuations(lines[idx + 1 :])
+            return [*lines[:idx], f'name: "{expected_name}"\n', *lines[tail:]]
+    return list(lines)
+
+
 def _rewrite_workflow_name(filepath: str, expected_name: str) -> None:
     """Rewrite the top-level ``name:`` of a workflow file, preserving comments."""
-    # Read file lines to perform replacement while preserving comments
     with open(filepath) as f_read:
         lines = f_read.readlines()
-
     with open(filepath, "w") as f_write:
-        replaced = False  # pragma: no mutate  # equivalent: only ever read via `not replaced`
-        skipping_block = False  # pragma: no mutate  # equivalent: only ever read via `if skipping_block`
-        for line in lines:
-            if skipping_block:
-                # Drop the continuation lines of a multi-line/block name scalar.
-                # YAML indentation is spaces, so they are blank or space-indented;
-                # the first flush-left line ends the scalar.
-                if line.strip() == "" or line.startswith(" "):
-                    continue
-                skipping_block = False  # pragma: no mutate  # equivalent: only ever read via `if skipping_block`
-            # Replace only the top-level workflow `name`. It is the sole `name:` key
-            # at column 0; job- and step-level `name:` keys are nested and therefore
-            # indented, so `startswith("name:")` never matches them. `not replaced`
-            # also stops us after the first match (a duplicate top-level key).
-            if not replaced and line.startswith("name:"):
-                f_write.write(f'name: "{expected_name}"\n')
-                replaced = True
-                # If the value is a block scalar (`name: >` / `name: |`, plus chomping
-                # indicators like `>-`), its value lives on the following indented
-                # lines — skip them so we don't leave orphan scalar text behind.
-                if line[len("name:") :].strip()[:1] in ("|", ">"):
-                    skipping_block = True
-            else:
-                f_write.write(line)
+        f_write.writelines(_replace_name_lines(lines, expected_name))
 
 
 def check_file(filepath: str) -> bool:

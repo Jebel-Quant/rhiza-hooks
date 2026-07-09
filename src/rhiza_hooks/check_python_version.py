@@ -4,12 +4,29 @@
 from __future__ import annotations
 
 import argparse
+import operator
 import re
 import sys
 import tomllib
+from collections.abc import Callable
 from pathlib import Path
 
 from rhiza_hooks._repo import find_repo_root
+
+# Version comparison is a table lookup keyed by the specifier operator. A bare
+# specifier ("") is treated as equality, matching `_parse_specifier`, which
+# normalizes a missing operator to "==". `~=` (compatible release) means "same
+# major, at least this minor", i.e. `>=` plus an equal major component.
+_COMPARATORS: dict[str, Callable[[tuple[int, int], tuple[int, int]], bool]] = {
+    ">=": operator.ge,
+    ">": operator.gt,
+    "<=": operator.le,
+    "<": operator.lt,
+    "==": operator.eq,
+    "": operator.eq,
+    "!=": operator.ne,
+    "~=": lambda v, cv: v >= cv and v[0] == cv[0],
+}
 
 
 def get_python_version_file(repo_root: Path) -> str | None:
@@ -129,29 +146,11 @@ def version_satisfies_constraint(version: str, operator: str, constraint_version
     Returns:
         True if version satisfies the constraint
     """
-    v = parse_version(version)
-    cv = parse_version(constraint_version)
-
-    if operator == ">=":
-        return v >= cv
-    elif operator == ">":
-        return v > cv
-    elif operator == "<=":
-        return v <= cv
-    elif operator == "<":
-        return v < cv
-    elif operator in ("==", ""):
-        # A bare version specifier (no explicit operator) is treated as equality,
-        # matching `_parse_specifier`, which normalizes a missing operator to "==".
-        return v == cv
-    elif operator == "!=":
-        return v != cv
-    elif operator == "~=":
-        # Compatible release: ~=3.11 means >=3.11, <4.0
-        return v >= cv and v[0] == cv[0]
-    else:
-        # Unknown operator, be permissive
+    comparator = _COMPARATORS.get(operator)
+    if comparator is None:
+        # Unknown operator: be permissive.
         return True
+    return comparator(parse_version(version), parse_version(constraint_version))
 
 
 def check_version_consistency(repo_root: Path) -> list[str]:

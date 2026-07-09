@@ -14,7 +14,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from rhiza_hooks._bundles_fetch import _load_yaml_file
+from rhiza_hooks._bundles_fetch import load_local_bundles
 
 
 def _not_a_known_bundle(value: Any, bundle_names: set[Any]) -> bool:
@@ -169,7 +169,7 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
         Tuple of (success, error_messages)
     """
     # Load YAML file
-    loaded = _load_yaml_file(bundles_path)
+    loaded = load_local_bundles(bundles_path)
     if loaded.data is None:
         return False, loaded.errors
     # data is narrowed to dict[Any, Any] by the `is None` guard above.
