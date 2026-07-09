@@ -153,6 +153,11 @@ def version_satisfies_constraint(version: str, operator: str, constraint_version
     return comparator(parse_version(version), parse_version(constraint_version))
 
 
+def _format_specifier(clauses: list[tuple[str, str]]) -> str:
+    """Render specifier clauses back into a compact string (e.g. ``>=3.11,<3.14``)."""
+    return ",".join(f"{operator}{version}" for operator, version in clauses)
+
+
 def check_version_consistency(repo_root: Path) -> list[str]:
     """Check Python version consistency across project files.
 
@@ -162,8 +167,6 @@ def check_version_consistency(repo_root: Path) -> list[str]:
     Returns:
         List of error messages (empty if consistent)
     """
-    errors: list[str] = []
-
     python_version = get_python_version_file(repo_root)
     requires_python = get_pyproject_requires_python(repo_root)
 
@@ -176,15 +179,13 @@ def check_version_consistency(repo_root: Path) -> list[str]:
         not version_satisfies_constraint(python_version, operator, constraint_version)
         for operator, constraint_version in requires_python
     )
+    if not unsatisfied:
+        return []
 
-    if unsatisfied:
-        constraint_str = ",".join(f"{operator}{version}" for operator, version in requires_python)
-        errors.append(
-            f"Python version mismatch: .python-version has {python_version}, "
-            f"but pyproject.toml requires-python is {constraint_str}"
-        )
-
-    return errors
+    return [
+        f"Python version mismatch: .python-version has {python_version}, "
+        f"but pyproject.toml requires-python is {_format_specifier(requires_python)}"
+    ]
 
 
 def main(argv: list[str] | None = None) -> int:

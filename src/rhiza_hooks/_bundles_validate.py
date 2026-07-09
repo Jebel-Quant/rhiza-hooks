@@ -55,6 +55,18 @@ def _validate_dep_list(bundle_name: str, field: str, deps: Any, bundle_names: se
     ]
 
 
+def _validate_required_bundle_fields(bundle_name: str, bundle_config: dict[Any, Any]) -> list[str]:
+    """Validate a bundle's required fields: a ``description`` and a list ``files``."""
+    errors = []
+    if "description" not in bundle_config:
+        errors.append(f"Bundle '{bundle_name}' missing 'description'")
+    if "files" not in bundle_config:
+        errors.append(f"Bundle '{bundle_name}' missing 'files'")
+    elif not isinstance(bundle_config["files"], list):
+        errors.append(f"Bundle '{bundle_name}' 'files' must be a list")
+    return errors
+
+
 def _validate_bundle_structure(
     bundle_name: str,
     bundle_config: Any,
@@ -64,16 +76,7 @@ def _validate_bundle_structure(
     if not isinstance(bundle_config, dict):
         return [f"Bundle '{bundle_name}' must be a dictionary"]
 
-    errors = []
-
-    # Check required fields
-    if "description" not in bundle_config:
-        errors.append(f"Bundle '{bundle_name}' missing 'description'")
-
-    if "files" not in bundle_config:
-        errors.append(f"Bundle '{bundle_name}' missing 'files'")
-    elif not isinstance(bundle_config["files"], list):
-        errors.append(f"Bundle '{bundle_name}' 'files' must be a list")
+    errors = _validate_required_bundle_fields(bundle_name, bundle_config)
 
     # Validate dependencies
     for field in ("requires", "recommends"):
@@ -83,27 +86,39 @@ def _validate_bundle_structure(
     return errors
 
 
+def _is_unknown_example_template(template: Any, bundle_names: set[str]) -> bool:
+    """True if an example template is neither ``core`` (auto-included) nor a known bundle."""
+    return template != "core" and _not_a_known_bundle(template, bundle_names)
+
+
+def _validate_example_templates(example_name: str, templates: Any, bundle_names: set[str]) -> list[str]:
+    """Validate one example's ``templates`` value: a list of known bundle names."""
+    if not isinstance(templates, list):
+        return [f"Example '{example_name}' 'templates' must be a list"]
+    return [
+        f"Example '{example_name}' references non-existent bundle '{template}'"
+        for template in templates
+        if _is_unknown_example_template(template, bundle_names)
+    ]
+
+
+def _validate_example(example_name: str, example_config: Any, bundle_names: set[str]) -> list[str]:
+    """Validate a single example entry."""
+    if not isinstance(example_config, dict):
+        return [f"Example '{example_name}' must be a dictionary"]
+    if "templates" not in example_config:
+        return []
+    return _validate_example_templates(example_name, example_config["templates"], bundle_names)
+
+
 def _validate_examples(examples: Any, bundle_names: set[str]) -> list[str]:
     """Validate examples section."""
-    errors = []
-
     if not isinstance(examples, dict):
-        errors.append("'examples' must be a dictionary")
-        return errors
+        return ["'examples' must be a dictionary"]
 
+    errors = []
     for example_name, example_config in examples.items():
-        if not isinstance(example_config, dict):
-            errors.append(f"Example '{example_name}' must be a dictionary")
-            continue
-        if "templates" in example_config:
-            if not isinstance(example_config["templates"], list):
-                errors.append(f"Example '{example_name}' 'templates' must be a list")
-            else:
-                for template in example_config["templates"]:
-                    # core is auto-included, we don't validate it
-                    if template != "core" and _not_a_known_bundle(template, bundle_names):
-                        errors.append(f"Example '{example_name}' references non-existent bundle '{template}'")
-
+        errors.extend(_validate_example(example_name, example_config, bundle_names))
     return errors
 
 
@@ -185,8 +200,6 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
     if not isinstance(bundles, dict):
         return False, ["'bundles' must be a dictionary"]
 
-    bundle_names: set[str] = {str(k) for k in bundles}
-
     if templates_to_check is not None:
         # Validate only the requested subset (existence + structure).
         errors.extend(
@@ -197,12 +210,20 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
             )
         )
     else:
-        # Validate every declared bundle, plus the examples and metadata sections.
-        for bundle_name in bundle_names:
-            errors.extend(_validate_bundle_structure(bundle_name, bundles[bundle_name], bundle_names))
-        if "examples" in data:
-            errors.extend(_validate_examples(data["examples"], bundle_names))
-        if "metadata" in data:
-            errors.extend(_validate_metadata(data["metadata"], bundles))
+        errors.extend(_validate_all_bundles(data, bundles))
 
     return len(errors) == 0, errors
+
+
+def _validate_all_bundles(data: dict[Any, Any], bundles: dict[Any, Any]) -> list[str]:
+    """Validate every declared bundle, plus the examples and metadata sections."""
+    bundle_names: set[str] = {str(k) for k in bundles}
+
+    errors: list[str] = []
+    for bundle_name in bundle_names:
+        errors.extend(_validate_bundle_structure(bundle_name, bundles[bundle_name], bundle_names))
+    if "examples" in data:
+        errors.extend(_validate_examples(data["examples"], bundle_names))
+    if "metadata" in data:
+        errors.extend(_validate_metadata(data["metadata"], bundles))
+    return errors
