@@ -66,6 +66,13 @@ def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any], set[st
     return config, templates_set
 
 
+def _report_errors(header: str, errors: list[str]) -> None:
+    """Print a failure ``header`` followed by each error as a bullet."""
+    print(header)
+    for error in errors:
+        print(f"  - {error}")
+
+
 def _validate_remote_bundles(
     template_repo: str,
     template_branch: str,
@@ -83,9 +90,7 @@ def _validate_remote_bundles(
 
     fetched = _fetch_remote_bundles(template_repo, template_branch, attempts=attempts, timeout=timeout)
     if fetched.data is None:
-        print("\n✗ Failed to fetch template bundles:")
-        for error in fetched.errors:
-            print(f"  - {error}")
+        _report_errors("\n✗ Failed to fetch template bundles:", fetched.errors)
         return None, fetched.errors
 
     # data is narrowed to dict[Any, Any] by the `is None` guard above.
@@ -94,16 +99,14 @@ def _validate_remote_bundles(
     # Validate top-level structure
     errors = _bundles_validate._validate_top_level_fields(data)
     if errors:
-        print("\n✗ Template bundles validation failed:")
-        for error in errors:
-            print(f"  - {error}")
+        _report_errors("\n✗ Template bundles validation failed:", errors)
         return None, errors
 
     bundles = data.get("bundles", {})
     if not isinstance(bundles, dict):
-        print("\n✗ Template bundles validation failed:")
-        print("  - 'bundles' must be a dictionary")
-        return None, ["'bundles' must be a dictionary"]
+        errors = ["'bundles' must be a dictionary"]
+        _report_errors("\n✗ Template bundles validation failed:", errors)
+        return None, errors
 
     return data, []
 
@@ -152,10 +155,49 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return args
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Main entry point."""
+def _ensure_utf8_stdout() -> None:
+    """Reconfigure stdout to UTF-8 so the ✓/✗ status glyphs never crash a non-UTF-8 console."""
     if isinstance(sys.stdout, io.TextIOWrapper):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+
+def _run_remote_validation(
+    config: dict[str, Any],
+    templates_set: set[str],
+    config_path: Path,
+    retries: int,
+    timeout: float,
+) -> int:
+    """Fetch remote bundles and validate the requested templates; return an exit code."""
+    template_repo = config.get("template-repository")
+    template_branch = config.get("template-branch")
+    if not template_repo or not template_branch:
+        print(f"Missing template-repository or template-branch in {config_path}")
+        return 1
+
+    data, _fetch_errors = _validate_remote_bundles(
+        template_repo,
+        template_branch,
+        templates_set,
+        attempts=retries + 1,
+        timeout=timeout,
+    )
+    if data is None:
+        return 1
+
+    bundles = data.get("bundles", {})
+    errors = _validate_templates_in_bundles(templates_set, bundles, config_path)
+    if errors:
+        _report_errors("\n✗ Template bundles validation failed:", errors)
+        return 1
+
+    print("✓ Template bundles validation passed!")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Main entry point."""
+    _ensure_utf8_stdout()
 
     args = _parse_args(argv)
 
@@ -163,7 +205,6 @@ def main(argv: list[str] | None = None) -> int:
         print("Offline mode: skipping remote template bundles validation")
         return 0
 
-    # Get configuration path
     config_path = _get_config_path(args)
 
     # Load and validate configuration. A None result means validation was
@@ -173,37 +214,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     config, templates_set = result
 
-    # Get template repository and branch
-    template_repo = config.get("template-repository")
-    template_branch = config.get("template-branch")
-
-    if not template_repo or not template_branch:
-        print(f"Missing template-repository or template-branch in {config_path}")
-        return 1
-
-    # Fetch and validate remote bundles
-    data, _fetch_errors = _validate_remote_bundles(
-        template_repo,
-        template_branch,
-        templates_set,
-        attempts=args.retries + 1,
-        timeout=args.timeout,
-    )
-    if data is None:
-        return 1
-
-    # Validate templates
-    bundles = data.get("bundles", {})
-    errors = _validate_templates_in_bundles(templates_set, bundles, config_path)
-
-    if errors:
-        print("\n✗ Template bundles validation failed:")
-        for error in errors:
-            print(f"  - {error}")
-        return 1
-
-    print("✓ Template bundles validation passed!")
-    return 0
+    return _run_remote_validation(config, templates_set, config_path, args.retries, args.timeout)
 
 
 if __name__ == "__main__":  # pragma: no mutate
