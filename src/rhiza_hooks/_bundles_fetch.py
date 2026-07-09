@@ -44,8 +44,13 @@ class BundlesDoc:
     errors: list[str]
 
 
-def _load_yaml_file(bundles_path: Path) -> BundlesDoc:
-    """Load and parse a local YAML file into a :class:`BundlesDoc`."""
+def load_local_bundles(bundles_path: Path) -> BundlesDoc:
+    """Load and parse a local template-bundles file into a :class:`BundlesDoc`.
+
+    This is the local-file counterpart to :func:`_fetch_remote_bundles` and part
+    of this module's cross-module surface — :mod:`rhiza_hooks._bundles_validate`
+    calls it to load a document before validating it.
+    """
     result = load_yaml_mapping(bundles_path)
     if not isinstance(result, YamlFailure):
         return BundlesDoc(result, [])
@@ -73,6 +78,41 @@ def _parse_remote_bundles(content: bytes) -> BundlesDoc:
         return BundlesDoc(None, ["Remote template bundles must be a dictionary"])
 
     return BundlesDoc(data, [])
+
+
+def _fetch_once(url: str, timeout: float, repo: str, branch: str) -> bytes | BundlesDoc | str:
+    """Perform a single fetch attempt.
+
+    Returns the raw response ``bytes`` on success; a :class:`BundlesDoc` carrying
+    a permanent HTTP error (e.g. 404) that must not be retried; or an error
+    ``str`` describing a transient network/timeout failure that may be retried.
+    """
+    try:
+        with urlopen(url, timeout=timeout) as response:  # noqa: S310  # nosec B310
+            content: bytes = response.read()
+    except HTTPError as e:
+        if e.code == 404:
+            return BundlesDoc(None, [f"Template bundles file not found in repository {repo} (branch: {branch})"])
+        return BundlesDoc(None, [f"HTTP error fetching template bundles: {e.code} {e.reason}"])
+    except URLError as e:
+        return f"Error fetching template bundles from {url}: {e.reason}"
+    except TimeoutError:
+        return f"Timeout fetching template bundles from {url}"
+    return content
+
+
+def _log_failed_attempt(attempt: int, attempts: int, error: str, backoff: float) -> None:
+    """Log a failed fetch attempt, sleeping with linear backoff if retries remain.
+
+    Backoff grows linearly (backoff, 2*backoff, ...). The last attempt has
+    nowhere to retry, so it is logged without a backoff.
+    """
+    if attempt + 1 < attempts:
+        delay = backoff * (attempt + 1)
+        print(f"  Attempt {attempt + 1}/{attempts} failed: {error}; retrying in {delay:.1f}s")
+        time.sleep(delay)
+    else:
+        print(f"  Attempt {attempt + 1}/{attempts} failed: {error}")
 
 
 def _fetch_remote_bundles(
@@ -112,27 +152,13 @@ def _fetch_remote_bundles(
     # errors return early), so for attempts >= 1 this initial value is never the one returned.
     errors: list[str] = []  # pragma: no mutate
     for attempt in range(attempts):
-        try:
-            with urlopen(url, timeout=timeout) as response:  # noqa: S310  # nosec B310
-                content = response.read()
-        except HTTPError as e:
-            if e.code == 404:
-                return BundlesDoc(None, [f"Template bundles file not found in repository {repo} (branch: {branch})"])
-            return BundlesDoc(None, [f"HTTP error fetching template bundles: {e.code} {e.reason}"])
-        except URLError as e:
-            errors = [f"Error fetching template bundles from {url}: {e.reason}"]
-        except TimeoutError:
-            errors = [f"Timeout fetching template bundles from {url}"]
-        else:
-            return _parse_remote_bundles(content)
-        # Transient failure: log it, then back off before the next attempt
-        # (linear: backoff, 2*backoff, ...). The last attempt has nowhere to
-        # retry, so it is logged without a backoff.
-        if attempt + 1 < attempts:
-            delay = backoff * (attempt + 1)
-            print(f"  Attempt {attempt + 1}/{attempts} failed: {errors[0]}; retrying in {delay:.1f}s")
-            time.sleep(delay)
-        else:
-            print(f"  Attempt {attempt + 1}/{attempts} failed: {errors[0]}")
+        outcome = _fetch_once(url, timeout, repo, branch)
+        if isinstance(outcome, BundlesDoc):
+            return outcome  # permanent HTTP error — do not retry
+        if isinstance(outcome, bytes):
+            return _parse_remote_bundles(outcome)
+        # Transient failure (network/timeout): record it, then back off and retry.
+        errors = [outcome]
+        _log_failed_attempt(attempt, attempts, outcome, backoff)
 
     return BundlesDoc(None, errors)

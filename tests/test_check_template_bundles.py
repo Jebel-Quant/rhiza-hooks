@@ -9,7 +9,7 @@ from textwrap import dedent
 import pytest
 
 from rhiza_hooks._bundles_config import _get_templates_from_config
-from rhiza_hooks._bundles_fetch import BundlesDoc, _load_yaml_file
+from rhiza_hooks._bundles_fetch import BundlesDoc, load_local_bundles
 from rhiza_hooks._bundles_validate import (
     _validate_bundle_structure,
     _validate_examples,
@@ -65,7 +65,7 @@ class TestBundlesDoc:
 
 
 class TestLoadYamlFile:
-    """Tests for _load_yaml_file function."""
+    """Tests for load_local_bundles function."""
 
     def test_load_valid_yaml(self, temp_bundles_file):
         """Test loading valid YAML file."""
@@ -73,7 +73,7 @@ class TestLoadYamlFile:
             version: 1.0
             bundles: {}
         """)
-        result = _load_yaml_file(bundles_file)
+        result = load_local_bundles(bundles_file)
         assert isinstance(result.data, dict)
         assert result.data["version"] == 1.0
         assert result.errors == []
@@ -81,14 +81,14 @@ class TestLoadYamlFile:
     def test_load_nonexistent_file(self, tmp_path: Path):
         """Test loading non-existent file reports the exact message."""
         bundles_file = tmp_path / "nonexistent.yml"
-        result = _load_yaml_file(bundles_file)
+        result = load_local_bundles(bundles_file)
         assert result.data is None
         assert result.errors == [f"Template bundles file not found: {bundles_file}"]
 
     def test_load_invalid_yaml(self, temp_bundles_file):
         """Test loading invalid YAML reports the exact prefix."""
         bundles_file = temp_bundles_file("invalid: yaml: syntax:")
-        result = _load_yaml_file(bundles_file)
+        result = load_local_bundles(bundles_file)
         assert result.data is None
         assert len(result.errors) == 1
         assert result.errors[0].startswith("Invalid YAML: ")
@@ -96,7 +96,7 @@ class TestLoadYamlFile:
     def test_load_empty_file(self, temp_bundles_file):
         """Test loading empty file reports the exact message."""
         bundles_file = temp_bundles_file("")
-        result = _load_yaml_file(bundles_file)
+        result = load_local_bundles(bundles_file)
         assert result.data is None
         assert result.errors == ["Template bundles file is empty"]
 
@@ -104,7 +104,7 @@ class TestLoadYamlFile:
         """A non-UTF-8 file is reported, not crashed on (fuzzing regression)."""
         bundles_file = tmp_path / "bad-encoding.yml"
         bundles_file.write_bytes(b"\xb5\n")
-        result = _load_yaml_file(bundles_file)
+        result = load_local_bundles(bundles_file)
         assert result.data is None
         assert len(result.errors) == 1
         assert result.errors[0].startswith("Invalid YAML: ")
@@ -112,7 +112,7 @@ class TestLoadYamlFile:
     @pytest.mark.parametrize("scalar", ["5", "just a string", "[1, 2, 3]"])
     def test_load_non_dict_document(self, temp_bundles_file, scalar):
         """A YAML document that isn't a mapping is reported, not crashed on (fuzzing regression)."""
-        result = _load_yaml_file(temp_bundles_file(scalar))
+        result = load_local_bundles(temp_bundles_file(scalar))
         assert result.data is None
         assert result.errors == ["Template bundles file must be a dictionary"]
 

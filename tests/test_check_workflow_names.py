@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from rhiza_hooks.check_workflow_names import _run, check_file, main
+from rhiza_hooks.check_workflow_names import _replace_name_lines, _run, check_file, main
 
 
 class TestCheckFile:
@@ -169,6 +169,20 @@ jobs:
         assert result is False
         assert workflow.read_text() == 'name: "(RHIZA) MY WORKFLOW"\non: push\n'
 
+    def test_block_scalar_name_running_to_end_of_file_is_collapsed(self, tmp_path: Path) -> None:
+        """A block-scalar name whose continuation lines run to EOF is collapsed.
+
+        Pins the block-continuation count when no flush-left line ends the
+        scalar: every trailing line is dropped and only the rewritten name remains.
+        """
+        workflow = tmp_path / "workflow.yml"
+        workflow.write_text("name: |\n  My\n  Workflow\n")
+
+        result = check_file(str(workflow))
+
+        assert result is False
+        assert workflow.read_text() == 'name: "(RHIZA) MY WORKFLOW"\n'
+
     def test_name_with_special_characters(self, tmp_path: Path) -> None:
         """Name with special characters is handled correctly."""
         workflow = tmp_path / "workflow.yml"
@@ -220,6 +234,21 @@ class TestTopLevelVsNestedName:
 
         assert result is True
         assert workflow.read_text() == original
+
+
+class TestReplaceNameLines:
+    """Tests for the pure ``_replace_name_lines`` transformation."""
+
+    def test_no_top_level_name_returns_lines_unchanged(self) -> None:
+        """With no top-level ``name:`` line, the lines are returned unchanged.
+
+        Defensive path: ``_rewrite_workflow_name`` is normally only reached once a
+        top-level name is known to exist, but the transformation must be a no-op
+        when the raw text has no ``name:`` at column 0 (e.g. a quoted key).
+        """
+        lines = ["on: push\n", "jobs:\n", "  build:\n", "    name: Nested\n"]
+
+        assert _replace_name_lines(lines, "(RHIZA) X") == lines
 
 
 class TestMain:
