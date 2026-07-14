@@ -60,7 +60,11 @@ def load_yaml_mapping(path: Path) -> dict[Any, Any] | YamlFailure:
     try:
         with path.open(encoding="utf-8") as f:
             data = yaml.safe_load(f)
-    except (yaml.YAMLError, UnicodeDecodeError) as exc:
+    except (yaml.YAMLError, UnicodeDecodeError, ValueError, OverflowError) as exc:
+        # PyYAML's scanner raises bare ``ValueError``/``OverflowError`` — not
+        # ``yaml.YAMLError`` — on some malformed escapes, e.g. a ``"\\U…"`` flow
+        # scalar whose codepoint overflows ``chr()``. Treat those as invalid
+        # input rather than letting them escape as an uncaught crash.
         return YamlFailure(YamlError.INVALID, str(exc))
     if data is None:
         return YamlFailure(YamlError.EMPTY)
