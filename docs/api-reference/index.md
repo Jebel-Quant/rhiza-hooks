@@ -20,4 +20,6 @@ These modules hold shared logic used by the hooks above. They have no `main()` e
 | [`_bundles_config`](_bundles_config.md) | Read the project's `.rhiza/template.yml` configuration |
 | [`_bundles_fetch`](_bundles_fetch.md) | Load/fetch a template-bundles document (local, bytes, or remote) into a typed result |
 | [`_bundles_validate`](_bundles_validate.md) | Structural validation of a template-bundles document |
+| [`_config_schema`](_config_schema.md) | Canonical `.rhiza/template.yml` keys, aliases, and config normalization |
 | [`_repo`](_repo.md) | Shared helpers (e.g. locating the repository root) |
+| [`_yaml`](_yaml.md) | Shared helper for loading a YAML file into a top-level mapping |

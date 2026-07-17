@@ -10,13 +10,9 @@ from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import pytest
-from hypothesis import given
-from hypothesis import strategies as st
 
 from rhiza_hooks.check_rhiza_config import (
-    KEY_ALIASES,
     _FieldRule,
-    _normalize_config,
     main,
     validate_rhiza_config,
 )
@@ -529,38 +525,6 @@ def test_module_python_importable() -> None:
         check=False,
     )
     assert result.returncode == 0, f"Failed to import rhiza_hooks.check_rhiza_config: {result.stderr}"
-
-
-# --------------------------------------------------------------------------- #
-# Property-based tests (from test_property_based.py TestNormalizeConfig)
-# --------------------------------------------------------------------------- #
-# Keys drawn from aliases, their canonical targets, and arbitrary unrelated keys.
-_normalize_keys = st.sampled_from(sorted(set(KEY_ALIASES) | set(KEY_ALIASES.values()) | {"unrelated", "other"}))
-_normalize_configs = st.dictionaries(_normalize_keys, st.integers(), max_size=6)
-
-
-@given(_normalize_configs)
-def test_property_no_alias_survives_normalization(config: dict[str, int]) -> None:
-    """After normalization, no raw alias key remains in the output."""
-    normalized = _normalize_config(config)
-    assert not (set(normalized) & set(KEY_ALIASES))
-
-
-@given(_normalize_configs)
-def test_property_idempotent(config: dict[str, int]) -> None:
-    """Canonical keys map to themselves, so normalizing twice == once."""
-    once = _normalize_config(config)
-    assert _normalize_config(once) == once
-
-
-@given(_normalize_configs)
-def test_property_value_count_preserved_without_alias_collisions(config: dict[str, int]) -> None:
-    """When no key and its alias coexist, normalization is key-count preserving."""
-    # Build an input guaranteed free of alias/canonical collisions.
-    canonical_to_aliases: dict[str, str] = {v: k for k, v in KEY_ALIASES.items()}
-    safe = {k: v for k, v in config.items() if not (k in canonical_to_aliases and canonical_to_aliases[k] in config)}
-    normalized = _normalize_config(safe)
-    assert len(normalized) == len(safe)
 
 
 # --------------------------------------------------------------------------- #

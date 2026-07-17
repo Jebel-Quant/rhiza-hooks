@@ -6,10 +6,3 @@ profiles:
 
 templates:
   - legal
-
-# remove once updated to v0.19.5 
-#exclude:
-#  # Owned by the `github` bundle (selected by the github-project profile), so
-#  # it would otherwise be synced; excluded because its github.mk targets do not
-#  # apply here (it skips at runtime).
-#  - .rhiza/tests/api/test_github_targets.py

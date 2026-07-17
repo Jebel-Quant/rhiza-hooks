@@ -97,4 +97,8 @@ repos:
       - id: check-rhiza-config
       - id: check-makefile-targets
       - id: check-python-version-consistency
-      # - id: check-template-bundles
+      - id: check-template-bundles
+        # --offline skips the network fetch so commits work offline and are not
+        # coupled to the template repo's availability; drop it to validate the
+        # configured templates against the remote template-bundles.yml.
+        args: [--offline]

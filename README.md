@@ -20,7 +20,7 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/Jebel-Quant/rhiza-hooks
-    rev: v0.6.2  # Use the latest release
+    rev: v0.7.0  # Use the latest release
     hooks:
       # Migrated from rhiza
       - id: check-rhiza-workflow-names
@@ -251,7 +251,7 @@ make mutation   # Run mutation testing (fails on any surviving mutant)
 
 Coverage proves a line ran; mutation testing proves a wrong result would be *caught*. When a mutant survives, the fix is almost always a stronger assertion (pin the exact value/message rather than asserting "truthy").
 
-The project test suite is intentionally **flat by concern** under `tests/` rather than mirrored under `tests/rhiza_hooks/`. Dedicated unit tests still use `tests/test_<module>.py` where practical, while broader integration/property/end-to-end coverage remains in concern-based files such as `tests/test_scripts.py`, `tests/test_property_based.py`, and `tests/test_precommit_e2e.py`. Run `python3 scripts/check_test_layout.py` to verify that every module in `src/rhiza_hooks/` is covered by at least one of those tests.
+The project test suite **mirrors `src/rhiza_hooks/` 1:1** under `tests/rhiza_hooks/`: each module `src/rhiza_hooks/<module>.py` has a matching `tests/rhiza_hooks/test_<module>.py` (including unit, integration and property-based tests for that module). Repository meta-tests that are not tied to a single package module — such as `tests/test_check_test_layout.py` — stay at the top level of `tests/`. This layout is enforced by `scripts/check_test_layout.py`, which verifies that every module in `src/rhiza_hooks/` is covered by at least one test file that imports it and that every `tests/test_*.py` file maps to a package module (or is an allowed meta-test); it runs as part of the suite via `tests/test_check_test_layout.py`.
 
 #### Equivalent mutants
 

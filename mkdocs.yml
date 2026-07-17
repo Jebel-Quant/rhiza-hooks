@@ -22,7 +22,9 @@ nav:
           - _bundles_config: api-reference/_bundles_config.md
           - _bundles_fetch: api-reference/_bundles_fetch.md
           - _bundles_validate: api-reference/_bundles_validate.md
+          - _config_schema: api-reference/_config_schema.md
           - _repo: api-reference/_repo.md
+          - _yaml: api-reference/_yaml.md
   - Reports:
       - Test Report: reports/html-report/report.html
       - Coverage Report: reports/html-coverage/index.html

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from textwrap import dedent
 
-from rhiza_hooks._bundles_config import _get_templates_from_config
+from rhiza_hooks._bundles_config import _get_config_data, _get_templates_from_config
 
 
 def test_get_templates_from_valid_config(tmp_path):
@@ -15,6 +15,43 @@ def test_get_templates_from_valid_config(tmp_path):
         template-repository: test/repo
         template-branch: main
         templates:
+          - core
+          - python
+    """)
+    )
+
+    templates = _get_templates_from_config(config_file)
+    assert templates == {"core", "python"}
+
+
+def test_get_config_data_normalizes_alias_form(tmp_path):
+    """Alias-form keys (repository/ref/profiles) are normalized to canonical keys."""
+    config_file = tmp_path / "template.yml"
+    config_file.write_text(
+        dedent("""
+        repository: test/repo
+        ref: main
+        profiles:
+          - core
+    """)
+    )
+
+    config = _get_config_data(config_file)
+    assert config == {
+        "template-repository": "test/repo",
+        "template-branch": "main",
+        "templates": ["core"],
+    }
+
+
+def test_get_templates_from_alias_form_config(tmp_path):
+    """Templates resolve from the ``profiles`` alias just like the canonical ``templates`` key."""
+    config_file = tmp_path / "template.yml"
+    config_file.write_text(
+        dedent("""
+        repository: test/repo
+        ref: main
+        profiles:
           - core
           - python
     """)

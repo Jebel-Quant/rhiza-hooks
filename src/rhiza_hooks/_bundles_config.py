@@ -12,11 +12,16 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from rhiza_hooks._config_schema import normalize_config
 from rhiza_hooks._yaml import YamlFailure, load_yaml_mapping
 
 
 def _get_config_data(config_path: Path) -> dict[str, Any] | None:
     """Get the configuration from .rhiza/template.yml.
+
+    Aliases (``repository``/``ref``/``profiles``) are normalized to their
+    canonical keys so downstream reads of ``template-repository`` /
+    ``template-branch`` / ``templates`` work for both alias and canonical forms.
 
     Args:
         config_path: Path to .rhiza/template.yml
@@ -25,7 +30,9 @@ def _get_config_data(config_path: Path) -> dict[str, Any] | None:
         Configuration dictionary, or None if file not found or invalid
     """
     result = load_yaml_mapping(config_path)
-    return None if isinstance(result, YamlFailure) else result
+    if isinstance(result, YamlFailure):
+        return None
+    return normalize_config(result)
 
 
 def _get_templates_from_config(config_path: Path) -> set[str] | None:
