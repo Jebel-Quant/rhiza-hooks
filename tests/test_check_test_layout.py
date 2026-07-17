@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 def _load_checker():
+    """Load ``scripts/check_test_layout.py`` as a module object."""
     root = Path(__file__).resolve().parent.parent
     path = root / "scripts" / "check_test_layout.py"
     spec = importlib.util.spec_from_file_location("check_test_layout", path)
@@ -21,6 +22,7 @@ ctl = _load_checker()
 
 
 def _write(path: Path, text: str = "") -> None:
+    """Create *path* (and parents) and write *text* to it."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 
