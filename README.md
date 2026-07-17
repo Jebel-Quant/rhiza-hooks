@@ -251,6 +251,8 @@ make mutation   # Run mutation testing (fails on any surviving mutant)
 
 Coverage proves a line ran; mutation testing proves a wrong result would be *caught*. When a mutant survives, the fix is almost always a stronger assertion (pin the exact value/message rather than asserting "truthy").
 
+The project test suite is intentionally **flat by concern** under `tests/` rather than mirrored under `tests/rhiza_hooks/`. Dedicated unit tests still use `tests/test_<module>.py` where practical, while broader integration/property/end-to-end coverage remains in concern-based files such as `tests/test_scripts.py`, `tests/test_property_based.py`, and `tests/test_precommit_e2e.py`. Run `python3 scripts/check_test_layout.py` to verify that every module in `src/rhiza_hooks/` is covered by at least one of those tests.
+
 #### Equivalent mutants
 
 Occasionally a mutant is genuinely **equivalent** — it changes the code without changing any observable behaviour, so no test can kill it (e.g. swapping a boolean initializer that is only ever read in a truthiness check between `False` and `None`). Mark only these with a `# pragma: no mutate` comment that states *why* it is equivalent, e.g.:
