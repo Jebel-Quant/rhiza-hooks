@@ -47,10 +47,8 @@ snapshot:
 - `DISCUSSION_TEMPLATE/`, `ISSUE_TEMPLATE/`
 
 > This snapshot reflects the files synced at the pinned `ref:` (currently
-> `v0.19.3`); the `files:` block of `.rhiza/template.lock` is always
-> authoritative. Note that `.github/rulesets/*` is **not** shipped by the rhiza
-> template at this `ref:` — if branch-protection rulesets are needed here,
-> manage them separately (they are not synced).
+> `v1.2.1`); the `files:` block of `.rhiza/template.lock` is always
+> authoritative.
 
 ### `.rhiza/` (the sync engine — treat the whole directory as managed)
 - `rhiza.mk`, `make.d/*.mk`, `requirements/*.txt`, `semgrep.yml`,
@@ -65,13 +63,11 @@ snapshot:
 `docs/assets/rhiza-logo.svg`, `docs/development/MARIMO.md`,
 `docs/development/TESTS.md`, `docs/index.md`, `docs/mkdocs-base.yml`
 
-### Excluded from sync (locally owned, see `exclude:` in `template.yml`)
+### Excluded from sync
 
-This template test is owned by a **selected** bundle (so it would otherwise be
-synced) but does not apply to this repo, and is intentionally excluded:
-
-- `.rhiza/tests/api/test_github_targets.py` — owned by the `github` bundle; its
-  `github.mk` targets do not apply here (skips at runtime).
+Nothing is currently excluded: `.rhiza/template.yml` declares no `exclude:` block
+and `.rhiza/template.lock` records `exclude: []`. If a synced file ever needs to be
+dropped locally, add it under `exclude:` in `.rhiza/template.yml` and re-sync.
 
 > Tests owned by bundles this repo does **not** select (e.g. `gh-aw`, `lfs`)
 > are never synced in the first place, so they need no `exclude:` entry.
@@ -87,7 +83,7 @@ Everything **not** listed above — notably `pyproject.toml`, `README.md`, `uv.l
 
 `.rhiza/tests/structure/test_pyproject.py::TestGitTagVersion` asserts that the
 **highest version-sorted `v*` git tag** equals `[project].version`. It passes in
-CI (a clean checkout only ever sees this repo's own tags — highest `v0.6.3`,
+CI (a clean checkout only ever sees this repo's own tags — highest `v0.7.0`,
 matching `pyproject.toml`).
 
 It can fail **locally** if you have added a git remote for the template repo
