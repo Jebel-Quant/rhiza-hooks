@@ -253,6 +253,79 @@ def test_module_executes_main(tmp_path, monkeypatch):
     assert result.returncode == 0
 
 
+# --- alias-form config (repository/ref/profiles) --------------------------
+
+
+def test_main_with_alias_form_config(tmp_path, monkeypatch, capsys):
+    """An alias-form config resolves the repository and proceeds to validation.
+
+    Regression for #268: before normalization moved into ``_get_config_data``,
+    ``repository``/``ref``/``profiles`` were read as the canonical keys and came
+    back ``None``, so the hook printed "Missing template-repository or
+    template-branch" and returned 1 instead of validating.
+    """
+    from rhiza_hooks.check_template_bundles import main
+
+    rhiza_dir = tmp_path / ".rhiza"
+    rhiza_dir.mkdir()
+    (rhiza_dir / "template.yml").write_text(
+        dedent("""
+        repository: test/repo
+        ref: main
+        profiles:
+          - core
+    """)
+    )
+
+    def mock_fetch_remote_bundles(repo, branch, **kwargs):
+        """Return valid bundles and pin the resolved repo/branch from the aliases."""
+        assert repo == "test/repo"
+        assert branch == "main"
+        return BundlesDoc(
+            {"version": 1.0, "bundles": {"core": {"description": "Core files", "files": [".gitignore"]}}}, []
+        )
+
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.chdir(tmp_path)
+
+    result = main([])
+    assert result == 0
+    out = capsys.readouterr().out.splitlines()
+    assert "✓ Template bundles validation passed!" in out
+    assert "Missing template-repository or template-branch in " + str(rhiza_dir / "template.yml") not in out
+
+
+def test_alias_form_accepted_by_both_hooks(tmp_path, monkeypatch):
+    """check-rhiza-config and check-template-bundles accept the same alias-form input."""
+    from rhiza_hooks.check_rhiza_config import validate_rhiza_config
+    from rhiza_hooks.check_template_bundles import main
+
+    rhiza_dir = tmp_path / ".rhiza"
+    rhiza_dir.mkdir()
+    config_file = rhiza_dir / "template.yml"
+    config_file.write_text(
+        dedent("""
+        repository: test/repo
+        ref: main
+        profiles:
+          - core
+    """)
+    )
+
+    # check-rhiza-config accepts the alias-form config (no validation errors).
+    assert validate_rhiza_config(config_file) == []
+
+    # check-template-bundles accepts the identical file and validates successfully.
+    monkeypatch.setattr(
+        "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
+        lambda repo, branch, **kwargs: BundlesDoc(
+            {"version": 1.0, "bundles": {"core": {"description": "Core files", "files": [".gitignore"]}}}, []
+        ),
+    )
+    monkeypatch.chdir(tmp_path)
+    assert main([]) == 0
+
+
 # --- main() error paths ---------------------------------------------------
 
 

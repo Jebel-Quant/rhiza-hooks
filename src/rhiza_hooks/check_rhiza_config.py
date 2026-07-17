@@ -9,34 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from rhiza_hooks._config_schema import KEY_ALIASES, REQUIRED_KEYS, VALID_KEYS, normalize_config
 from rhiza_hooks._yaml import YamlError, YamlFailure, load_yaml_mapping
-
-REQUIRED_KEYS = {"template-repository", "template-branch"}
-OPTIONAL_KEYS = {"include", "exclude", "templates"}
-VALID_KEYS = REQUIRED_KEYS | OPTIONAL_KEYS
-# Alternative key names
-KEY_ALIASES = {
-    "repository": "template-repository",
-    "ref": "template-branch",
-    "profiles": "templates",
-}
-
-
-def _normalize_config(config: dict[str, Any]) -> dict[str, Any]:
-    """Normalize configuration by replacing aliases with canonical keys.
-
-    Args:
-        config: Raw configuration dictionary
-
-    Returns:
-        Normalized configuration with aliases replaced
-    """
-    normalized: dict[str, Any] = {}
-    for key, value in config.items():
-        # Replace alias with canonical name if it exists
-        canonical_key = KEY_ALIASES.get(key, key)
-        normalized[canonical_key] = value
-    return normalized
 
 
 def _load_config(filepath: Path) -> dict[str, Any] | list[str]:
@@ -154,7 +128,7 @@ def validate_rhiza_config(filepath: Path) -> list[str]:
     errors.extend(_validate_unknown_keys(raw_config))
 
     # Normalize aliases for subsequent validation
-    config = _normalize_config(raw_config)
+    config = normalize_config(raw_config)
 
     # Validate all aspects
     errors.extend(_validate_required_keys(config))
