@@ -24,7 +24,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
     # The Python version trove classifiers below are the single source of truth for
     # the CI test matrix (issue #119): `make version-matrix` (rhiza-tools) reads them
     # from this file, and the upstream rhiza_ci.yml reusable workflow tests every
