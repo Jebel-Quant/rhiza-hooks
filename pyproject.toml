@@ -61,7 +61,7 @@ pyyaml = "yaml"
 
 [dependency-groups]
 dev = [
-    "types-pyyaml>=6.0.12.20260518",
+    "types-pyyaml>=6.0.12.20260724",
 ]
 test = [
     "pytest>=9.1.1",
@@ -75,7 +75,7 @@ lint = [
     "interrogate>=1.7,<2.0",
     "pre-commit>=3.7,<5.0",
     "mypy>=1.11,<2.0",
-    "types-pyyaml>=6.0.12.20260518",
+    "types-pyyaml>=6.0.12.20260724",
 ]
 
 [tool.mypy]
