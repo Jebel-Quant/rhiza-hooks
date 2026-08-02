@@ -5,6 +5,65 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com),
 and entries are generated from [Conventional Commits](https://www.conventionalcommits.org).
 
+## [0.7.1] - 2026-08-02
+
+### Bug Fixes
+- *(test)* Restore working module-execution test broken by autofix (#228)
+- Consolidate AI code-quality findings from PRs #231-#235 (#236)
+- Return None sentinel from _load_and_validate_config (#239)
+- *(test)* Make __main__ delegation directly testable to stop autofix churn (#247)
+- Catch OverflowError/ValueError from PyYAML scanner in load_yaml_mapping (#262)
+
+### Documentation
+- Document internal logic modules in the API reference (#214)
+
+### Maintenance
+- *(fuzz)* Copy source into $SRC directly and pin pip in the build (#207)
+- Chore(deps)(deps): bump the github-actions group with 3 updates (#210)
+- Chore(deps-dev)(deps-dev): bump ruff in the python-dependencies group (#211)
+- Update rhiza to v1.0.0 (#215)
+- Drop unused args binding in check_python_version main (#217)
+- Update rhiza to v1.0.1 (#218)
+- Hoist subprocess import and justify subprocess.run calls (#224)
+- Reduce validation complexity and dedup YAML loading (#248, #249) (#250)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#251)
+- Chore(deps)(deps): bump the github-actions group with 12 updates (#252)
+- Update rhiza to v1.1.1 (#253)
+- Cut complexity of the named B-grade blocks; decouple bundles validate from fetch (#256)
+- Flatten remaining B-grade complexity blocks to grade A (#257) (#258)
+- Update rhiza to v1.1.2 (#259)
+- Update rhiza to v1.1.3 (#260)
+- Chore(deps-dev)(deps-dev): bump the python-dependencies group with 2 updates (#261)
+- Sync rhiza template to v1.2.0 (#263)
+- Update rhiza to v1.2.1 (#264)
+- Mirror test layout to source for check_test_layout parity (#267)
+- Chore(deps-dev)(deps-dev): bump the python-dependencies group with 2 updates (#276)
+- Chore(deps)(deps): bump the github-actions group with 13 updates (#275)
+- *(pyproject)* Modernize Python version and license metadata (#277)
+- Chore(deps)(deps): bump docker/login-action in the github-actions group (#278)
+- Chore(deps-dev)(deps-dev): bump the python-dependencies group with 3 updates (#279)
+- Update rhiza to v1.2.5 (#281)
+- Retire forked check_test_layout.py in favour of canonical opt-out (#286)
+- Declare bump-my-version config in pyproject.toml
+
+### Other Changes
+- Chore/fuzz build src and pip (#208)
+- Sync Rhiza template v0.19.4 → v0.19.6 (#209)
+- Sync Rhiza template v0.19.6 → v0.19.9 (#212)
+- Fix for Commented-out code (#216)
+- Apply suggested fix to .rhiza/tests/structure/test_project_layout.py from Copilot Autofix (#220)
+- Potential fixes for 2 code quality findings (#221)
+- Apply suggested fix to src/rhiza_hooks/check_python_version.py from Copilot Autofix (#225)
+- Apply suggested fix to tests/test_update_readme_help.py from Copilot Autofix (#227)
+- Apply suggested fix to tests/test_check_workflow_names.py from Copilot Autofix (#226)
+- Apply suggested fix to src/rhiza_hooks/check_template_bundles.py from Copilot Autofix (#232)
+- Apply suggested fix to tests/test_update_readme_help.py from Copilot Autofix (#244)
+- Potential fixes for 3 code quality findings (#243)
+- Reconcile test-layout parity with the repo’s flat test structure (#266)
+- Resolve quality issues #268–#273 (#274)
+- Wire the test-layout checker into a gate; raise the coverage gate to 100 (#284)
+- Add check-rust-version-consistency and check-go-version-consistency hooks (#285)
+
 ## [0.7.0] - 2026-06-24
 
 ### New Features
