@@ -272,14 +272,17 @@ def test_main_all_valid_returns_zero(tmp_path: Path) -> None:
     assert result == 0
 
 
-def test_main_invalid_exits_with_one(tmp_path: Path) -> None:
-    """Exits with 1 when a file needs updating."""
+def test_main_invalid_returns_one(tmp_path: Path) -> None:
+    """Returns 1 when a file needs updating.
+
+    ``main`` returns the exit code rather than raising ``SystemExit``, so a
+    caller can act on the result; :func:`_run` is what turns it into a process
+    exit status.
+    """
     workflow = tmp_path / "workflow.yml"
     workflow.write_text("name: Test Workflow\non: push\n")
 
-    with pytest.raises(SystemExit) as exc_info:
-        main([str(workflow)])
-    assert exc_info.value.code == 1
+    assert main([str(workflow)]) == 1
 
 
 def test_main_no_files_returns_zero() -> None:
@@ -289,15 +292,13 @@ def test_main_no_files_returns_zero() -> None:
 
 
 def test_main_mixed_files(tmp_path: Path) -> None:
-    """Exits with 1 when at least one file needs updating."""
+    """Returns 1 when at least one file needs updating."""
     w1 = tmp_path / "workflow1.yml"
     w1.write_text('name: "(RHIZA) VALID"\non: push\n')
     w2 = tmp_path / "workflow2.yml"
     w2.write_text("name: Invalid Name\non: push\n")
 
-    with pytest.raises(SystemExit) as exc_info:
-        main([str(w1), str(w2)])
-    assert exc_info.value.code == 1
+    assert main([str(w1), str(w2)]) == 1
 
 
 def test_run_delegates_to_main_and_exits() -> None:

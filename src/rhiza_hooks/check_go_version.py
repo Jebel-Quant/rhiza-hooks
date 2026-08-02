@@ -120,13 +120,50 @@ def get_go_version_file(repo_root: Path) -> str | None:
     return _normalize(text) or None
 
 
-def _check_at_least(source_label: str, source_value: str, minimum_label: str, minimum_value: str) -> list[str]:
-    """Report an error when *source_value* names a version below *minimum_value*."""
+def _is_below(source_value: str | None, minimum_value: str | None) -> bool:
+    """Whether *source_value* names a version strictly below *minimum_value*.
+
+    False whenever there is nothing to compare: either side absent (the project
+    does not declare it) or not dotted-numeric (``toolchain default``).
+
+    Args:
+        source_value: Raw version text being checked, or None if undeclared.
+        minimum_value: Raw version text of the lower bound, or None if undeclared.
+
+    Returns:
+        True only when both sides carry a version number and *source_value* is
+        the lower of the two.
+    """
+    if source_value is None or minimum_value is None:
+        return False
     source = parse_version(source_value)
     minimum = parse_version(minimum_value)
-    if source is None or minimum is None or version_at_least(source, minimum):
+    if source is None or minimum is None:
+        return False
+    return not version_at_least(source, minimum)
+
+
+def _check_at_least(
+    source_label: str,
+    source_value: str | None,
+    minimum_label: str,
+    minimum_value: str | None,
+) -> list[str]:
+    """Report an error when *source_value* names a version below *minimum_value*.
+
+    Accepts None on either side so callers need no presence guard of their own —
+    an undeclared version simply yields no error.
+    """
+    if not _is_below(source_value, minimum_value):
         return []
     return [f"Go version mismatch: {source_label} is {source_value}, which is below {minimum_label} {minimum_value}"]
+
+
+def _check_pin_matches_toolchain(pinned: str | None, toolchain: str | None) -> list[str]:
+    """Report a disagreement between ``.go-version`` and the ``toolchain`` directive."""
+    if pinned is None or toolchain is None or same_version(pinned, toolchain):
+        return []
+    return [f"Go version mismatch: .go-version pins {pinned}, but the go.mod toolchain directive pins {toolchain}"]
 
 
 def check_version_consistency(repo_root: Path) -> list[str]:
@@ -144,20 +181,13 @@ def check_version_consistency(repo_root: Path) -> list[str]:
     toolchain = directives.get("toolchain")
     pinned = get_go_version_file(repo_root)
 
-    errors: list[str] = []
-
-    if toolchain is not None and go_directive is not None:
-        errors.extend(_check_at_least("go.mod toolchain", toolchain, "the go.mod go directive", go_directive))
-
-    if pinned is not None and go_directive is not None:
-        errors.extend(_check_at_least(".go-version", pinned, "the go.mod go directive", go_directive))
-
-    if pinned is not None and toolchain is not None and not same_version(pinned, toolchain):
-        errors.append(
-            f"Go version mismatch: .go-version pins {pinned}, but the go.mod toolchain directive pins {toolchain}"
-        )
-
-    return errors
+    # Each helper tolerates an undeclared (None) side, so the three relationships
+    # read as a flat list rather than a nest of presence guards.
+    return [
+        *_check_at_least("go.mod toolchain", toolchain, "the go.mod go directive", go_directive),
+        *_check_at_least(".go-version", pinned, "the go.mod go directive", go_directive),
+        *_check_pin_matches_toolchain(pinned, toolchain),
+    ]
 
 
 def main(argv: list[str] | None = None) -> int:

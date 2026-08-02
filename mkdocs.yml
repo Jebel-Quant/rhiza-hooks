@@ -12,9 +12,11 @@ nav:
   - Changelog: changelog.md
   - API Reference:
       - Overview: api-reference/index.md
+      - check_go_version: api-reference/check_go_version.md
       - check_makefile_targets: api-reference/check_makefile_targets.md
       - check_python_version: api-reference/check_python_version.md
       - check_rhiza_config: api-reference/check_rhiza_config.md
+      - check_rust_version: api-reference/check_rust_version.md
       - check_template_bundles: api-reference/check_template_bundles.md
       - check_workflow_names: api-reference/check_workflow_names.md
       - update_readme_help: api-reference/update_readme_help.md
@@ -24,6 +26,7 @@ nav:
           - _bundles_validate: api-reference/_bundles_validate.md
           - _config_schema: api-reference/_config_schema.md
           - _repo: api-reference/_repo.md
+          - _version: api-reference/_version.md
           - _yaml: api-reference/_yaml.md
   - Reports:
       - Test Report: reports/html-report/report.html
