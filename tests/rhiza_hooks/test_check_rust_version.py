@@ -43,7 +43,7 @@ def _write(root: Path, name: str, content: str) -> None:
 def test_table_returns_nested_table() -> None:
     """A present nested table is returned as-is."""
     assert _table({"workspace": {"package": {"rust-version": "1.75"}}}, "workspace", "package") == {
-        "rust-version": "1.75"
+        "rust-version": "1.75",
     }
 
 
