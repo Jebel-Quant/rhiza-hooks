@@ -61,11 +61,16 @@ rather than synced into the repo.
 - `DISCUSSION_TEMPLATE/`, `ISSUE_TEMPLATE/`, `rulesets/`
 
 > This snapshot reflects the files synced at the pinned `ref:` (currently
-> `v1.2.5`); the `files:` block of `.rhiza/template.lock` is always
-> authoritative.
+> `v1.3.0`); the `files:` block of `.rhiza/template.lock` is the authoritative
+> list of what the profiles *offer*. Note it is not a list of what is on disk:
+> since v1.3.0 the lock records the excluded paths too, so
+> `.github/workflows/rhiza_mutation.yml` and `.pre-commit-config.yaml` appear
+> there despite the `exclude:` block keeping both off disk. Cross-check
+> `exclude:` in [`.rhiza/template.yml`](.rhiza/template.yml) before concluding a
+> file is managed.
 
 ### `.rhiza/` (the sync engine — treat the whole directory as managed)
-- `rhiza.mk`, `make.d/*.mk`, `semgrep.yml`, `.cfg.toml`, `.env`, `.gitignore`
+- `rhiza.mk`, `make.d/*.mk`, `semgrep.yml`, `.env`, `.gitignore`
 - `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `assets/`, `completions/`
 - `tests/**` (the synced template test-suite)
 - **Owned by you:** `.rhiza/template.yml` (and `.rhiza/template.lock`, which the
@@ -123,9 +128,9 @@ Everything **not** listed above — notably `pyproject.toml`, `README.md`, `uv.l
 
 ## Local-dev gotcha: `TestGitTagVersion` and template-remote tags
 
-`.rhiza/tests/structure/test_pyproject.py::TestGitTagVersion` asserts that the
+`.rhiza/tests/test_pyproject.py::TestGitTagVersion` asserts that the
 **highest version-sorted `v*` git tag** equals `[project].version`. It passes in
-CI (a clean checkout only ever sees this repo's own tags — highest `v0.7.0`,
+CI (a clean checkout only ever sees this repo's own tags — highest `v0.8.0`,
 matching `pyproject.toml`).
 
 It can fail **locally** if you have added a git remote for the template repo
