@@ -50,6 +50,7 @@ check-makefile-targets = "rhiza_hooks.check_makefile_targets:main"
 check-python-version-consistency = "rhiza_hooks.check_python_version:main"
 check-rust-version-consistency = "rhiza_hooks.check_rust_version:main"
 check-go-version-consistency = "rhiza_hooks.check_go_version:main"
+check-bumpversion-config = "rhiza_hooks.check_bumpversion_config:main"
 check-template-bundles = "rhiza_hooks.check_template_bundles:main"
 
 [tool.hatch.build.targets.wheel]

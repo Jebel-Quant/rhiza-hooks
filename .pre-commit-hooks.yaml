@@ -63,6 +63,14 @@
   files: (^\.go-version$|^go\.mod$)
   pass_filenames: false
 
+- id: check-bumpversion-config
+  name: Check bump-my-version config is discoverable
+  description: Ensures a bumpversion section exists where bump-my-version searches, and agrees with pyproject.toml
+  entry: check-bumpversion-config
+  files: (^pyproject\.toml$|^\.bumpversion\.(toml|cfg)$|^setup\.cfg$|^\.rhiza/\.cfg\.toml$)
+  language: python
+  pass_filenames: false
+
 - id: check-template-bundles
   name: Check template bundles configuration
   description: Validates templates against remote template-bundles.yml from template repository
