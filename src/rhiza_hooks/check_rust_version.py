@@ -188,24 +188,54 @@ def _check_msrvs_agree(msrvs: dict[str, str]) -> list[str]:
     ]
 
 
+def _is_below_msrv(channel_version: tuple[int, ...], msrv: str) -> bool:
+    """Whether *channel_version* is below the MSRV *msrv*.
+
+    Args:
+        channel_version: Parsed components of the pinned toolchain channel.
+        msrv: Raw ``rust-version`` text from ``Cargo.toml``.
+
+    Returns:
+        True only when *msrv* carries a version number that the channel fails to
+        reach; False for a non-numeric MSRV, which gives nothing to compare.
+    """
+    msrv_version = parse_version(msrv)
+    if msrv_version is None:
+        return False
+    return not version_at_least(channel_version, msrv_version)
+
+
+def _channel_msrv_violations(source: str, channel: str, msrvs: dict[str, str]) -> list[str]:
+    """Report every declared MSRV that the toolchain pinned in *source* fails to satisfy.
+
+    Args:
+        source: Filename the channel was declared in, used in the error message.
+        channel: Raw channel string, e.g. ``"1.75.0"`` or ``"stable"``.
+        msrvs: Declared MSRVs, keyed by the ``Cargo.toml`` table label.
+
+    Returns:
+        One error per unsatisfied MSRV, ordered by table label; empty for a named
+        channel (stable/beta/nightly-<date>), which has no version to compare.
+    """
+    channel_version = parse_version(channel)
+    if channel_version is None:
+        return []
+    return [
+        f"Rust version mismatch: {source} pins channel {channel}, "
+        f"but {CARGO_FILE} [{label}] rust-version is {msrv} "
+        f"(the pinned toolchain must be at least the MSRV)"
+        for label, msrv in sorted(msrvs.items())
+        if _is_below_msrv(channel_version, msrv)
+    ]
+
+
 def _check_channel_satisfies_msrv(channels: dict[str, str], msrvs: dict[str, str]) -> list[str]:
     """Report every pinned toolchain that is older than a declared MSRV."""
-    errors: list[str] = []
-    for source, channel in sorted(channels.items()):
-        channel_version = parse_version(channel)
-        if channel_version is None:
-            # A named channel (stable/beta/nightly-<date>) has no version to compare.
-            continue
-        for label, msrv in sorted(msrvs.items()):
-            msrv_version = parse_version(msrv)
-            if msrv_version is None or version_at_least(channel_version, msrv_version):
-                continue
-            errors.append(
-                f"Rust version mismatch: {source} pins channel {channel}, "
-                f"but {CARGO_FILE} [{label}] rust-version is {msrv} "
-                f"(the pinned toolchain must be at least the MSRV)"
-            )
-    return errors
+    return [
+        error
+        for source, channel in sorted(channels.items())
+        for error in _channel_msrv_violations(source, channel, msrvs)
+    ]
 
 
 def check_version_consistency(repo_root: Path) -> list[str]:

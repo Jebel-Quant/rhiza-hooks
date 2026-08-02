@@ -124,9 +124,7 @@ def main(argv: list[str] | None = None) -> int:
         if not check_file(f):
             failed = True
 
-    if failed:
-        sys.exit(1)
-    return 0
+    return 1 if failed else 0
 
 
 def _run() -> None:
