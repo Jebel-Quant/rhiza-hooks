@@ -22,8 +22,14 @@ change is overwritten on the next sync. To change one of them:
 1. Make the change **upstream** in `jebel-quant/rhiza` (the relevant
    `bundles/<bundle>/...` source).
 2. Cut a new Rhiza release.
-3. Bump `ref:` in [`.rhiza/template.yml`](.rhiza/template.yml) here and run
-   **`make sync`** (which invokes `rhiza sync`).
+3. Bump `ref:` in [`.rhiza/template.yml`](.rhiza/template.yml) here and run the sync:
+   **`/rhiza:update`** in Claude Code (it bumps the ref, syncs, and opens a PR
+   containing only template-owned paths), or **`rhiza sync`** if you have `rhiza-cli`
+   installed.
+
+   There is **no `make sync` target** — the Makefile and its includes provide none, so
+   `make help` will not list one. This step used to name it, which meant the documented
+   route did not exist.
 
 The authoritative, machine-generated list is the `files:` block of
 [`.rhiza/template.lock`](.rhiza/template.lock), refreshed on every sync. Current
@@ -37,7 +43,12 @@ snapshot:
 [Excluded from sync](#excluded-from-sync).)
 
 ### `.claude/`
-`commands/rhiza_book.md`, `commands/rhiza_quality.md`, `commands/rhiza_update.md`
+Nothing. The template no longer syncs `.claude/` at the pinned `ref:` — the lock's
+`files:` block lists no path under it, and the only file here is the untracked,
+developer-local `settings.local.json`. The `commands/rhiza_*.md` files this section used
+to list are gone; that functionality now lives in the `rhiza-claude` plugin as skills
+(`/rhiza:update`, `/rhiza:quality`, `/rhiza:book`), which are installed per-developer
+rather than synced into the repo.
 
 ### `.github/`
 - Workflows: `rhiza_benchmark.yml`, `rhiza_book.yml`, `rhiza_ci.yml`,
