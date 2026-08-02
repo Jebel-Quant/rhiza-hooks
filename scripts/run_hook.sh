@@ -28,6 +28,7 @@ elif [ -x "./bin/uv" ]; then
     uv_bin="./bin/uv"
 else
     printf 'error: uv not found on PATH or at ./bin/uv\n' >&2
+    # shellcheck disable=SC2016  # the backticks are literal: they quote the command in the hint text
     printf 'hint: run `make install-uv`\n' >&2
     exit 1
 fi

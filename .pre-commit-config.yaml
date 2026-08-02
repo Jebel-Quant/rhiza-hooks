@@ -74,6 +74,12 @@ repos:
       - id: bandit
         args: ["--ini", ".bandit", "--exclude", ".venv,tests,.rhiza/tests,.git,.pytest_cache"]
 
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        files: '\.sh$'
+
   - repo: https://github.com/betterleaks/betterleaks
     rev: v1.7.2
     hooks:

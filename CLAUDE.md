@@ -94,11 +94,19 @@ and the pin silently drifts on every release (it sat at `v0.7.0` through
 `v0.8.0`). The local copy uses `repo: local` instead — no rev, and the hooks
 run against the working tree rather than the last release. **Consequence: this
 file is now yours.** Upstream improvements to the shared hook list (ruff,
-bandit, markdownlint, …) no longer arrive by sync and must be ported by hand;
-check it against the template's copy periodically. Hook entries mirror
-`.pre-commit-hooks.yaml`, so a new hook must be added in both — plus a console
-script in `[project.scripts]`, which `tests/meta/test_pre_commit_manifest.py`
-checks in both directions. See #293.
+bandit, markdownlint, …) no longer arrive by sync and must be ported by hand.
+
+`tests/meta/test_pre_commit_template_parity.py` enforces that port: it fetches the
+template's `.pre-commit-config.yaml` **at the `ref:` this repo pins** and fails when a
+hook id declared there is missing here. It compares ids, not `rev:` pins (renovate bumps
+those per repo), and allows extra local hooks, so the intended `repo: local`-versus-`rev:`
+difference never fires. A hook that genuinely cannot apply here goes in that file's
+`_WAIVED` map with its reason, and the waiver's premise is itself re-checked. When the
+check was added it immediately found `shellcheck` missing. See #293, #299.
+
+Hook entries mirror `.pre-commit-hooks.yaml`, so a new hook must be added in both — plus
+a console script in `[project.scripts]`, which `tests/meta/test_pre_commit_manifest.py`
+checks in both directions.
 
 Note that `make mutation` (from the managed `.rhiza/make.d/test.mk`) and the
 mutation section of `docs/development/TESTS.md` still exist — both are Rhiza-owned
