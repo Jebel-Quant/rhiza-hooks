@@ -32,6 +32,10 @@ repos:
       - id: check-go-version-consistency
       - id: check-bumpversion-config
       - id: check-template-bundles
+      # Template-ownership and CI-consistency hooks
+      - id: check-managed-files
+      - id: check-workflow-make-targets
+      - id: check-license-metadata
 ```
 
 Then install the hooks:
@@ -53,6 +57,9 @@ pre-commit install
 | `check-go-version-consistency` | `.go-version`, `go.mod` | ❌ validates only | `1` on mismatch, else `0` |
 | `check-bumpversion-config` | `pyproject.toml`, `.bumpversion.toml`, `.bumpversion.cfg`, `setup.cfg`, `.rhiza/.cfg.toml` | ❌ validates only | `1` if no discoverable config or a drifted `current_version`, else `0` |
 | `check-template-bundles` | `.rhiza/template.yml` | ❌ validates only (network) | `1` on validation failure, else `0`; `0` when `--offline` |
+| `check-managed-files` | every staged file | ❌ validates only | `1` if a template-owned file is being modified, else `0` |
+| `check-workflow-make-targets` | `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Makefile`, `.rhiza/*.mk` | ❌ validates only | `1` if CI invokes an undefined target, else `0` |
+| `check-license-metadata` | `pyproject.toml` | ❌ validates only | `1` if both licence forms are declared, else `0` |
 
 Details for each hook follow.
 
@@ -288,6 +295,80 @@ This hook reaches the network on every run. Transient failures are retried with 
 
 - This hook normally fetches `template-bundles.yml` from the configured template repository and retries on transient network errors; raise `--retries`/`--timeout` if your network is slow or flaky, and read the per-attempt log lines to see what failed.
 - Use `--offline` when committing without network access; it skips the fetch and exits successfully without remote validation.
+
+### Template-ownership and CI-consistency Hooks
+
+#### `check-managed-files`
+
+Refuses a commit that edits a file the rhiza template owns. Ownership is read from the `files:` block of `.rhiza/template.lock`, minus anything listed under `exclude:` in `.rhiza/template.yml` — an excluded path is never synced, so it belongs to the project again.
+
+Every rhiza-managed repo's `CLAUDE.md` states the rule this enforces: managed files are overwritten on the next sync. Until this hook nothing checked it, so the failure was silent and total — the edit worked, got reviewed, got merged, and vanished at the next sync.
+
+**Triggers on:** every staged file (the hook declares no `files:` pattern)
+
+The check is path-based: `template.lock` records paths, not content hashes. A repo that is managed but never synced (no lock file) owns everything, so the hook passes.
+
+**Options:**
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `--allow PATH` | none | Waive one managed path; repeatable |
+
+**Usage:**
+
+```yaml
+- id: check-managed-files
+  # args: [--allow, Makefile]   # Optional: waive a knowingly-temporary override
+```
+
+**Troubleshooting:**
+
+- To change a managed file, change it upstream in the template repository, cut a release, bump `ref:` in `.rhiza/template.yml` and re-sync.
+- To take permanent local ownership of one, add it to `exclude:` in `.rhiza/template.yml`. That is the durable fix; `--allow` is not.
+- A `rhiza sync` commit legitimately rewrites managed files wholesale. Bypass the hook for it with `SKIP=check-managed-files git commit ...`.
+
+#### `check-workflow-make-targets`
+
+Checks that every `make` target your CI invokes is actually defined. Targets are collected from the root `Makefile` plus everything it `include`s, transitively, with globs expanded (rhiza's own layout is `Makefile` → `.rhiza/rhiza.mk` → `.rhiza/make.d/*.mk`). Invocations are read from the shell snippets of every CI definition: `run:` in GitHub workflows, `script:`/`before_script:`/`after_script:` in `.gitlab-ci.yml`.
+
+`check-makefile-targets` asserts that a few *recommended* targets exist; this hook checks the opposite direction — that the targets actually invoked are defined — which is what catches a removal or a rename. The template has produced exactly that failure: `make validate` existed up to rhiza v1.1.3 and was removed by v1.2.1.
+
+**Triggers on:** `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Makefile`, `.rhiza/*.mk` — a target *removal* must re-run the check, not just a workflow edit
+
+Invocations are parsed out of the YAML rather than the raw text, so `name: make sure the cache is warm` is not mistaken for an invocation. An invocation whose target comes from a variable or matrix expression (`make ${{ matrix.task }}`) cannot be resolved and is skipped rather than reported — a false positive here would block every commit. A repo with no Makefile reports nothing.
+
+**Troubleshooting:**
+
+- If a target genuinely exists but is reported missing, check that the file defining it is reachable through an `include` from the root `Makefile`, and that the include path is not itself variable-driven.
+- Prefer `make -j4 test` to `make -j test`: with a bare `-j` the following word is treated as the flag's value, so the target is not checked.
+
+#### `check-license-metadata`
+
+Rejects a `pyproject.toml` that declares both a PEP 639 `license` expression and a legacy `License :: OSI Approved :: …` trove classifier. That combination is not merely redundant — `setuptools>=77` refuses to build the project at all ("License classifiers have been superseded by license expressions"), and `uv_build` warns.
+
+Either form **alone** is fine, and so is the pre-PEP-639 table form (`license = {file = "LICENSE"}`) next to a classifier: that is valid legacy metadata.
+
+**Triggers on:** `pyproject.toml`
+
+Validating SPDX expression syntax is out of scope; the value here is the rule that breaks builds.
+
+**Options:**
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `--require-license` | off | Also fail when no licence is declared at all |
+
+**Usage:**
+
+```yaml
+- id: check-license-metadata
+  # args: [--require-license]   # Optional: also require that a licence is declared
+```
+
+**Troubleshooting:**
+
+- Delete the `License :: …` classifier and keep the SPDX expression; that is the direction packaging has moved.
+- rhiza's synced `test_license_classifier_present` still asserts the classifier through template v1.2.1, which is unsatisfiable for a PEP 639 project (filed upstream as jebel-quant/rhiza#1440). Do not "fix" that test by adding the classifier back — it trades a failing test for an unbuildable package.
 
 ## 🛠️ Development
 

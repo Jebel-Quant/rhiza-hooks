@@ -52,6 +52,9 @@ check-rust-version-consistency = "rhiza_hooks.check_rust_version:main"
 check-go-version-consistency = "rhiza_hooks.check_go_version:main"
 check-bumpversion-config = "rhiza_hooks.check_bumpversion_config:main"
 check-template-bundles = "rhiza_hooks.check_template_bundles:main"
+check-managed-files = "rhiza_hooks.check_managed_files:main"
+check-workflow-make-targets = "rhiza_hooks.check_workflow_make_targets:main"
+check-license-metadata = "rhiza_hooks.check_license_metadata:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rhiza_hooks"]

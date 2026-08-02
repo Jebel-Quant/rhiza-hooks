@@ -8,7 +8,7 @@ package imports either file, so no unit test covers the link between them.
 Two layers guard it here:
 
 * static checks that the manifest and ``pyproject.toml`` agree, which run in
-  milliseconds and cover all nine hooks;
+  milliseconds and cover every published hook;
 * one end-to-end run through ``pre-commit try-repo``, which proves a manifest
   entry really resolves to an executable console script.
 
@@ -146,7 +146,7 @@ _ENV_FAILURE_MARKERS = (
 _REQUIRE_ENV = os.environ.get("RHIZA_REQUIRE_E2E")
 _UNDER_CI = os.environ.get("CI", "").lower() in {"1", "true"}
 
-# A repository that declares consistent versions for four of the nine hooks.
+# A repository that declares consistent versions for six of the published hooks.
 # Deliberately no `[project] version`: check-bumpversion-config only demands a
 # discoverable bumpversion config once a static version exists, so omitting it
 # keeps the fixture passing without a [tool.bumpversion] table.
@@ -160,14 +160,20 @@ _FIXTURE_FILES = {
 }
 
 # The hooks whose `files:` patterns the fixture matches, and which must therefore
-# run and pass. The other five match nothing and are reported as Skipped —
-# including check-template-bundles, which is what keeps this test off the network.
+# run and pass. The rest match nothing and are reported as Skipped — including
+# check-template-bundles, which is what keeps this test off the network.
+#
+# check-managed-files declares no `files:` at all, so it runs on every fixture file
+# and passes because the fixture has no .rhiza/template.lock: nothing is owned
+# upstream in a repo that was never synced.
 _EXPECTED_TO_RUN = frozenset(
     {
         "check-python-version-consistency",
         "check-rust-version-consistency",
         "check-go-version-consistency",
         "check-bumpversion-config",
+        "check-managed-files",
+        "check-license-metadata",
     }
 )
 
@@ -228,10 +234,10 @@ def _hook_statuses(output: str) -> dict[str, str]:
 def test_manifest_hooks_run_through_pre_commit_try_repo(tmp_path: Path) -> None:
     """`pre-commit try-repo` builds this repo's hooks and runs every applicable one.
 
-    Invoked without a hook id, ``try-repo`` loads the whole manifest, so all nine
-    ids are resolved in a single environment build. The four hooks the fixture
-    declares files for must pass; the rest report "no files to check" and are
-    skipped by pre-commit, which is what keeps this test network-free.
+    Invoked without a hook id, ``try-repo`` loads the whole manifest, so every id
+    is resolved in a single environment build. The hooks the fixture declares files
+    for must pass; the rest report "no files to check" and are skipped by
+    pre-commit, which is what keeps this test network-free.
     """
     if shutil.which("git") is None:
         _skip_or_fail("git is required for the end-to-end test", transient=False)

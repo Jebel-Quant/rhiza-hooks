@@ -78,3 +78,30 @@
   language: python
   files: ^\.rhiza/template\.yml$
   types: [yaml]
+
+##@ Template-ownership and CI-consistency hooks
+
+# No `files:` pattern: any staged file may be a template-owned one, and
+# pass_filenames hands this hook exactly the staged paths to test.
+- id: check-managed-files
+  name: Check no template-owned file is modified
+  description: Refuses edits to files listed in .rhiza/template.lock, which the next sync overwrites
+  entry: check-managed-files
+  language: python
+
+- id: check-workflow-make-targets
+  name: Check make targets invoked by CI exist
+  description: Ensures every make target a workflow or .gitlab-ci.yml runs is defined in the Makefile or its includes
+  entry: check-workflow-make-targets
+  language: python
+  files: (^\.github/workflows/.*\.ya?ml$|^\.gitlab-ci\.yml$|^Makefile$|^\.rhiza/.*\.mk$)
+  pass_filenames: false
+
+- id: check-license-metadata
+  name: Check license metadata is coherent
+  # Quoted: an unquoted "License:: " would end the scalar at the colon-space.
+  description: "Rejects a PEP 639 license expression declared alongside a License:: trove classifier"
+  entry: check-license-metadata
+  language: python
+  files: ^pyproject\.toml$
+  pass_filenames: false

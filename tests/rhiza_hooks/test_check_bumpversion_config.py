@@ -352,3 +352,216 @@ def test_differing_versions_always_error(tmp_path_factory: pytest.TempPathFactor
         f'[project]\nname = "demo"\nversion = "{left}"\n{BUMP_TABLE}current_version = "{right}"\n',
     )
     assert len(check_bumpversion_config(root)) == 1
+
+
+# ---------------------------------------------------------------------------
+# Bumpversion targets: [[tool.bumpversion.files]] / [bumpversion:file:...]
+# ---------------------------------------------------------------------------
+def _with_targets(root: Path, entries: str, version: str = "1.2.3") -> None:
+    """Write a pyproject whose bumpversion table carries ``entries`` as file entries."""
+    _write(
+        root,
+        "pyproject.toml",
+        f'[project]\nname = "demo"\nversion = "{version}"\n'
+        f'\n[tool.bumpversion]\ncurrent_version = "{version}"\n{entries}',
+    )
+
+
+def _lock(root: Path, files: str) -> None:
+    """Write a .rhiza/template.lock declaring ``files`` as template-owned."""
+    _write(root, ".rhiza/template.lock", f"repo: jebel-quant/rhiza\nfiles:\n{files}")
+
+
+def test_target_pattern_present_once_passes(tmp_path: Path) -> None:
+    """A target whose search pattern occurs exactly once is sound."""
+    _with_targets(tmp_path, '\n[[tool.bumpversion.files]]\nfilename = "README.md"\n')
+    _write(tmp_path, "README.md", "install demo==1.2.3\n")
+    assert check_bumpversion_config(tmp_path) == []
+
+
+def test_target_pattern_absent_errors(tmp_path: Path) -> None:
+    """A target whose pattern is missing would abort the next release, so it errors now."""
+    _with_targets(tmp_path, '\n[[tool.bumpversion.files]]\nfilename = "README.md"\n')
+    _write(tmp_path, "README.md", "install demo==9.9.9\n")
+    errors = check_bumpversion_config(tmp_path)
+    assert len(errors) == 1
+    assert errors[0] == "Bumpversion pattern '1.2.3' does not occur in README.md, so the next release will abort."
+
+
+def test_target_pattern_ambiguous_errors(tmp_path: Path) -> None:
+    """A pattern occurring twice is ambiguous about which line a bump rewrites."""
+    _with_targets(tmp_path, '\n[[tool.bumpversion.files]]\nfilename = "README.md"\n')
+    _write(tmp_path, "README.md", "demo==1.2.3\nand again 1.2.3\n")
+    errors = check_bumpversion_config(tmp_path)
+    assert len(errors) == 1
+    assert "occurs 2 times in README.md" in errors[0]
+
+
+def test_explicit_search_is_substituted(tmp_path: Path) -> None:
+    """An explicit search string has {current_version} substituted before counting."""
+    _with_targets(
+        tmp_path,
+        '\n[[tool.bumpversion.files]]\nfilename = "README.md"\nsearch = "rev: v{current_version}"\n',
+    )
+    _write(tmp_path, "README.md", "rev: v1.2.3  # pin\n")
+    assert check_bumpversion_config(tmp_path) == []
+
+
+def test_explicit_search_absent_errors(tmp_path: Path) -> None:
+    """An explicit search string that is missing from the file errors, quoting the resolved pattern."""
+    _with_targets(
+        tmp_path,
+        '\n[[tool.bumpversion.files]]\nfilename = "README.md"\nsearch = "rev: v{current_version}"\n',
+    )
+    _write(tmp_path, "README.md", "rev: v0.0.1\n")
+    errors = check_bumpversion_config(tmp_path)
+    assert len(errors) == 1
+    assert "'rev: v1.2.3' does not occur in README.md" in errors[0]
+
+
+def test_managed_target_errors(tmp_path: Path) -> None:
+    """Targeting a template-owned file errors: the next sync resets it."""
+    _with_targets(tmp_path, '\n[[tool.bumpversion.files]]\nfilename = "Makefile"\n')
+    _write(tmp_path, "Makefile", "VERSION = 1.2.3\n")
+    _lock(tmp_path, "- Makefile\n")
+    errors = check_bumpversion_config(tmp_path)
+    assert len(errors) == 1
+    assert errors[0].startswith("Bumpversion targets Makefile, which is owned by the rhiza template.")
+
+
+def test_excluded_target_passes(tmp_path: Path) -> None:
+    """A locked path the project excludes is project-owned again, so targeting it is fine."""
+    _with_targets(tmp_path, '\n[[tool.bumpversion.files]]\nfilename = "Makefile"\n')
+    _write(tmp_path, "Makefile", "VERSION = 1.2.3\n")
+    _lock(tmp_path, "- Makefile\n")
+    _write(tmp_path, ".rhiza/template.yml", "exclude:\n- Makefile\n")
+    assert check_bumpversion_config(tmp_path) == []
+
+
+def test_missing_target_file_is_skipped(tmp_path: Path) -> None:
+    """An entry whose file does not exist yet is left alone, not reported."""
+    _with_targets(tmp_path, '\n[[tool.bumpversion.files]]\nfilename = "NOTYET.md"\n')
+    assert check_bumpversion_config(tmp_path) == []
+
+
+def test_regex_target_is_skipped(tmp_path: Path) -> None:
+    """A regex search cannot be counted literally, so bump-my-version owns that check."""
+    _with_targets(
+        tmp_path,
+        '\n[[tool.bumpversion.files]]\nfilename = "README.md"\nsearch = "v[0-9]+"\nregex = true\n',
+    )
+    _write(tmp_path, "README.md", "nothing matching here\n")
+    assert check_bumpversion_config(tmp_path) == []
+
+
+def test_unresolvable_placeholder_is_skipped(tmp_path: Path) -> None:
+    """A search carrying another placeholder cannot be resolved here, so it is skipped."""
+    _with_targets(
+        tmp_path,
+        '\n[[tool.bumpversion.files]]\nfilename = "README.md"\nsearch = "{current_version} -> {new_version}"\n',
+    )
+    _write(tmp_path, "README.md", "no match\n")
+    assert check_bumpversion_config(tmp_path) == []
+
+
+def test_binary_target_file_is_skipped(tmp_path: Path) -> None:
+    """An unreadable or binary target is somebody else's error to report."""
+    _with_targets(tmp_path, '\n[[tool.bumpversion.files]]\nfilename = "logo.bin"\n')
+    (tmp_path / "logo.bin").write_bytes(b"\xff\xfe\x00binary")
+    assert check_bumpversion_config(tmp_path) == []
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        '\nfiles = "not a list"\n',
+        '\n[[tool.bumpversion.files]]\nsearch = "no filename key"\n',
+        "\nfiles = [42]\n",
+    ],
+)
+def test_malformed_entries_are_dropped(tmp_path: Path, entries: str) -> None:
+    """A files value that is not a list of tables with string filenames yields nothing to check."""
+    _with_targets(tmp_path, entries)
+    assert check_bumpversion_config(tmp_path) == []
+
+
+def test_non_string_search_falls_back_to_the_default(tmp_path: Path) -> None:
+    """A non-string search is ignored, leaving bump-my-version's {current_version} default."""
+    _with_targets(tmp_path, '\n[[tool.bumpversion.files]]\nfilename = "README.md"\nsearch = 42\n')
+    _write(tmp_path, "README.md", "demo 1.2.3\n")
+    assert check_bumpversion_config(tmp_path) == []
+
+
+def test_ini_target_pattern_is_checked(tmp_path: Path) -> None:
+    """The INI format encodes the path in the section name; its patterns are checked too."""
+    _write(tmp_path, "pyproject.toml", PYPROJECT)
+    _write(
+        tmp_path,
+        "setup.cfg",
+        "[bumpversion]\ncurrent_version = 1.2.3\n\n[bumpversion:file:README.md]\n",
+    )
+    _write(tmp_path, "README.md", "demo 9.9.9\n")
+    errors = check_bumpversion_config(tmp_path)
+    assert len(errors) == 1
+    assert "does not occur in README.md" in errors[0]
+
+
+def test_ini_managed_target_errors(tmp_path: Path) -> None:
+    """Ownership is enforced for INI targets as well."""
+    _write(tmp_path, "pyproject.toml", PYPROJECT)
+    _write(tmp_path, "setup.cfg", "[bumpversion]\ncurrent_version = 1.2.3\n\n[bumpversion:file:Makefile]\n")
+    _write(tmp_path, "Makefile", "VERSION = 1.2.3\n")
+    _lock(tmp_path, "- Makefile\n")
+    errors = check_bumpversion_config(tmp_path)
+    assert len(errors) == 1
+    assert errors[0].startswith("Bumpversion targets Makefile")
+
+
+def test_ini_regex_target_is_skipped(tmp_path: Path) -> None:
+    """An INI entry marked regex is skipped like its TOML counterpart."""
+    _write(tmp_path, "pyproject.toml", PYPROJECT)
+    _write(
+        tmp_path,
+        "setup.cfg",
+        "[bumpversion]\ncurrent_version = 1.2.3\n\n[bumpversion:file:README.md]\nsearch = v[0-9]+\nregex = true\n",
+    )
+    _write(tmp_path, "README.md", "no match\n")
+    assert check_bumpversion_config(tmp_path) == []
+
+
+def test_ini_non_file_sections_are_ignored(tmp_path: Path) -> None:
+    """Only bumpversion:file: sections are targets; part-configs and the like are not."""
+    _write(tmp_path, "pyproject.toml", PYPROJECT)
+    _write(
+        tmp_path,
+        "setup.cfg",
+        "[bumpversion]\ncurrent_version = 1.2.3\n\n[bumpversion:part:release]\nvalues = dev\n",
+    )
+    assert check_bumpversion_config(tmp_path) == []
+
+
+def test_version_mismatch_and_target_error_are_both_reported(tmp_path: Path) -> None:
+    """Target checks run alongside the version-agreement check rather than instead of it."""
+    _write(
+        tmp_path,
+        "pyproject.toml",
+        '[project]\nname = "demo"\nversion = "1.2.3"\n'
+        '\n[tool.bumpversion]\ncurrent_version = "0.0.9"\n'
+        '\n[[tool.bumpversion.files]]\nfilename = "README.md"\n',
+    )
+    _write(tmp_path, "README.md", "nothing here\n")
+    errors = check_bumpversion_config(tmp_path)
+    assert len(errors) == 2
+    assert any(e.startswith("Version mismatch:") for e in errors)
+    assert any(e.startswith("Bumpversion pattern") for e in errors)
+
+
+def test_binary_pyproject_does_not_crash(tmp_path: Path) -> None:
+    """A pyproject.toml that is not valid UTF-8 is treated as absent, not a traceback.
+
+    tomllib decodes the byte stream itself, so invalid UTF-8 arrives as
+    UnicodeDecodeError rather than TOMLDecodeError.
+    """
+    (tmp_path / "pyproject.toml").write_bytes(b"\xff\xfe\x00[project]")
+    assert _load_toml(tmp_path / "pyproject.toml") is None
+    assert check_bumpversion_config(tmp_path) == []
