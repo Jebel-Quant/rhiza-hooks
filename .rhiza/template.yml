@@ -14,3 +14,12 @@ exclude:
   # mutation score, which is unreachable here without suppressing equivalent
   # mutants, and the signal did not justify the upkeep.
   - .github/workflows/rhiza_mutation.yml
+
+  # This repo IS rhiza-hooks. The template's copy consumes the hooks through a
+  # published `rev:`, which is correct for the ~26 downstream repos but wrong
+  # here: at the moment a release is cut the pinned tag does not exist yet, so
+  # a release PR could never go green, and the pin drifts on every release.
+  # The local copy uses `repo: local` instead. Excluded so sync cannot restore
+  # the remote self-reference. Cost: upstream improvements to the shared hook
+  # list must be ported by hand. See #293.
+  - .pre-commit-config.yaml

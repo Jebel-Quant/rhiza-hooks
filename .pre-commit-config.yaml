@@ -1,5 +1,9 @@
-# This file is part of the jebel-quant/rhiza repository
-# (https://github.com/jebel-quant/rhiza).
+# Originally from the jebel-quant/rhiza repository
+# (https://github.com/jebel-quant/rhiza), but NO LONGER SYNCED — this file is
+# listed under `exclude:` in .rhiza/template.yml because the template's copy
+# consumes rhiza-hooks through a published `rev:`, which this repo cannot use
+# on itself. It is now locally owned: upstream changes to the shared hook list
+# must be ported by hand. See #293.
 #
 # Pin node so pre-commit provisions a compatible runtime instead of using the
 # system node. Some npm-based hooks (markdownlint-cli) pull transitive deps that
@@ -87,18 +91,82 @@ repos:
         args: [--config=pyproject.toml]
         files: ^src/
 
-  - repo: https://github.com/Jebel-Quant/rhiza-hooks
-    rev: v0.7.0  # Use the latest release
+  # This repo IS rhiza-hooks, so it must not consume its own hooks through a
+  # published `rev:` — that pin would reference a tag which, at the moment a
+  # release is cut, does not exist yet, making any release PR unmergeable. It
+  # also silently goes stale on every release (it sat at v0.7.0 through v0.8.0).
+  #
+  # `repo: local` is the pre-commit analogue of `uses: ./.github/actions/...`:
+  # no rev, nothing to bump, and the hooks run against the working tree rather
+  # than the last release — which is what dogfooding is supposed to mean.
+  # Entries mirror `.pre-commit-hooks.yaml`; keep the two in step. See #293.
+  - repo: local
     hooks:
       # Migrated from rhiza
       - id: check-rhiza-workflow-names
+        name: Check and Fix Rhiza workflow names
+        entry: uv run --quiet --frozen check-rhiza-workflow-names
+        language: system
+        files: ^\.github/workflows/rhiza_.*\.ya?ml$
+        types: [yaml]
+
       - id: update-readme-help
+        name: Update README with Makefile help output
+        entry: uv run --quiet --frozen update-readme-help
+        language: system
+        files: ^Makefile$
+        pass_filenames: false
+
       # Additional utility hooks
       - id: check-rhiza-config
+        name: Check rhiza configuration
+        entry: uv run --quiet --frozen check-rhiza-config
+        language: system
+        files: ^\.rhiza/template\.yml$
+        types: [yaml]
+
       - id: check-makefile-targets
+        name: Check Makefile targets
+        entry: uv run --quiet --frozen check-makefile-targets
+        language: system
+        files: (^Makefile$|^\.rhiza/.*\.mk$)
+        types: [makefile]
+
       - id: check-python-version-consistency
+        name: Check Python version consistency
+        entry: uv run --quiet --frozen check-python-version-consistency
+        language: system
+        files: (^\.python-version$|^pyproject\.toml$)
+        pass_filenames: false
+        always_run: true
+
+      - id: check-rust-version-consistency
+        name: Check Rust version consistency
+        entry: uv run --quiet --frozen check-rust-version-consistency
+        language: system
+        files: (^rust-toolchain$|^rust-toolchain\.toml$|^Cargo\.toml$)
+        pass_filenames: false
+
+      - id: check-go-version-consistency
+        name: Check Go version consistency
+        entry: uv run --quiet --frozen check-go-version-consistency
+        language: system
+        files: (^\.go-version$|^go\.mod$)
+        pass_filenames: false
+
+      - id: check-bumpversion-config
+        name: Check bump-my-version config is discoverable
+        entry: uv run --quiet --frozen check-bumpversion-config
+        language: system
+        files: (^pyproject\.toml$|^\.bumpversion\.(toml|cfg)$|^setup\.cfg$|^\.rhiza/\.cfg\.toml$)
+        pass_filenames: false
+
       - id: check-template-bundles
+        name: Check template bundles configuration
         # --offline skips the network fetch so commits work offline and are not
         # coupled to the template repo's availability; drop it to validate the
         # configured templates against the remote template-bundles.yml.
-        args: [--offline]
+        entry: uv run --quiet --frozen check-template-bundles --offline
+        language: system
+        files: ^\.rhiza/template\.yml$
+        types: [yaml]
