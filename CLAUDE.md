@@ -30,9 +30,11 @@ The authoritative, machine-generated list is the `files:` block of
 snapshot:
 
 ### Root
-`.bandit`, `.editorconfig`, `.gitignore`, `.pre-commit-config.yaml`,
-`.python-version`, `cliff.toml`, `LICENSE`, `Makefile`, `SECURITY.md`,
-`pytest.ini`, `ruff.toml`
+`.bandit`, `.editorconfig`, `.gitignore`, `.python-version`, `cliff.toml`,
+`LICENSE`, `Makefile`, `SECURITY.md`, `pytest.ini`, `ruff.toml`
+
+(`.pre-commit-config.yaml` **used to be** on this list and is now excluded — see
+[Excluded from sync](#excluded-from-sync).)
 
 ### `.claude/`
 `commands/rhiza_book.md`, `commands/rhiza_quality.md`, `commands/rhiza_update.md`
@@ -66,10 +68,24 @@ snapshot:
 
 ### Excluded from sync
 
-`.rhiza/template.yml` excludes `.github/workflows/rhiza_mutation.yml` — mutation
-testing is not used here (the gate enforces a 100% mutation score, unreachable
-without suppressing equivalent mutants). If another synced file needs to be
-dropped locally, add it under `exclude:` in `.rhiza/template.yml` and re-sync.
+`.rhiza/template.yml` excludes two files. If another synced file needs to be
+dropped locally, add it under `exclude:` there and re-sync.
+
+**`.github/workflows/rhiza_mutation.yml`** — mutation testing is not used here
+(the gate enforces a 100% mutation score, unreachable without suppressing
+equivalent mutants).
+
+**`.pre-commit-config.yaml`** — this repo *is* rhiza-hooks. The template's copy
+consumes the hooks through a published `rev:`, which is right for the ~26
+downstream consumers but wrong here on two counts: at the moment a release is
+cut the pinned tag does not exist yet, so a release PR could never go green,
+and the pin silently drifts on every release (it sat at `v0.7.0` through
+`v0.8.0`). The local copy uses `repo: local` instead — no rev, and the hooks
+run against the working tree rather than the last release. **Consequence: this
+file is now yours.** Upstream improvements to the shared hook list (ruff,
+bandit, markdownlint, …) no longer arrive by sync and must be ported by hand;
+check it against the template's copy periodically. Hook entries mirror
+`.pre-commit-hooks.yaml`, so a new hook must be added in both. See #293.
 
 Note that `make mutation` (from the managed `.rhiza/make.d/test.mk`) and the
 mutation section of `docs/development/TESTS.md` still exist — both are Rhiza-owned
