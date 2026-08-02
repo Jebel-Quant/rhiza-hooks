@@ -6,7 +6,6 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/jebel-quant/rhiza-hooks/badge/main)](https://www.codefactor.io/repository/github/jebel-quant/rhiza-hooks/overview/main)
 [![Rhiza](https://img.shields.io/badge/dynamic/yaml?url=https%3A%2F%2Fraw.githubusercontent.com%2Fjebel-quant%2Frhiza-hooks%2Fmain%2F.rhiza%2Ftemplate.yml&query=%24.ref&label=rhiza)](https://github.com/jebel-quant/rhiza)
 [![Coverage](https://jebel-quant.github.io/rhiza-hooks/coverage-badge.svg)](https://jebel-quant.github.io/rhiza-hooks/reports/html-coverage/)
-[![Mutation Testing](https://img.shields.io/badge/mutation%20testing-opt--in-lightgrey)](docs/development/TESTS.md#mutation-testing)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Jebel-Quant/rhiza-hooks/badge)](https://scorecard.dev/viewer/?uri=github.com/Jebel-Quant/rhiza-hooks)
 
 Custom [pre-commit](https://pre-commit.com/) hooks for projects using [Rhiza](https://github.com/Jebel-Quant/rhiza) templates.
@@ -333,30 +332,15 @@ pre-commit try-repo . --all-files
 pre-commit try-repo . check-rhiza-config --files .rhiza/template.yml
 ```
 
-### Tests, coverage & mutation testing
+### Tests & coverage
 
-This project enforces **100% line/branch coverage** and a **100% mutation score** (via [`mutmut`](https://github.com/boxed/mutmut)). Both gates run in CI, but you can reproduce them locally before opening a PR:
+This project enforces **100% line/branch coverage**. The gate runs in CI, but you can reproduce it locally before opening a PR:
 
 ```bash
 make test       # Run the suite with coverage (fails under 100%)
-make mutation   # Run mutation testing (fails on any surviving mutant)
 ```
-
-`make mutation` writes an HTML report to `_tests/mutation/html/index.html` — open it to see exactly which mutants survived and which test should have caught each one. `mutmut results` lists survivors on the command line.
-
-Coverage proves a line ran; mutation testing proves a wrong result would be *caught*. When a mutant survives, the fix is almost always a stronger assertion (pin the exact value/message rather than asserting "truthy").
 
 The project test suite **mirrors `src/rhiza_hooks/` 1:1** under `tests/rhiza_hooks/`: each module `src/rhiza_hooks/<module>.py` has a matching `tests/rhiza_hooks/test_<module>.py` (including unit, integration and property-based tests for that module). Repository meta-tests that are not tied to a single package module — such as `tests/test_check_test_layout.py` — stay at the top level of `tests/`. This layout is enforced by `scripts/check_test_layout.py`, which verifies that every module in `src/rhiza_hooks/` is covered by at least one test file that imports it and that every `tests/test_*.py` file maps to a package module (or is an allowed meta-test); it runs as part of the suite via `tests/test_check_test_layout.py`.
-
-#### Equivalent mutants
-
-Occasionally a mutant is genuinely **equivalent** — it changes the code without changing any observable behaviour, so no test can kill it (e.g. swapping a boolean initializer that is only ever read in a truthiness check between `False` and `None`). Mark only these with a `# pragma: no mutate` comment that states *why* it is equivalent, e.g.:
-
-```python +RHIZA_SKIP
-failed = False  # pragma: no mutate  # equivalent: only ever read via `if failed`
-```
-
-Reach for the pragma sparingly and only after confirming no assertion can distinguish the mutant — a real, killable mutant should be killed with a test, not suppressed.
 
 ## 📄 License
 
