@@ -37,6 +37,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import pytest
 import yaml
@@ -89,8 +90,13 @@ def _fetch_template_config(repository: str, ref: str) -> dict[str, Any]:
     ref or the path is wrong, which is a real finding about this repo's configuration.
     """
     url = f"https://raw.githubusercontent.com/{repository}/{ref}/.pre-commit-config.yaml"
+    # The scheme is fixed by the literal prefix above, but `repository` and `ref` are read
+    # from a file, so bandit sees a computed URL and cannot rule out `file:` or a custom
+    # scheme (B310). Re-assert it, as `rhiza_hooks._bundles_fetch` does for the same reason,
+    # which is what makes the suppression below true rather than merely quiet.
+    assert urlparse(url).scheme == "https", f"refusing to fetch a non-https URL: {url}"
     try:
-        with urllib.request.urlopen(url, timeout=_FETCH_TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(url, timeout=_FETCH_TIMEOUT_SECONDS) as response:  # nosec B310
             content = response.read()
     except urllib.error.HTTPError as exc:  # pragma: no cover - needs a bad pin to reach
         pytest.fail(f"HTTP {exc.code} fetching {url}: the pinned ref or the path is wrong")
