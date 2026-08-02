@@ -10,7 +10,6 @@ import pytest
 
 from rhiza_hooks.check_makefile_targets import (
     check_makefile,
-    extract_targets,
     main,
     resolve_recommended_targets,
 )
@@ -18,96 +17,6 @@ from rhiza_hooks.check_makefile_targets import (
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
-
-
-def test_extracts_simple_targets() -> None:
-    """Extracts simple target names."""
-    content = """
-install:
-	pip install .
-
-test:
-	pytest
-
-fmt:
-	ruff format .
-"""
-    targets = extract_targets(content)
-    assert "install" in targets
-    assert "test" in targets
-    assert "fmt" in targets
-
-
-def test_extracts_targets_with_dependencies() -> None:
-    """Extracts targets that have dependencies."""
-    content = """
-build: install
-	python setup.py build
-
-all: build test
-	echo "Done"
-"""
-    targets = extract_targets(content)
-    assert "build" in targets
-    assert "all" in targets
-
-
-def test_extracts_phony_targets() -> None:
-    """Extracts .PHONY style targets."""
-    content = """
-.PHONY: install test
-
-install:
-	pip install .
-"""
-    targets = extract_targets(content)
-    assert "install" in targets
-    # .PHONY is also matched but that's fine
-
-
-def test_empty_makefile() -> None:
-    """Returns empty set for empty Makefile."""
-    assert extract_targets("") == set()
-
-
-def test_ignores_comments() -> None:
-    """Doesn't extract from commented lines."""
-    content = """
-# This is a comment
-# install:
-test:
-	pytest
-"""
-    targets = extract_targets(content)
-    assert "test" in targets
-    # Comments starting with # aren't matched because they don't start at line beginning
-    # after the # character
-
-
-def test_ignores_recursive_assignment() -> None:
-    """`VAR := value` is an assignment, not a target."""
-    targets = extract_targets("PREFIX := /usr/local\ninstall:\n\tcp x $(PREFIX)\n")
-    assert targets == {"install"}
-
-
-def test_ignores_simply_expanded_assignment() -> None:
-    """`VAR ::= value` (simply-expanded) is an assignment, not a target."""
-    targets = extract_targets("FLAGS ::= -O2\ntest:\n\tpytest\n")
-    assert targets == {"test"}
-
-
-def test_extracts_double_colon_rule() -> None:
-    """`target:: deps` (double-colon rule) is still a target."""
-    targets = extract_targets("clean:: prep\n\trm -rf build\n")
-    assert "clean" in targets
-
-
-def test_ignores_dot_special_and_pattern_targets() -> None:
-    """`.PHONY` and pattern rules (`%.o`) are not extracted as recommended targets."""
-    targets = extract_targets(".PHONY: build\n%.o: %.c\n\t$(CC) -c $<\nbuild:\n\techo hi\n")
-    assert "build" in targets
-    assert ".PHONY" not in targets
-    assert "%.o" not in targets
 
 
 def test_all_recommended_targets_present(tmp_path: Path) -> None:
@@ -140,6 +49,18 @@ install:
     warnings = check_makefile(makefile)
     # Exact match pins the message and the ", " join separator (sorted order).
     assert warnings == ["Missing recommended targets: fmt, help, test"]
+
+
+def test_non_ascii_makefile_is_read_as_utf8(tmp_path: Path) -> None:
+    """A UTF-8 Makefile with non-ASCII text is decoded regardless of the platform locale.
+
+    Without the explicit ``encoding="utf-8"`` these bytes raise UnicodeDecodeError
+    under a cp1252 locale, so the hook would crash on a Makefile that is perfectly
+    valid rather than report on it.
+    """
+    makefile = tmp_path / "Makefile"
+    makefile.write_bytes("# générer — tout\ninstall:\ntest:\nfmt:\nhelp:\n".encode())
+    assert check_makefile(makefile) == []
 
 
 def test_file_not_found(tmp_path: Path) -> None:

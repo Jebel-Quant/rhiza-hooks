@@ -81,6 +81,30 @@ def spdx_expression(project: dict[str, Any]) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def _conflicting_declaration(expression: str | None, classifiers: list[str]) -> list[str]:
+    """Report the unbuildable combination: a PEP 639 expression *and* a classifier."""
+    if expression is None or not classifiers:
+        return []
+    listed = ", ".join(repr(c) for c in classifiers)
+    return [
+        f"pyproject.toml declares both the PEP 639 license expression {expression!r} and "
+        f"the classifier(s) {listed}. setuptools>=77 refuses to build a project that has "
+        "both. Delete the classifier(s) and keep the expression."
+    ]
+
+
+def _missing_declaration(project: dict[str, Any], expression: str | None, classifiers: list[str]) -> list[str]:
+    """Report a project that declares no licence in any form.
+
+    ``"license" not in project`` is checked as well as the two accessors, so a table
+    form (``license = {file = "LICENSE"}``) — which is a declaration, just not an
+    SPDX expression — is not reported as absent.
+    """
+    if expression is None and not classifiers and "license" not in project:
+        return ['pyproject.toml declares no license: add a PEP 639 license expression, e.g. license = "MIT".']
+    return []
+
+
 def check_license_metadata(repo_root: Path, require_license: bool = False) -> list[str]:
     """Check the licence metadata in pyproject.toml.
 
@@ -98,17 +122,11 @@ def check_license_metadata(repo_root: Path, require_license: bool = False) -> li
     expression = spdx_expression(project)
     classifiers = license_classifiers(project)
 
-    if expression is not None and classifiers:
-        listed = ", ".join(repr(c) for c in classifiers)
-        return [
-            f"pyproject.toml declares both the PEP 639 license expression {expression!r} and "
-            f"the classifier(s) {listed}. setuptools>=77 refuses to build a project that has "
-            "both. Delete the classifier(s) and keep the expression."
-        ]
-
-    if require_license and expression is None and not classifiers and "license" not in project:
-        return ['pyproject.toml declares no license: add a PEP 639 license expression, e.g. license = "MIT".']
-
+    conflict = _conflicting_declaration(expression, classifiers)
+    if conflict:
+        return conflict
+    if require_license:
+        return _missing_declaration(project, expression, classifiers)
     return []
 
 

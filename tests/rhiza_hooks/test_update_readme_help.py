@@ -112,6 +112,25 @@ def test_updates_content_between_markers(tmp_path: Path, capsys: pytest.CaptureF
     assert capsys.readouterr().out == f"Updated {readme} with make help output\n"
 
 
+def test_non_ascii_readme_round_trips_as_utf8(tmp_path: Path) -> None:
+    """A README holding non-ASCII text survives the rewrite byte-for-byte.
+
+    Both the read and the write pin ``encoding="utf-8"``. Without that the hook
+    follows the platform locale on each side, so on a cp1252 Windows box this README
+    fails to decode at all — and, had it decoded, would be written back mojibake.
+    """
+    readme = tmp_path / "README.md"
+    original = "# Projet 🪝\n\nRôle : générer — voilà.\n\n<!-- MAKE_HELP_START -->\nold\n<!-- MAKE_HELP_END -->\n"
+    readme.write_bytes(original.encode())
+
+    assert update_readme_with_help(readme, "cible : aide\n") is True
+
+    content = readme.read_text(encoding="utf-8")
+    assert "# Projet 🪝" in content
+    assert "Rôle : générer — voilà." in content
+    assert "cible : aide" in content
+
+
 def test_no_markers_returns_false(tmp_path: Path) -> None:
     """File without markers is not modified."""
     readme = tmp_path / "README.md"

@@ -52,24 +52,22 @@ rather than synced into the repo.
 
 ### `.github/`
 - Workflows: `rhiza_benchmark.yml`, `rhiza_book.yml`, `rhiza_ci.yml`,
-  `rhiza_codeql.yml`, `rhiza_marimo.yml`, `rhiza_release.yml`, `rhiza_sync.yml`,
+  `rhiza_codeql.yml`, `rhiza_marimo.yml`, `rhiza_release.yml`,
   `rhiza_weekly.yml`, `rhiza_fuzzing.yml`, `rhiza_scorecard.yml`
   (`rhiza_mutation.yml` is excluded — see the `exclude:` block in
   [`.rhiza/template.yml`](.rhiza/template.yml))
 - `CONFIG.md`, `dependabot.yml`, `release.yml`, `secret_scanning.yml`,
   `pull_request_template.md`
-- `DISCUSSION_TEMPLATE/`, `ISSUE_TEMPLATE/`
+- `DISCUSSION_TEMPLATE/`, `ISSUE_TEMPLATE/`, `rulesets/`
 
 > This snapshot reflects the files synced at the pinned `ref:` (currently
-> `v1.2.1`); the `files:` block of `.rhiza/template.lock` is always
+> `v1.2.5`); the `files:` block of `.rhiza/template.lock` is always
 > authoritative.
 
 ### `.rhiza/` (the sync engine — treat the whole directory as managed)
-- `rhiza.mk`, `make.d/*.mk`, `requirements/*.txt`, `semgrep.yml`,
-  `.cfg.toml`, `.env`, `.gitignore`, `.rhiza-version`
+- `rhiza.mk`, `make.d/*.mk`, `semgrep.yml`, `.cfg.toml`, `.env`, `.gitignore`
 - `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `assets/`, `completions/`
-- `tests/**` (the synced template test-suite), `utils/pip_audit_policy.py`,
-  `utils/suppression_audit.py`
+- `tests/**` (the synced template test-suite)
 - **Owned by you:** `.rhiza/template.yml` (and `.rhiza/template.lock`, which the
   tool regenerates).
 

@@ -177,6 +177,17 @@ def test_directives_unreadable_returns_empty(tmp_path: Path) -> None:
     assert get_go_mod_directives(tmp_path) == {}
 
 
+def test_directives_undecodable_returns_empty(tmp_path: Path) -> None:
+    """Bytes that are not UTF-8 are treated as unspecified, not raised.
+
+    The read pins ``encoding="utf-8"`` so every platform decodes identically; the
+    price is that a latin-1 go.mod now raises everywhere rather than only where the
+    locale happens to be strict, so the decode error is caught alongside OSError.
+    """
+    (tmp_path / "go.mod").write_bytes(b"go 1.22 // caf\xe9\n")
+    assert get_go_mod_directives(tmp_path) == {}
+
+
 # ---------------------------------------------------------------------------
 # Unit tests: get_go_version_file
 # ---------------------------------------------------------------------------
@@ -206,6 +217,12 @@ def test_go_version_file_blank_returns_none(tmp_path: Path) -> None:
 def test_go_version_file_unreadable_returns_none(tmp_path: Path) -> None:
     """An OSError on read (path is a directory) is treated as unspecified."""
     (tmp_path / ".go-version").mkdir()
+    assert get_go_version_file(tmp_path) is None
+
+
+def test_go_version_file_undecodable_returns_none(tmp_path: Path) -> None:
+    """A .go-version that is not UTF-8 is treated as unspecified, not raised."""
+    (tmp_path / ".go-version").write_bytes(b"1.22.5 \xe9\n")
     assert get_go_version_file(tmp_path) is None
 
 

@@ -15,7 +15,8 @@ Both sides come from files in the repo, so the check is offline and mechanical:
 
 * **targets** — the root ``Makefile`` plus everything it ``include``s, transitively,
   globs expanded (rhiza's own layout is ``Makefile`` → ``.rhiza/rhiza.mk`` →
-  ``.rhiza/make.d/*.mk``);
+  ``.rhiza/make.d/*.mk``); read by :mod:`rhiza_hooks._makefile`, shared with
+  ``check-makefile-targets``;
 * **invocations** — the shell snippets of every CI definition: ``run:`` in GitHub
   workflows, ``script:``/``before_script:``/``after_script:`` in ``.gitlab-ci.yml``.
 
@@ -33,15 +34,15 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
-import re
 import sys
+from itertools import chain, takewhile
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from rhiza_hooks._makefile import GLOB_CHARS, VARIABLE_CHARS, collect_targets
 from rhiza_hooks._repo import find_repo_root
-from rhiza_hooks.check_makefile_targets import extract_targets
 
 # Where CI definitions live. Workflow files are globbed; the GitLab file is a
 # fixed path. Both are optional — a repo may use either platform, or neither.
@@ -51,8 +52,8 @@ GITLAB_CI = ".gitlab-ci.yml"
 # YAML keys whose values are shell snippets, across both platforms.
 _SHELL_KEYS = frozenset({"run", "script", "before_script", "after_script"})
 
-# `include a.mk b/*.mk` and its optional forms (`-include`, `sinclude`).
-_INCLUDE_PATTERN = re.compile(r"^\s*(?:-|s)?include\s+(.+)$", re.MULTILINE)
+# Shell tokens that end the command a `make` word belongs to.
+_SEPARATORS = frozenset({"&&", "||", ";", "|", "#"})
 
 # Make flags that consume the following token, so `make -C dir test` does not read
 # `dir` as a target. `-j` may appear with or without a value; treating its argument
@@ -63,54 +64,31 @@ _FLAGS_WITH_VALUE = frozenset(
     {"-C", "--directory", "-f", "--file", "--makefile", "-I", "--include-dir", "-o", "-W", "-j", "--jobs"}
 )
 
-# A token that cannot be resolved to a literal target name.
-_DYNAMIC = ("$", "`", "*", "?")
+# A token that cannot be resolved to a literal target name: a variable or command
+# substitution, or a glob. Both meanings come from the makefile parser, so the two
+# hooks agree on what "unresolvable" means.
+_DYNAMIC = (*VARIABLE_CHARS, *GLOB_CHARS)
 
 
-def _include_paths(content: str, base: Path) -> list[Path]:
-    """Resolve the include directives in one makefile to concrete paths.
+def _command_strings(value: Any) -> list[str]:
+    """Return the shell strings held by the value of a command key.
 
-    Globs are expanded and missing files simply yield nothing, which matches make's
-    own behaviour for the optional (``-include``) form and is harmless for the
-    mandatory one — a Makefile whose include is missing is broken in a way this hook
-    is not trying to report.
+    A command key carries either one snippet (GitHub's ``run:``) or a list of them
+    (GitLab's ``script:``). Anything else — a number, a mapping — is not a command,
+    and non-string entries inside a list are dropped rather than crashing the walk.
     """
-    paths: list[Path] = []
-    for directive in _INCLUDE_PATTERN.findall(content):
-        for token in directive.split():
-            if any(char in token for char in _DYNAMIC[:2]):
-                continue  # a variable-driven include: unresolvable here
-            paths.extend(sorted(base.glob(token)) if "*" in token or "?" in token else [base / token])
-    return paths
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, str)]
+    return []
 
 
-def collect_targets(repo_root: Path) -> set[str]:
-    """Return every target defined by the root Makefile and its includes, transitively.
-
-    Args:
-        repo_root: Root directory of the repository.
-
-    Returns:
-        Set of target names. Empty when there is no Makefile at all.
-    """
-    targets: set[str] = set()
-    seen: set[Path] = set()
-    queue = [repo_root / "Makefile"]
-
-    while queue:
-        path = queue.pop()
-        resolved = path.resolve()
-        if resolved in seen or not path.is_file():
-            continue
-        seen.add(resolved)
-        try:
-            content = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
-        targets |= extract_targets(content)
-        queue.extend(_include_paths(content, repo_root))
-
-    return targets
+def _snippets_under(key: Any, value: Any) -> list[str]:
+    """Return the snippets one mapping entry contributes: its own, or its subtree's."""
+    if key in _SHELL_KEYS:
+        return _command_strings(value)
+    return _shell_snippets(value)
 
 
 def _shell_snippets(node: Any) -> list[str]:
@@ -121,16 +99,29 @@ def _shell_snippets(node: Any) -> list[str]:
     commands.
     """
     if isinstance(node, dict):
-        snippets: list[str] = []
-        for key, value in node.items():
-            if key in _SHELL_KEYS:
-                snippets.extend([value] if isinstance(value, str) else [v for v in value if isinstance(v, str)])
-            else:
-                snippets.extend(_shell_snippets(value))
-        return snippets
+        return list(chain.from_iterable(_snippets_under(key, value) for key, value in node.items()))
     if isinstance(node, list):
-        return [snippet for item in node for snippet in _shell_snippets(item)]
+        return list(chain.from_iterable(_shell_snippets(item) for item in node))
     return []
+
+
+def _is_dynamic(word: str) -> bool:
+    """Report whether a word names something only make or a shell can resolve."""
+    return any(char in word for char in _DYNAMIC)
+
+
+def _drop_flags(words: list[str]) -> list[str]:
+    """Drop make's flags and, for the flags that take one, the value that follows."""
+    kept: list[str] = []
+    skip_next = False
+    for word in words:
+        if skip_next:
+            skip_next = False
+        elif word.startswith("-"):
+            skip_next = word in _FLAGS_WITH_VALUE
+        else:
+            kept.append(word)
+    return kept
 
 
 def _targets_in_command(words: list[str]) -> list[str]:
@@ -143,25 +134,14 @@ def _targets_in_command(words: list[str]) -> list[str]:
     ``make ${{ matrix.task }}`` is three words once split, and dropping only the
     ``${{`` would leave ``matrix.task`` and ``}}`` looking like targets — reporting
     two invented names and blocking every commit. Losing a resolvable target that
-    happens to share a command with a dynamic one is the cheaper mistake.
+    happens to share a command with a dynamic one is the cheaper mistake. Flags are
+    dropped *first*, so a dynamic flag value (``make -C $DIR test``) costs nothing:
+    it is never a target name either way.
     """
-    targets: list[str] = []
-    skip_next = False
-    for word in words:
-        if word in {"&&", "||", ";", "|", "#"}:
-            break
-        if skip_next:
-            skip_next = False
-            continue
-        if any(char in word for char in _DYNAMIC):
-            return []
-        if word.startswith("-"):
-            skip_next = word in _FLAGS_WITH_VALUE
-            continue
-        if "=" in word:
-            continue
-        targets.append(word)
-    return targets
+    candidates = _drop_flags(list(takewhile(lambda word: word not in _SEPARATORS, words)))
+    if any(_is_dynamic(word) for word in candidates):
+        return []
+    return [word for word in candidates if "=" not in word]
 
 
 def invoked_targets(snippet: str) -> set[str]:
@@ -175,24 +155,34 @@ def invoked_targets(snippet: str) -> set[str]:
     return targets
 
 
-def _ci_invocations(repo_root: Path) -> dict[str, set[str]]:
-    """Map each CI definition file to the targets it invokes.
-
-    A file that will not parse as YAML is skipped: ``check-yaml`` and ``actionlint``
-    report that, and guessing at a broken document would only produce noise.
-    """
-    invocations: dict[str, set[str]] = {}
+def _ci_files(repo_root: Path) -> list[Path]:
+    """Return the CI definition files the repo actually has, in a stable order."""
     candidates = [*sorted(repo_root.glob(WORKFLOW_GLOB)), repo_root / GITLAB_CI]
-    for path in candidates:
-        if not path.is_file():
-            continue
-        try:
-            document = yaml.safe_load(path.read_text(encoding="utf-8"))
-        except (yaml.YAMLError, OSError, UnicodeDecodeError, ValueError, OverflowError):
-            continue
-        targets: set[str] = set()
-        for snippet in _shell_snippets(document):
-            targets |= invoked_targets(snippet)
+    return [path for path in candidates if path.is_file()]
+
+
+def _targets_invoked_by(path: Path) -> set[str]:
+    """Return every make target one CI definition invokes.
+
+    A file that will not parse as YAML contributes nothing: ``check-yaml`` and
+    ``actionlint`` report that, and guessing at a broken document would only produce
+    noise.
+    """
+    try:
+        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (yaml.YAMLError, OSError, UnicodeDecodeError, ValueError, OverflowError):
+        return set()
+    targets: set[str] = set()
+    for snippet in _shell_snippets(document):
+        targets |= invoked_targets(snippet)
+    return targets
+
+
+def _ci_invocations(repo_root: Path) -> dict[str, set[str]]:
+    """Map each CI definition file that invokes make to the targets it names."""
+    invocations: dict[str, set[str]] = {}
+    for path in _ci_files(repo_root):
+        targets = _targets_invoked_by(path)
         if targets:
             invocations[path.relative_to(repo_root).as_posix()] = targets
     return invocations

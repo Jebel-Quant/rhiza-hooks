@@ -63,7 +63,7 @@ def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
         print(f"Warning: {readme_path} not found, skipping update")
         return False
 
-    content = readme_path.read_text()
+    content = readme_path.read_text(encoding="utf-8")
 
     # Check if markers exist
     # pragma below: equivalent mutant — with only one marker present the substitution
@@ -84,7 +84,7 @@ def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
     new_content = pattern.sub(new_section, content)
 
     if new_content != content:
-        readme_path.write_text(new_content)
+        readme_path.write_text(new_content, encoding="utf-8")
         print(f"Updated {readme_path} with make help output")
         return True
 
