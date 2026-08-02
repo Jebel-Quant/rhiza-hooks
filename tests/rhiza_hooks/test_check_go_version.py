@@ -109,6 +109,29 @@ def test_parse_ignores_indented_directive_inside_block() -> None:
     assert parse_go_mod(text) == {"go": "1.22"}
 
 
+def test_parse_ignores_directive_on_later_line_of_block() -> None:
+    """A directive on the *second* body line of a block is still skipped.
+
+    Every other block test has a single-line body, which the ``continue`` skips
+    before the loop re-evaluates ``in_block``. That leaves the exit condition
+    unpinned: invert it to ``line == ")"`` and the block would close after one
+    line, exposing the rest of the body as top-level directives.
+    """
+    text = "go 1.22\nrequire (\n\tfoo v1.0.0\n\ttoolchain go1.99.0\n)\n"
+    assert parse_go_mod(text) == {"go": "1.22"}
+
+
+def test_parse_detects_block_opened_with_trailing_comment() -> None:
+    """``require ( // comment`` still opens a block.
+
+    Comment stripping is what makes the ``endswith("(")`` test work here. The
+    other comment tests use lines where the trailing text cannot change the
+    match, so only this shape pins the strip to the block-detection path.
+    """
+    text = "go 1.22\nrequire ( // direct deps\n\ttoolchain go1.99.0\n)\n"
+    assert parse_go_mod(text) == {"go": "1.22"}
+
+
 def test_parse_ignores_single_line_require() -> None:
     """A single-line ``require`` directive contributes nothing."""
     assert parse_go_mod("go 1.22\nrequire example.com/x v1.0.0\n") == {"go": "1.22"}
