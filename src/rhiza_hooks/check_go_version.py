@@ -92,10 +92,11 @@ def get_go_mod_directives(repo_root: Path) -> dict[str, str]:
     if not path.exists():
         return {}
     try:
-        text = path.read_text()
-    except OSError:
-        # A directory at the path, permission denied, or a race between exists()
-        # and read: treat as "unspecified" rather than crashing the hook.
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        # A directory at the path, permission denied, a race between exists() and
+        # read, or bytes that are not UTF-8: treat as "unspecified" rather than
+        # crashing the hook.
         return {}
     return parse_go_mod(text)
 
@@ -114,8 +115,8 @@ def get_go_version_file(repo_root: Path) -> str | None:
     if not path.exists():
         return None
     try:
-        text = path.read_text()
-    except OSError:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
         return None
     return _normalize(text) or None
 

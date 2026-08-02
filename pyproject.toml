@@ -102,10 +102,15 @@ fail_under = 100
 exempt_dirs = ["meta"]
 
 # Version bumping. This block must live here: bump-my-version only searches
-# .bumpversion.toml, pyproject.toml, setup.cfg and .bumpversion.cfg — never
-# .rhiza/.cfg.toml, whose [tool.bumpversion] block is therefore inert. Without a
-# table in this file the tool falls back to `git describe` and computes bumps off
-# the last reachable tag rather than the version below.
+# .bumpversion.toml, pyproject.toml, setup.cfg and .bumpversion.cfg. Without a
+# table in one of those the tool does not error — it falls back to `git describe`
+# and computes bumps off the last reachable tag rather than the version above,
+# which silently offers a version that has already been published.
+#
+# The block used to live in .rhiza/.cfg.toml, where it was inert for exactly that
+# reason. Rhiza v1.3.0 deleted that file and now enforces the rule from the other
+# side: .rhiza/tests/test_pyproject.py::TestBumpversionConfigIsDiscoverable fails
+# if no discoverable config declares one.
 #
 # Deliberately no `current_version` and no [[tool.bumpversion.files]] entry:
 # bump-my-version reads and rewrites PEP 621 `[project].version` natively once it

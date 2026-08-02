@@ -75,9 +75,9 @@ def _replace_name_lines(lines: list[str], expected_name: str) -> list[str]:
 
 def _rewrite_workflow_name(filepath: str, expected_name: str) -> None:
     """Rewrite the top-level ``name:`` of a workflow file, preserving comments."""
-    with open(filepath) as f_read:
+    with open(filepath, encoding="utf-8") as f_read:
         lines = f_read.readlines()
-    with open(filepath, "w") as f_write:
+    with open(filepath, "w", encoding="utf-8") as f_write:
         f_write.writelines(_replace_name_lines(lines, expected_name))
 
 
@@ -90,7 +90,7 @@ def check_file(filepath: str) -> bool:
     Returns:
         bool: True if file is correct, False if it was updated or has errors.
     """
-    with open(filepath) as f:
+    with open(filepath, encoding="utf-8") as f:
         try:
             content = yaml.safe_load(f)
         except yaml.YAMLError as exc:

@@ -101,8 +101,8 @@ def read_legacy_toolchain(path: Path) -> str | None:
     if not path.exists():
         return None
     try:
-        text = path.read_text()
-    except OSError:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
         return None
 
     stripped = text.strip()

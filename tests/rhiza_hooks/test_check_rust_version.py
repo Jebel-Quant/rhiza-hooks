@@ -170,6 +170,17 @@ def test_legacy_unreadable_returns_none(tmp_path: Path) -> None:
     assert read_legacy_toolchain(tmp_path / "rust-toolchain") is None
 
 
+def test_legacy_undecodable_returns_none(tmp_path: Path) -> None:
+    """A legacy file that is not UTF-8 is treated as unspecified, not raised.
+
+    The read pins ``encoding="utf-8"`` so every platform decodes identically; the
+    decode error is caught alongside OSError so the pin cannot turn a locale
+    difference into a crash.
+    """
+    (tmp_path / "rust-toolchain").write_bytes(b"1.75.0 \xe9\n")
+    assert read_legacy_toolchain(tmp_path / "rust-toolchain") is None
+
+
 # ---------------------------------------------------------------------------
 # Unit tests: get_toolchain_channels
 # ---------------------------------------------------------------------------

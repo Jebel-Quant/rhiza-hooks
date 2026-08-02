@@ -28,68 +28,6 @@ def _workflow(root: Path, run: str, name: str = "ci.yml") -> None:
 
 
 # ---------------------------------------------------------------------------
-# collect_targets
-# ---------------------------------------------------------------------------
-def test_collects_root_targets(tmp_path: Path) -> None:
-    """Targets defined in the root Makefile are collected."""
-    _write(tmp_path, "Makefile", "test:\n\techo hi\nfmt::\n\techo fmt\n")
-    assert cwmt.collect_targets(tmp_path) == {"test", "fmt"}
-
-
-def test_collects_included_targets(tmp_path: Path) -> None:
-    """A target defined in an included makefile counts as defined."""
-    _write(tmp_path, "Makefile", "include .rhiza/rhiza.mk\ntest:\n\techo hi\n")
-    _write(tmp_path, ".rhiza/rhiza.mk", "book:\n\techo book\n")
-    assert cwmt.collect_targets(tmp_path) == {"test", "book"}
-
-
-def test_collects_transitively_through_globs(tmp_path: Path) -> None:
-    """Includes are followed transitively and globs are expanded (rhiza's own layout)."""
-    _write(tmp_path, "Makefile", "include .rhiza/rhiza.mk\n")
-    _write(tmp_path, ".rhiza/rhiza.mk", "-include .rhiza/make.d/*.mk\nbootstrap:\n\techo b\n")
-    _write(tmp_path, ".rhiza/make.d/test.mk", "coverage:\n\techo c\n")
-    _write(tmp_path, ".rhiza/make.d/book.mk", "book:\n\techo b\n")
-    assert cwmt.collect_targets(tmp_path) == {"bootstrap", "coverage", "book"}
-
-
-def test_missing_include_is_ignored(tmp_path: Path) -> None:
-    """An include naming a file that does not exist yields nothing, as with make's -include."""
-    _write(tmp_path, "Makefile", "-include local.mk\ntest:\n\techo hi\n")
-    assert cwmt.collect_targets(tmp_path) == {"test"}
-
-
-def test_variable_driven_include_is_skipped(tmp_path: Path) -> None:
-    """An include whose path comes from a variable cannot be resolved, and is skipped."""
-    _write(tmp_path, "Makefile", "include $(EXTRA_MK)\ntest:\n\techo hi\n")
-    assert cwmt.collect_targets(tmp_path) == {"test"}
-
-
-def test_include_cycle_terminates(tmp_path: Path) -> None:
-    """A makefile including one that includes it back is visited once, not forever."""
-    _write(tmp_path, "Makefile", "include a.mk\ntest:\n\techo hi\n")
-    _write(tmp_path, "a.mk", "include Makefile\nother:\n\techo o\n")
-    assert cwmt.collect_targets(tmp_path) == {"test", "other"}
-
-
-def test_unreadable_makefile_is_skipped(tmp_path: Path) -> None:
-    """A binary or undecodable makefile is skipped rather than crashing the hook."""
-    _write(tmp_path, "Makefile", "include bad.mk\ntest:\n\techo hi\n")
-    (tmp_path / "bad.mk").write_bytes(b"\xff\xfe\x00")
-    assert cwmt.collect_targets(tmp_path) == {"test"}
-
-
-def test_no_makefile_defines_nothing(tmp_path: Path) -> None:
-    """A repo with no Makefile has no targets."""
-    assert cwmt.collect_targets(tmp_path) == set()
-
-
-def test_directory_named_makefile_is_not_read(tmp_path: Path) -> None:
-    """A directory called Makefile is not a makefile."""
-    (tmp_path / "Makefile").mkdir()
-    assert cwmt.collect_targets(tmp_path) == set()
-
-
-# ---------------------------------------------------------------------------
 # invoked_targets
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
@@ -98,6 +36,9 @@ def test_directory_named_makefile_is_not_read(tmp_path: Path) -> None:
         ("make test", {"test"}),
         ("make fmt test", {"fmt", "test"}),
         ("make -C subdir test", {"test"}),
+        # Flags are dropped before the dynamic check, so a variable *flag value* does
+        # not abandon the command the way a variable target name does.
+        ("make -C $DIR test", {"test"}),
         ("make -j4 test", {"test"}),
         ("make --jobs 4 test", {"test"}),
         ("make -f other.mk test", {"test"}),
@@ -211,6 +152,18 @@ def test_non_string_script_items_are_ignored(tmp_path: Path) -> None:
     """A script list holding non-strings (odd YAML) does not crash the walk."""
     _write(tmp_path, "Makefile", "test:\n\techo hi\n")
     _write(tmp_path, ".gitlab-ci.yml", "build:\n  script:\n    - 42\n    - make test\n")
+    assert cwmt.check_workflow_make_targets(tmp_path) == []
+
+
+def test_scalar_command_value_is_ignored(tmp_path: Path) -> None:
+    """A command key holding neither a string nor a list contributes nothing.
+
+    ``script: 42`` is not a command. Reading it as one used to iterate an int and
+    raise TypeError, taking the whole hook down over a malformed CI file that
+    check-yaml and actionlint are the ones meant to report.
+    """
+    _write(tmp_path, "Makefile", "test:\n\techo hi\n")
+    _write(tmp_path, ".gitlab-ci.yml", "build:\n  script: 42\n")
     assert cwmt.check_workflow_make_targets(tmp_path) == []
 
 

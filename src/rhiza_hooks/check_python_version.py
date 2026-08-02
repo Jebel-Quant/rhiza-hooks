@@ -42,7 +42,7 @@ def get_python_version_file(repo_root: Path) -> str | None:
     if not version_file.exists():
         return None
 
-    content = version_file.read_text().strip()
+    content = version_file.read_text(encoding="utf-8").strip()
     # Extract major.minor version
     match = re.match(r"(\d+\.\d+)", content)
     return match.group(1) if match else content

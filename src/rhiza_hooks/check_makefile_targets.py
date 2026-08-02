@@ -4,9 +4,10 @@
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
+
+from rhiza_hooks._makefile import extract_targets
 
 # Common targets expected in rhiza-based projects
 RECOMMENDED_TARGETS = {
@@ -15,30 +16,6 @@ RECOMMENDED_TARGETS = {
     "fmt",
     "help",
 }
-
-# Pattern to match Makefile target definitions.
-#
-# A rule is `name:` or, for double-colon rules, `name::`. Variable assignments
-# (`name := ...`, `name ::= ...`) must NOT be mistaken for targets, so the
-# colon-run is matched possessively (`:++`, Python 3.11+) and a following `=`
-# is rejected with a negative lookahead — `:++` cannot backtrack to a shorter
-# run to dodge the lookahead, so `name :=` and `name ::=` are excluded while
-# `name:` and `name::` still match. Leading `[a-zA-Z_]` already excludes
-# dot-special targets (`.PHONY`) and pattern rules (`%.o`).
-TARGET_PATTERN = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_-]*)[ \t]*:++(?!=)", re.MULTILINE)
-
-
-def extract_targets(content: str) -> set[str]:
-    """Extract target names from Makefile content.
-
-    Args:
-        content: Contents of a Makefile
-
-    Returns:
-        Set of target names found
-    """
-    matches = TARGET_PATTERN.findall(content)
-    return set(matches)
 
 
 def check_makefile(filepath: Path, recommended: set[str] = RECOMMENDED_TARGETS) -> list[str]:
@@ -54,7 +31,7 @@ def check_makefile(filepath: Path, recommended: set[str] = RECOMMENDED_TARGETS) 
     warnings: list[str] = []
 
     try:
-        content = filepath.read_text()
+        content = filepath.read_text(encoding="utf-8")
     except FileNotFoundError:
         return [f"File not found: {filepath}"]
 
