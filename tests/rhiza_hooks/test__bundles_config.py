@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from textwrap import dedent
 
-from rhiza_hooks._bundles_config import _get_config_data, _get_templates_from_config
+from rhiza_hooks._bundles_config import _get_templates_from_config, get_config_data
 
 
 def test_get_templates_from_valid_config(tmp_path):
@@ -36,7 +36,7 @@ def test_get_config_data_normalizes_alias_form(tmp_path):
     """)
     )
 
-    config = _get_config_data(config_file)
+    config = get_config_data(config_file)
     assert config == {
         "template-repository": "test/repo",
         "template-branch": "main",

@@ -23,6 +23,7 @@ import configparser
 import sys
 import tomllib
 from pathlib import Path
+from typing import Any
 
 from rhiza_hooks._repo import find_repo_root
 
@@ -98,8 +99,36 @@ def read_project_version(repo_root: Path) -> str | None:
     return version if isinstance(version, str) else None
 
 
+def _toml_bumpversion_section(path: Path) -> dict[Any, Any] | None:
+    """Return the bumpversion section of a TOML candidate, or None if it has none.
+
+    ``.bumpversion.toml`` holds the section at the top level; ``pyproject.toml``
+    nests it under ``[tool]``. Accept whichever this file uses. A section that is
+    present but not a table reads as absent, like a malformed file.
+    """
+    data = _load_toml(path)
+    if data is None:
+        return None
+    tool = data.get("tool")
+    section = tool.get("bumpversion") if isinstance(tool, dict) else None
+    if section is None:
+        section = data.get("bumpversion")
+    return section if isinstance(section, dict) else None
+
+
+def _ini_bumpversion_section(path: Path) -> configparser.SectionProxy | None:
+    """Return the ``[bumpversion]`` section of an INI candidate, or None if it has none."""
+    parser = _load_ini(path)
+    if parser is None or not parser.has_section("bumpversion"):
+        return None
+    return parser["bumpversion"]
+
+
 def find_discoverable_config(repo_root: Path) -> tuple[str, str | None] | None:
     """Locate the first bumpversion section bump-my-version would actually read.
+
+    TOML candidates are searched before INI candidates, and the first file
+    carrying a section wins — bump-my-version's own search order.
 
     Args:
         repo_root: Root directory of the repository.
@@ -110,24 +139,15 @@ def find_discoverable_config(repo_root: Path) -> tuple[str, str | None] | None:
         when no searched file carries a bumpversion section.
     """
     for name in _TOML_CANDIDATES:
-        data = _load_toml(repo_root / name)
-        if data is None:
-            continue
-        tool = data.get("tool")
-        section = tool.get("bumpversion") if isinstance(tool, dict) else None
-        # .bumpversion.toml holds the section at the top level; pyproject.toml
-        # nests it under [tool]. Accept whichever this file uses.
-        if section is None:
-            section = data.get("bumpversion")
-        if isinstance(section, dict):
-            declared = section.get("current_version")
+        toml_section = _toml_bumpversion_section(repo_root / name)
+        if toml_section is not None:
+            declared = toml_section.get("current_version")
             return name, declared if isinstance(declared, str) else None
 
     for name in _INI_CANDIDATES:
-        parser = _load_ini(repo_root / name)
-        if parser is None or not parser.has_section("bumpversion"):
-            continue
-        return name, parser.get("bumpversion", "current_version", fallback=None)
+        ini_section = _ini_bumpversion_section(repo_root / name)
+        if ini_section is not None:
+            return name, ini_section.get("current_version")
 
     return None
 

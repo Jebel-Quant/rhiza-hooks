@@ -30,7 +30,7 @@ def _not_a_known_bundle(value: Any, bundle_names: set[Any]) -> bool:
         return True
 
 
-def _validate_top_level_fields(data: dict[Any, Any]) -> list[str]:
+def validate_top_level_fields(data: dict[Any, Any]) -> list[str]:
     """Validate required top-level fields."""
     errors = []
     required_fields = {"version", "bundles"}
@@ -141,7 +141,7 @@ def _validate_metadata(metadata: Any, bundles: dict[Any, Any]) -> list[str]:
     return errors
 
 
-def _validate_selected_bundles(
+def validate_selected_bundles(
     templates: set[str],
     bundles: dict[Any, Any],
     missing_message: Callable[[str], str],
@@ -191,7 +191,7 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
     data = loaded.data
 
     # Validate top-level fields
-    errors = _validate_top_level_fields(data)
+    errors = validate_top_level_fields(data)
     if errors:
         return False, errors
 
@@ -203,7 +203,7 @@ def validate_template_bundles(bundles_path: Path, templates_to_check: set[str] |
     if templates_to_check is not None:
         # Validate only the requested subset (existence + structure).
         errors.extend(
-            _validate_selected_bundles(
+            validate_selected_bundles(
                 templates_to_check,
                 bundles,
                 lambda t: f"Template '{t}' specified in .rhiza/template.yml not found in bundles",

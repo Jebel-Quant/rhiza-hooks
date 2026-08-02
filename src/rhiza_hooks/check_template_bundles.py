@@ -17,6 +17,11 @@ and :mod:`rhiza_hooks._bundles_config` (reading ``.rhiza/template.yml``). This
 module is the CLI/orchestration layer and re-exports those helpers so
 ``rhiza_hooks.check_template_bundles`` remains the single public import surface.
 
+Those three modules are themselves private, so the package's public surface is
+unchanged by the split. Within them a leading underscore marks a helper with no
+caller outside its own file — which is why this module imports only unprefixed
+names from them.
+
 Exit codes:
   0 - Validation passed
   1 - Validation failed
@@ -31,11 +36,11 @@ from pathlib import Path
 from typing import Any
 
 from rhiza_hooks import _bundles_validate, _repo
-from rhiza_hooks._bundles_config import _get_config_data
+from rhiza_hooks._bundles_config import get_config_data
 from rhiza_hooks._bundles_fetch import (
-    _FETCH_ATTEMPTS,
-    _FETCH_TIMEOUT_SECONDS,
-    _fetch_remote_bundles,
+    FETCH_ATTEMPTS,
+    FETCH_TIMEOUT_SECONDS,
+    fetch_remote_bundles,
 )
 
 
@@ -52,7 +57,7 @@ def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any], set[st
     Returns:
         (config, templates_set) if validation succeeds, otherwise ``None``
     """
-    config = _get_config_data(config_path)
+    config = get_config_data(config_path)
     if config is None:
         print(f"Could not load configuration from {config_path}, skipping validation")
         return None
@@ -77,8 +82,8 @@ def _validate_remote_bundles(
     template_repo: str,
     template_branch: str,
     templates_set: set[str],
-    attempts: int = _FETCH_ATTEMPTS,
-    timeout: float = _FETCH_TIMEOUT_SECONDS,
+    attempts: int = FETCH_ATTEMPTS,
+    timeout: float = FETCH_TIMEOUT_SECONDS,
 ) -> tuple[dict[Any, Any] | None, list[str]]:
     """Fetch and validate remote bundles.
 
@@ -88,7 +93,7 @@ def _validate_remote_bundles(
     print(f"Fetching template bundles from {template_repo} (branch: {template_branch})")
     print(f"Checking templates: {', '.join(sorted(templates_set))}")
 
-    fetched = _fetch_remote_bundles(template_repo, template_branch, attempts=attempts, timeout=timeout)
+    fetched = fetch_remote_bundles(template_repo, template_branch, attempts=attempts, timeout=timeout)
     if fetched.data is None:
         _report_errors("\n✗ Failed to fetch template bundles:", fetched.errors)
         return None, fetched.errors
@@ -97,7 +102,7 @@ def _validate_remote_bundles(
     data = fetched.data
 
     # Validate top-level structure
-    errors = _bundles_validate._validate_top_level_fields(data)
+    errors = _bundles_validate.validate_top_level_fields(data)
     if errors:
         _report_errors("\n✗ Template bundles validation failed:", errors)
         return None, errors
@@ -113,7 +118,7 @@ def _validate_remote_bundles(
 
 def _validate_templates_in_bundles(templates_set: set[str], bundles: dict[Any, Any], config_path: Path) -> list[str]:
     """Validate that requested templates exist in the remote bundles and are well-formed."""
-    return _bundles_validate._validate_selected_bundles(
+    return _bundles_validate.validate_selected_bundles(
         templates_set,
         bundles,
         lambda t: f"Template '{t}' specified in {config_path} not found in remote bundles",
@@ -136,13 +141,13 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument(
         "--retries",
         type=int,
-        default=_FETCH_ATTEMPTS - 1,
+        default=FETCH_ATTEMPTS - 1,
         help="Number of retries for transient network failures, after the initial attempt (default: %(default)s)",
     )
     parser.add_argument(
         "--timeout",
         type=float,
-        default=_FETCH_TIMEOUT_SECONDS,
+        default=FETCH_TIMEOUT_SECONDS,
         help="Per-request network timeout in seconds (default: %(default)s)",
     )
     args = parser.parse_args(argv)

@@ -24,9 +24,9 @@ from rhiza_hooks._yaml import YamlError, YamlFailure, load_yaml_mapping
 # Remote fetch is retried on transient network errors before giving up. Two
 # attempts = one initial try plus one retry, with a short linear backoff.
 # These are defaults; the CLI exposes `--retries` and `--timeout` to override.
-_FETCH_ATTEMPTS = 2
-_FETCH_BACKOFF_SECONDS = 1.0
-_FETCH_TIMEOUT_SECONDS = 10.0
+FETCH_ATTEMPTS = 2
+FETCH_BACKOFF_SECONDS = 1.0
+FETCH_TIMEOUT_SECONDS = 10.0
 
 
 @dataclass(frozen=True)
@@ -47,7 +47,7 @@ class BundlesDoc:
 def load_local_bundles(bundles_path: Path) -> BundlesDoc:
     """Load and parse a local template-bundles file into a :class:`BundlesDoc`.
 
-    This is the local-file counterpart to :func:`_fetch_remote_bundles` and part
+    This is the local-file counterpart to :func:`fetch_remote_bundles` and part
     of this module's cross-module surface — :mod:`rhiza_hooks._bundles_validate`
     calls it to load a document before validating it.
     """
@@ -115,12 +115,12 @@ def _log_failed_attempt(attempt: int, attempts: int, error: str, backoff: float)
         print(f"  Attempt {attempt + 1}/{attempts} failed: {error}")
 
 
-def _fetch_remote_bundles(
+def fetch_remote_bundles(
     repo: str,
     branch: str,
-    attempts: int = _FETCH_ATTEMPTS,
-    backoff: float = _FETCH_BACKOFF_SECONDS,
-    timeout: float = _FETCH_TIMEOUT_SECONDS,
+    attempts: int = FETCH_ATTEMPTS,
+    backoff: float = FETCH_BACKOFF_SECONDS,
+    timeout: float = FETCH_TIMEOUT_SECONDS,
 ) -> BundlesDoc:
     """Fetch template-bundles.yml from a remote GitHub repository.
 

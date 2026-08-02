@@ -96,12 +96,12 @@ templates:
   - core
 """)
 
-    # Mock _fetch_remote_bundles to return invalid bundles (missing version)
+    # Mock fetch_remote_bundles to return invalid bundles (missing version)
     def mock_fetch_remote_bundles(repo, branch, **kwargs):
         """Return bundles missing the version field to trigger validation failure."""
         return BundlesDoc({"bundles": {"core": {"files": [".gitignore"]}}}, [])
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
 
     # Test with invalid file (missing version) - should fail validation
     result = main([str(template_file)])
@@ -127,14 +127,14 @@ def test_main_with_cwd_default(tmp_path, monkeypatch, valid_bundles_content, cap
     """)
     )
 
-    # Mock _fetch_remote_bundles to return valid bundles
+    # Mock fetch_remote_bundles to return valid bundles
     def mock_fetch_remote_bundles(repo, branch, **kwargs):
         """Return a valid bundles doc with a single core bundle."""
         return BundlesDoc(
             {"version": 1.0, "bundles": {"core": {"description": "Core files", "files": [".gitignore"]}}}, []
         )
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
 
     # Change to the tmp_path directory
     monkeypatch.chdir(tmp_path)
@@ -208,7 +208,7 @@ def test_module_executes_main(tmp_path, monkeypatch):
     """)
     )
 
-    # Create a mock script that patches _fetch_remote_bundles
+    # Create a mock script that patches fetch_remote_bundles
     mock_script = tmp_path / "mock_fetch.py"
     mock_script.write_text(
         dedent("""
@@ -231,7 +231,7 @@ def test_module_executes_main(tmp_path, monkeypatch):
                 [],
             )
 
-        with patch("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles):
+        with patch("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles):
             from rhiza_hooks.check_template_bundles import main
             sys.exit(main())
     """)
@@ -259,7 +259,7 @@ def test_module_executes_main(tmp_path, monkeypatch):
 def test_main_with_alias_form_config(tmp_path, monkeypatch, capsys):
     """An alias-form config resolves the repository and proceeds to validation.
 
-    Regression for #268: before normalization moved into ``_get_config_data``,
+    Regression for #268: before normalization moved into ``get_config_data``,
     ``repository``/``ref``/``profiles`` were read as the canonical keys and came
     back ``None``, so the hook printed "Missing template-repository or
     template-branch" and returned 1 instead of validating.
@@ -285,7 +285,7 @@ def test_main_with_alias_form_config(tmp_path, monkeypatch, capsys):
             {"version": 1.0, "bundles": {"core": {"description": "Core files", "files": [".gitignore"]}}}, []
         )
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
     monkeypatch.chdir(tmp_path)
 
     result = main([])
@@ -317,7 +317,7 @@ def test_alias_form_accepted_by_both_hooks(tmp_path, monkeypatch):
 
     # check-template-bundles accepts the identical file and validates successfully.
     monkeypatch.setattr(
-        "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
+        "rhiza_hooks.check_template_bundles.fetch_remote_bundles",
         lambda repo, branch, **kwargs: BundlesDoc(
             {"version": 1.0, "bundles": {"core": {"description": "Core files", "files": [".gitignore"]}}}, []
         ),
@@ -349,7 +349,7 @@ def test_main_missing_template_repository(tmp_path, monkeypatch, capsys):
 
     # A fetch stub guards against the mutant branch attempting a real network call.
     monkeypatch.setattr(
-        "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
+        "rhiza_hooks.check_template_bundles.fetch_remote_bundles",
         lambda repo, branch, **kwargs: BundlesDoc(None, ["stub"]),
     )
     # Change to the tmp_path directory
@@ -382,7 +382,7 @@ def test_main_missing_template_branch(tmp_path, monkeypatch, capsys):
     )
 
     monkeypatch.setattr(
-        "rhiza_hooks.check_template_bundles._fetch_remote_bundles",
+        "rhiza_hooks.check_template_bundles.fetch_remote_bundles",
         lambda repo, branch, **kwargs: BundlesDoc(None, ["stub"]),
     )
     # Change to the tmp_path directory
@@ -414,12 +414,12 @@ def test_main_fetch_remote_fails(tmp_path, monkeypatch):
     """)
     )
 
-    # Mock _fetch_remote_bundles to return failure
+    # Mock fetch_remote_bundles to return failure
     def mock_fetch_remote_bundles(repo, branch, **kwargs):
         """Return a fetch failure with no data and an error message."""
         return BundlesDoc(None, ["Failed to fetch remote bundles"])
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
 
     # Change to the tmp_path directory
     monkeypatch.chdir(tmp_path)
@@ -448,12 +448,12 @@ def test_main_bundles_not_dict(tmp_path, monkeypatch):
     """)
     )
 
-    # Mock _fetch_remote_bundles to return bundles as a list instead of dict
+    # Mock fetch_remote_bundles to return bundles as a list instead of dict
     def mock_fetch_remote_bundles(repo, branch, **kwargs):
         """Return remote data whose bundles field is a list instead of a dict."""
         return BundlesDoc({"version": 1.0, "bundles": []}, [])
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
 
     # Change to the tmp_path directory
     monkeypatch.chdir(tmp_path)
@@ -483,7 +483,7 @@ def test_main_template_not_in_bundles(tmp_path, monkeypatch, capsys):
     """)
     )
 
-    # Mock _fetch_remote_bundles to return bundles without the requested template
+    # Mock fetch_remote_bundles to return bundles without the requested template
     def mock_fetch_remote_bundles(repo, branch, **kwargs):
         """Return bundles lacking the requested 'nonexistent' template."""
         return BundlesDoc(
@@ -494,7 +494,7 @@ def test_main_template_not_in_bundles(tmp_path, monkeypatch, capsys):
             [],
         )
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
 
     # Change to the tmp_path directory
     monkeypatch.chdir(tmp_path)
@@ -528,12 +528,12 @@ def test_main_invalid_bundle_structure_in_remote(tmp_path, monkeypatch):
     """)
     )
 
-    # Mock _fetch_remote_bundles to return invalid bundle structure (missing description)
+    # Mock fetch_remote_bundles to return invalid bundle structure (missing description)
     def mock_fetch_remote_bundles(repo, branch, **kwargs):
         """Return a bundle with invalid structure missing its description."""
         return BundlesDoc({"version": 1.0, "bundles": {"core": {"files": [".gitignore"]}}}, [])
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
 
     # Change to the tmp_path directory
     monkeypatch.chdir(tmp_path)
@@ -629,7 +629,7 @@ def test_main_name_block_with_runpy(tmp_path, monkeypatch):
 def test_success_prints_progress(monkeypatch, capsys):
     """Successful fetch+validate prints the exact 'Fetching'/'Checking' lines."""
     monkeypatch.setattr(
-        f"{_MOD}._fetch_remote_bundles",
+        f"{_MOD}.fetch_remote_bundles",
         lambda repo, branch, **kwargs: BundlesDoc(
             {"version": 1.0, "bundles": {"core": {"description": "d", "files": ["f"]}}}, []
         ),
@@ -645,7 +645,7 @@ def test_success_prints_progress(monkeypatch, capsys):
 
 def test_fetch_failure_prints_errors(monkeypatch, capsys):
     """A failed fetch prints the exact failure header and bullet, returning (None, errors)."""
-    monkeypatch.setattr(f"{_MOD}._fetch_remote_bundles", lambda repo, branch, **kwargs: BundlesDoc(None, ["boom"]))
+    monkeypatch.setattr(f"{_MOD}.fetch_remote_bundles", lambda repo, branch, **kwargs: BundlesDoc(None, ["boom"]))
     data, errors = _validate_remote_bundles("test/repo", "main", {"core"})
     assert data is None
     assert errors == ["boom"]
@@ -659,9 +659,9 @@ def test_fetch_failure_prints_errors(monkeypatch, capsys):
 
 def test_invalid_top_level_returns_none(monkeypatch, capsys):
     """Remote data missing 'version' fails: returns (None, errors), not (data, [])."""
-    monkeypatch.setattr(f"{_MOD}._fetch_remote_bundles", lambda repo, branch, **kwargs: BundlesDoc({"bundles": {}}, []))
+    monkeypatch.setattr(f"{_MOD}.fetch_remote_bundles", lambda repo, branch, **kwargs: BundlesDoc({"bundles": {}}, []))
     data, errors = _validate_remote_bundles("test/repo", "main", {"core"})
-    # data is None pins `errors = _validate_top_level_fields(data)` (vs the `errors = None` mutant).
+    # data is None pins `errors = validate_top_level_fields(data)` (vs the `errors = None` mutant).
     assert data is None
     assert errors == ["Missing required field: version"]
     lines = capsys.readouterr().out.splitlines()
@@ -672,7 +672,7 @@ def test_invalid_top_level_returns_none(monkeypatch, capsys):
 def test_bundles_not_dict_returns_none(monkeypatch, capsys):
     """Remote 'bundles' not a dict fails with the exact header and bullet."""
     monkeypatch.setattr(
-        f"{_MOD}._fetch_remote_bundles",
+        f"{_MOD}.fetch_remote_bundles",
         lambda repo, branch, **kwargs: BundlesDoc({"version": 1.0, "bundles": []}, []),
     )
     data, errors = _validate_remote_bundles("test/repo", "main", {"core"})
@@ -774,7 +774,7 @@ def test_flags_forwarded_to_fetch(tmp_path, monkeypatch):
         seen["timeout"] = timeout
         return BundlesDoc({"version": 1.0, "bundles": {"core": {"description": "Core", "files": [".gitignore"]}}}, [])
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
 
     assert main(["--retries", "4", "--timeout", "7.5"]) == 0
     # --retries counts retries after the first attempt, so attempts = retries + 1.
@@ -783,7 +783,7 @@ def test_flags_forwarded_to_fetch(tmp_path, monkeypatch):
 
 def test_defaults_when_flags_absent(tmp_path, monkeypatch):
     """Without flags, the documented defaults (2 attempts, 10s) are used."""
-    from rhiza_hooks.check_template_bundles import _FETCH_ATTEMPTS, _FETCH_TIMEOUT_SECONDS
+    from rhiza_hooks.check_template_bundles import FETCH_ATTEMPTS, FETCH_TIMEOUT_SECONDS
 
     _make_config(tmp_path, monkeypatch)
 
@@ -795,10 +795,10 @@ def test_defaults_when_flags_absent(tmp_path, monkeypatch):
         seen["timeout"] = timeout
         return BundlesDoc({"version": 1.0, "bundles": {"core": {"description": "Core", "files": [".gitignore"]}}}, [])
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
 
     assert main([]) == 0
-    assert seen == {"attempts": _FETCH_ATTEMPTS, "timeout": _FETCH_TIMEOUT_SECONDS}
+    assert seen == {"attempts": FETCH_ATTEMPTS, "timeout": FETCH_TIMEOUT_SECONDS}
 
 
 def test_negative_retries_rejected():
@@ -831,7 +831,7 @@ def test_zero_retries_accepted(tmp_path, monkeypatch):
         seen["attempts"] = attempts
         return BundlesDoc({"version": 1.0, "bundles": {"core": {"description": "Core", "files": [".gitignore"]}}}, [])
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
 
     assert main(["--retries", "0"]) == 0
     assert seen["attempts"] == 1
@@ -853,7 +853,7 @@ def test_sub_second_timeout_accepted(tmp_path, monkeypatch):
         seen["timeout"] = timeout
         return BundlesDoc({"version": 1.0, "bundles": {"core": {"description": "Core", "files": [".gitignore"]}}}, [])
 
-    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles.fetch_remote_bundles", mock_fetch_remote_bundles)
 
     assert main(["--timeout", "0.5"]) == 0
     assert seen["timeout"] == 0.5
