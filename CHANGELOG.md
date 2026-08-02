@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com),
 and entries are generated from [Conventional Commits](https://www.conventionalcommits.org).
 
+## [0.8.0] - 2026-08-02
+
+### New Features
+- Add check-bumpversion-config hook (#287)
+
+### Maintenance
+- Flatten the Rust and Go version checks; document the new hooks (#291)
+- Enforce the pre-commit manifest contract and widen the e2e run (#297)
+
+### Other Changes
+- Remove mutation testing; add six boundary tests; keep the README rev pin current (#292)
+
 ## [0.7.1] - 2026-08-02
 
 ### Bug Fixes
