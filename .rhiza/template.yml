@@ -6,3 +6,11 @@ profiles:
 
 templates:
   - legal
+
+# Files from the profiles above that this project deliberately does not want.
+# Listed here so `rhiza sync` never restores them.
+exclude:
+  # Mutation testing is not used in this repository. The gate enforces a 100%
+  # mutation score, which is unreachable here without suppressing equivalent
+  # mutants, and the signal did not justify the upkeep.
+  - .github/workflows/rhiza_mutation.yml

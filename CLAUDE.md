@@ -40,8 +40,9 @@ snapshot:
 ### `.github/`
 - Workflows: `rhiza_benchmark.yml`, `rhiza_book.yml`, `rhiza_ci.yml`,
   `rhiza_codeql.yml`, `rhiza_marimo.yml`, `rhiza_release.yml`, `rhiza_sync.yml`,
-  `rhiza_weekly.yml`, `rhiza_fuzzing.yml`, `rhiza_scorecard.yml`,
-  `rhiza_mutation.yml` (opt-in mutation gate — `MUTATION_ENABLED`)
+  `rhiza_weekly.yml`, `rhiza_fuzzing.yml`, `rhiza_scorecard.yml`
+  (`rhiza_mutation.yml` is excluded — see the `exclude:` block in
+  [`.rhiza/template.yml`](.rhiza/template.yml))
 - `CONFIG.md`, `dependabot.yml`, `release.yml`, `secret_scanning.yml`,
   `pull_request_template.md`
 - `DISCUSSION_TEMPLATE/`, `ISSUE_TEMPLATE/`
@@ -65,9 +66,15 @@ snapshot:
 
 ### Excluded from sync
 
-Nothing is currently excluded: `.rhiza/template.yml` declares no `exclude:` block
-and `.rhiza/template.lock` records `exclude: []`. If a synced file ever needs to be
+`.rhiza/template.yml` excludes `.github/workflows/rhiza_mutation.yml` — mutation
+testing is not used here (the gate enforces a 100% mutation score, unreachable
+without suppressing equivalent mutants). If another synced file needs to be
 dropped locally, add it under `exclude:` in `.rhiza/template.yml` and re-sync.
+
+Note that `make mutation` (from the managed `.rhiza/make.d/test.mk`) and the
+mutation section of `docs/development/TESTS.md` still exist — both are Rhiza-owned
+files that cannot be excluded without losing unrelated content, so removing them
+would require an upstream change in `jebel-quant/rhiza`.
 
 > Tests owned by bundles this repo does **not** select (e.g. `gh-aw`, `lfs`)
 > are never synced in the first place, so they need no `exclude:` entry.

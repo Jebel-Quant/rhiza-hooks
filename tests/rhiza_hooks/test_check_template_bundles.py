@@ -815,6 +815,50 @@ def test_non_positive_timeout_rejected():
     assert exc_info.value.code == 2
 
 
+def test_zero_retries_accepted(tmp_path, monkeypatch):
+    """--retries 0 is the boundary the validator *accepts*: one attempt, no retry.
+
+    Pairs with :func:`test_negative_retries_rejected`. Without this, the guard
+    could be ``retries <= 0`` or ``retries < 1`` and every test would still pass,
+    silently making a single-attempt run impossible.
+    """
+    _make_config(tmp_path, monkeypatch)
+
+    seen = {}
+
+    def mock_fetch_remote_bundles(repo, branch, *, attempts, timeout):
+        """Record the forwarded attempts and return valid bundles."""
+        seen["attempts"] = attempts
+        return BundlesDoc({"version": 1.0, "bundles": {"core": {"description": "Core", "files": [".gitignore"]}}}, [])
+
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+
+    assert main(["--retries", "0"]) == 0
+    assert seen["attempts"] == 1
+
+
+def test_sub_second_timeout_accepted(tmp_path, monkeypatch):
+    """A timeout in (0, 1] is accepted — "positive", not "at least one second".
+
+    Pairs with :func:`test_non_positive_timeout_rejected`. Without this, the
+    guard could be ``timeout <= 1`` and every test would still pass, silently
+    rejecting the sub-second timeouts a fast mirror would want.
+    """
+    _make_config(tmp_path, monkeypatch)
+
+    seen = {}
+
+    def mock_fetch_remote_bundles(repo, branch, *, attempts, timeout):
+        """Record the forwarded timeout and return valid bundles."""
+        seen["timeout"] = timeout
+        return BundlesDoc({"version": 1.0, "bundles": {"core": {"description": "Core", "files": [".gitignore"]}}}, [])
+
+    monkeypatch.setattr("rhiza_hooks.check_template_bundles._fetch_remote_bundles", mock_fetch_remote_bundles)
+
+    assert main(["--timeout", "0.5"]) == 0
+    assert seen["timeout"] == 0.5
+
+
 def test_flags_in_help(capsys):
     """--help advertises the new flags."""
     with pytest.raises(SystemExit):
