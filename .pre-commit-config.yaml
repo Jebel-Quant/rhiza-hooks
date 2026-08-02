@@ -99,65 +99,71 @@ repos:
   # `repo: local` is the pre-commit analogue of `uses: ./.github/actions/...`:
   # no rev, nothing to bump, and the hooks run against the working tree rather
   # than the last release — which is what dogfooding is supposed to mean.
+  #
+  # Entries go through scripts/run_hook.sh, which locates uv the way the rhiza
+  # Makefile does (PATH, then ./bin) — a bare `uv run` entry fails in CI, where
+  # uv is installed into ./bin and never put on PATH. That script's header
+  # records why `language: python` cannot be used here instead.
+  #
   # Entries mirror `.pre-commit-hooks.yaml`; keep the two in step. See #293.
   - repo: local
     hooks:
       # Migrated from rhiza
       - id: check-rhiza-workflow-names
         name: Check and Fix Rhiza workflow names
-        entry: uv run --quiet --frozen check-rhiza-workflow-names
-        language: system
+        entry: scripts/run_hook.sh check-rhiza-workflow-names
+        language: script
         files: ^\.github/workflows/rhiza_.*\.ya?ml$
         types: [yaml]
 
       - id: update-readme-help
         name: Update README with Makefile help output
-        entry: uv run --quiet --frozen update-readme-help
-        language: system
+        entry: scripts/run_hook.sh update-readme-help
+        language: script
         files: ^Makefile$
         pass_filenames: false
 
       # Additional utility hooks
       - id: check-rhiza-config
         name: Check rhiza configuration
-        entry: uv run --quiet --frozen check-rhiza-config
-        language: system
+        entry: scripts/run_hook.sh check-rhiza-config
+        language: script
         files: ^\.rhiza/template\.yml$
         types: [yaml]
 
       - id: check-makefile-targets
         name: Check Makefile targets
-        entry: uv run --quiet --frozen check-makefile-targets
-        language: system
+        entry: scripts/run_hook.sh check-makefile-targets
+        language: script
         files: (^Makefile$|^\.rhiza/.*\.mk$)
         types: [makefile]
 
       - id: check-python-version-consistency
         name: Check Python version consistency
-        entry: uv run --quiet --frozen check-python-version-consistency
-        language: system
+        entry: scripts/run_hook.sh check-python-version-consistency
+        language: script
         files: (^\.python-version$|^pyproject\.toml$)
         pass_filenames: false
         always_run: true
 
       - id: check-rust-version-consistency
         name: Check Rust version consistency
-        entry: uv run --quiet --frozen check-rust-version-consistency
-        language: system
+        entry: scripts/run_hook.sh check-rust-version-consistency
+        language: script
         files: (^rust-toolchain$|^rust-toolchain\.toml$|^Cargo\.toml$)
         pass_filenames: false
 
       - id: check-go-version-consistency
         name: Check Go version consistency
-        entry: uv run --quiet --frozen check-go-version-consistency
-        language: system
+        entry: scripts/run_hook.sh check-go-version-consistency
+        language: script
         files: (^\.go-version$|^go\.mod$)
         pass_filenames: false
 
       - id: check-bumpversion-config
         name: Check bump-my-version config is discoverable
-        entry: uv run --quiet --frozen check-bumpversion-config
-        language: system
+        entry: scripts/run_hook.sh check-bumpversion-config
+        language: script
         files: (^pyproject\.toml$|^\.bumpversion\.(toml|cfg)$|^setup\.cfg$|^\.rhiza/\.cfg\.toml$)
         pass_filenames: false
 
@@ -166,7 +172,7 @@ repos:
         # --offline skips the network fetch so commits work offline and are not
         # coupled to the template repo's availability; drop it to validate the
         # configured templates against the remote template-bundles.yml.
-        entry: uv run --quiet --frozen check-template-bundles --offline
-        language: system
+        entry: scripts/run_hook.sh check-template-bundles --offline
+        language: script
         files: ^\.rhiza/template\.yml$
         types: [yaml]
