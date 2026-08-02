@@ -364,13 +364,13 @@ def test_every_channel_is_checked_against_every_msrv(tmp_path: Path) -> None:
 
     assert check_version_consistency(tmp_path) == [
         "Rust version mismatch: rust-toolchain pins channel 1.60.0, "
-        "but Cargo.toml [package] rust-version is 1.70 (the pinned toolchain must be at least the MSRV)",
+        + "but Cargo.toml [package] rust-version is 1.70 (the pinned toolchain must be at least the MSRV)",
         "Rust version mismatch: rust-toolchain pins channel 1.60.0, "
-        "but Cargo.toml [workspace.package] rust-version is 1.70 (the pinned toolchain must be at least the MSRV)",
+        + "but Cargo.toml [workspace.package] rust-version is 1.70 (the pinned toolchain must be at least the MSRV)",
         "Rust version mismatch: rust-toolchain.toml pins channel 1.60.0, "
-        "but Cargo.toml [package] rust-version is 1.70 (the pinned toolchain must be at least the MSRV)",
+        + "but Cargo.toml [package] rust-version is 1.70 (the pinned toolchain must be at least the MSRV)",
         "Rust version mismatch: rust-toolchain.toml pins channel 1.60.0, "
-        "but Cargo.toml [workspace.package] rust-version is 1.70 (the pinned toolchain must be at least the MSRV)",
+        + "but Cargo.toml [workspace.package] rust-version is 1.70 (the pinned toolchain must be at least the MSRV)",
     ]
 
 
