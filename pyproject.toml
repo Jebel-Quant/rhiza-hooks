@@ -91,3 +91,9 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 fail_under = 100
+
+[tool.check_test_layout]
+# tests/meta/ holds meta-tests for scripts/ utilities (e.g. check_test_layout.py
+# itself). They have no corresponding src/ module, so exempt the subtree from the
+# reverse (orphan) check while keeping forward parity enforced for every source module.
+exempt_dirs = ["meta"]
