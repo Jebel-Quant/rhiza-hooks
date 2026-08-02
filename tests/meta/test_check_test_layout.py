@@ -35,6 +35,19 @@ def test_top_level_classes(tmp_path: Path) -> None:
     assert ctl._top_level_classes(f) == {"A"}
 
 
+def test_top_level_classes_reads_non_ascii_source(tmp_path: Path) -> None:
+    """A source file holding non-ASCII UTF-8 is parsed, not decoded by the platform default.
+
+    The bytes are written explicitly so the file on disk is UTF-8 whatever the host's
+    default happens to be. Reading it back with that default is what used to fail: on
+    Windows (cp1252) the em dash below raised ``UnicodeDecodeError`` and took down the
+    whole layout check, which reads every test file in the repo.
+    """
+    f = tmp_path / "m.py"
+    f.write_bytes("# rôle : générer — voilà 🪝\nclass Café:\n    pass\n".encode())
+    assert ctl._top_level_classes(f) == {"Café"}
+
+
 def test_discovery_ignores_dunder_and_conftest(tmp_path: Path) -> None:
     """``__init__.py`` and ``conftest.py`` are silently excluded from both sides."""
     src = tmp_path / "src"

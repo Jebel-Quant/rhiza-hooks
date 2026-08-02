@@ -137,8 +137,17 @@ def _exempt_dirs(config: Mapping[str, object]) -> set[str]:
 
 
 def _top_level_classes(path: Path) -> set[str]:
-    """Return the names of top-level classes defined in *path*."""
-    tree = ast.parse(path.read_text(), filename=str(path))
+    """Return the names of top-level classes defined in *path*.
+
+    The source is handed to :func:`ast.parse` as *bytes*, not text. Decoding it here
+    would mean choosing an encoding, and the platform default is the wrong choice —
+    on Windows that is cp1252, where any test file containing an em dash or an
+    accented word raises ``UnicodeDecodeError`` and takes the whole check down.
+    ``ast.parse`` decodes bytes per PEP 263, honouring a ``# -*- coding: -*-`` cookie
+    and defaulting to UTF-8, which is exactly the rule the interpreter itself applies
+    to the file.
+    """
+    tree = ast.parse(path.read_bytes(), filename=str(path))
     return {node.name for node in tree.body if isinstance(node, ast.ClassDef)}
 
 
