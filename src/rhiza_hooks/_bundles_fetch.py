@@ -10,9 +10,10 @@ the returned mapping lives in :mod:`rhiza_hooks._bundles_validate`.
 from __future__ import annotations
 
 import time
+from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen
@@ -27,6 +28,19 @@ from rhiza_hooks._yaml import YamlError, YamlFailure, load_yaml_mapping
 FETCH_ATTEMPTS = 2
 FETCH_BACKOFF_SECONDS = 1.0
 FETCH_TIMEOUT_SECONDS = 10.0
+
+
+class _Opener(Protocol):
+    """The ``urlopen``-shaped callable that performs a single HTTP GET.
+
+    Injected rather than reached for so tests can supply a fake without patching
+    this module's ``urlopen`` binding by name — a fetch is then exercised through
+    the same argument every caller uses.
+    """
+
+    def __call__(self, url: str, *, timeout: float) -> AbstractContextManager[Any]:
+        """Open ``url`` and return a response context manager exposing ``read()``."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -80,15 +94,15 @@ def _parse_remote_bundles(content: bytes) -> BundlesDoc:
     return BundlesDoc(data, [])
 
 
-def _fetch_once(url: str, timeout: float, repo: str, branch: str) -> bytes | BundlesDoc | str:
-    """Perform a single fetch attempt.
+def _fetch_once(url: str, timeout: float, repo: str, branch: str, opener: _Opener) -> bytes | BundlesDoc | str:
+    """Perform a single fetch attempt with ``opener``.
 
     Returns the raw response ``bytes`` on success; a :class:`BundlesDoc` carrying
     a permanent HTTP error (e.g. 404) that must not be retried; or an error
     ``str`` describing a transient network/timeout failure that may be retried.
     """
     try:
-        with urlopen(url, timeout=timeout) as response:  # noqa: S310  # nosec B310
+        with opener(url, timeout=timeout) as response:
             content: bytes = response.read()
     except HTTPError as e:
         if e.code == 404:
@@ -121,6 +135,7 @@ def fetch_remote_bundles(
     attempts: int = FETCH_ATTEMPTS,
     backoff: float = FETCH_BACKOFF_SECONDS,
     timeout: float = FETCH_TIMEOUT_SECONDS,
+    opener: _Opener = urlopen,  # nosec B310
 ) -> BundlesDoc:
     """Fetch template-bundles.yml from a remote GitHub repository.
 
@@ -135,6 +150,9 @@ def fetch_remote_bundles(
         attempts: Total number of fetch attempts (initial try + retries)
         backoff: Base seconds to sleep between attempts (multiplied by attempt number)
         timeout: Per-request socket timeout in seconds
+        opener: Performs one HTTP GET; defaults to :func:`urllib.request.urlopen`.
+            Only the scheme-checked URL built below is ever passed to it — tests
+            substitute a fake instead of rebinding this module's ``urlopen``.
 
     Returns:
         A :class:`BundlesDoc` with the parsed mapping on success, or errors.
@@ -152,7 +170,7 @@ def fetch_remote_bundles(
     # errors return early), so for attempts >= 1 this initial value is never the one returned.
     errors: list[str] = []  # pragma: no mutate
     for attempt in range(attempts):
-        outcome = _fetch_once(url, timeout, repo, branch)
+        outcome = _fetch_once(url, timeout, repo, branch, opener)
         if isinstance(outcome, BundlesDoc):
             return outcome  # permanent HTTP error — do not retry
         if isinstance(outcome, bytes):
