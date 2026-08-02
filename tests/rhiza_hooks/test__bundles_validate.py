@@ -8,36 +8,36 @@ from rhiza_hooks._bundles_validate import (
     _validate_bundle_structure,
     _validate_examples,
     _validate_metadata,
-    _validate_top_level_fields,
     validate_template_bundles,
+    validate_top_level_fields,
 )
 
 
 def test_valid_fields():
     """Test with all required fields present."""
     data = {"version": 1.0, "bundles": {}}
-    errors = _validate_top_level_fields(data)
+    errors = validate_top_level_fields(data)
     assert errors == []
 
 
 def test_missing_version():
     """Test with missing version field reports the exact message."""
     data = {"bundles": {}}
-    errors = _validate_top_level_fields(data)
+    errors = validate_top_level_fields(data)
     assert errors == ["Missing required field: version"]
 
 
 def test_missing_bundles():
     """Test with missing bundles field reports the exact message."""
     data = {"version": 1.0}
-    errors = _validate_top_level_fields(data)
+    errors = validate_top_level_fields(data)
     assert errors == ["Missing required field: bundles"]
 
 
 def test_missing_all_fields():
     """Test with all required fields missing."""
     data = {}
-    errors = _validate_top_level_fields(data)
+    errors = validate_top_level_fields(data)
     assert len(errors) == 2
 
 

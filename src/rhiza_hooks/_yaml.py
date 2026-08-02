@@ -8,7 +8,7 @@ loader (:mod:`rhiza_hooks._bundles_fetch`), the ``.rhiza/template.yml`` reader
 ``yaml.safe_load`` → "is it a non-empty mapping?" sequence. Only the wording of
 their error messages differs. This module centralises that sequence and reports
 the failure mode as a small enum so each caller phrases its own message (or,
-like :func:`rhiza_hooks._bundles_config._get_config_data`, ignores the reason
+like :func:`rhiza_hooks._bundles_config.get_config_data`, ignores the reason
 and simply treats any failure as "absent").
 """
 

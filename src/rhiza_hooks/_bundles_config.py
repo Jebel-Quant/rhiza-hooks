@@ -16,7 +16,7 @@ from rhiza_hooks._config_schema import normalize_config
 from rhiza_hooks._yaml import YamlFailure, load_yaml_mapping
 
 
-def _get_config_data(config_path: Path) -> dict[str, Any] | None:
+def get_config_data(config_path: Path) -> dict[str, Any] | None:
     """Get the configuration from .rhiza/template.yml.
 
     Aliases (``repository``/``ref``/``profiles``) are normalized to their
@@ -44,7 +44,7 @@ def _get_templates_from_config(config_path: Path) -> set[str] | None:
     Returns:
         Set of template names, or None if templates field doesn't exist or file not found
     """
-    config = _get_config_data(config_path)
+    config = get_config_data(config_path)
     if config is None:
         return None
 

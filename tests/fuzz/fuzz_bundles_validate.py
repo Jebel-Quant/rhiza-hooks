@@ -22,7 +22,7 @@ from pathlib import Path
 import atheris
 
 with atheris.instrument_imports():
-    from rhiza_hooks._bundles_config import _get_config_data, _get_templates_from_config
+    from rhiza_hooks._bundles_config import _get_templates_from_config, get_config_data
     from rhiza_hooks._bundles_validate import validate_template_bundles
 
 
@@ -33,7 +33,7 @@ def test_one_input(data: bytes) -> None:
         path.write_bytes(data)
 
         # Config readers (operate on .rhiza/template.yml-shaped input).
-        _get_config_data(path)
+        get_config_data(path)
         templates = _get_templates_from_config(path)
 
         # Full validation, both code paths: validate-all and validate-subset.
