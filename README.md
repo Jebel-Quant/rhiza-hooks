@@ -29,6 +29,8 @@ repos:
       - id: check-rhiza-config
       - id: check-makefile-targets
       - id: check-python-version-consistency
+      - id: check-rust-version-consistency
+      - id: check-go-version-consistency
       - id: check-template-bundles
 ```
 
@@ -47,6 +49,8 @@ pre-commit install
 | `check-rhiza-config` | `.rhiza/template.yml` | ❌ validates only | `1` if invalid, else `0` |
 | `check-makefile-targets` | `Makefile`, `.rhiza/*.mk` | ❌ warns only | `0` by default (warn-only); `1` on missing targets **only** with `--strict` |
 | `check-python-version-consistency` | `.python-version`, `pyproject.toml` | ❌ validates only | `1` on mismatch, else `0` |
+| `check-rust-version-consistency` | `rust-toolchain`, `rust-toolchain.toml`, `Cargo.toml` | ❌ validates only | `1` on mismatch, else `0` |
+| `check-go-version-consistency` | `.go-version`, `go.mod` | ❌ validates only | `1` on mismatch, else `0` |
 | `check-template-bundles` | `.rhiza/template.yml` | ❌ validates only (network) | `1` on validation failure, else `0`; `0` when `--offline` |
 
 Details for each hook follow.
@@ -160,6 +164,66 @@ Ensures Python version is consistent between `.python-version` and `pyproject.to
 
 - Keep `.python-version` aligned with `project.requires-python` in `pyproject.toml`.
 - If ranges are used (for example `>=3.11`), ensure the `.python-version` value satisfies that range exactly.
+
+#### `check-rust-version-consistency`
+
+Ensures the Rust version a project pins agrees with the version it declares it supports. A Rust project states this in up to three places:
+
+- `rust-toolchain.toml` — `[toolchain] channel`, the toolchain rustup installs for the checkout
+- `rust-toolchain` — the legacy form of the same file, either TOML or a bare channel name on one line
+- `Cargo.toml` — `rust-version` under `[package]` and/or `[workspace.package]`, the crate's minimum supported Rust version (MSRV)
+
+The hook enforces three relationships:
+
+1. The two toolchain files pin the same channel (when both are present).
+2. `[package] rust-version` and `[workspace.package] rust-version` declare the same MSRV (when both are present).
+3. The pinned toolchain is **not older** than the declared MSRV — a pin below the MSRV cannot build the crate.
+
+Named channels (`stable`, `beta`, `nightly`, `nightly-2024-01-01`) carry no version number and are accepted without comparison. Trailing zeros are insignificant, so `1.75` and `1.75.0` are the same version. A repository with none of these files passes, so the hook is harmless in a polyglot monorepo.
+
+**Triggers on:** Changes to `rust-toolchain`, `rust-toolchain.toml`, or `Cargo.toml`
+
+**Usage:**
+
+```yaml
+- id: check-rust-version-consistency
+```
+
+**Troubleshooting:**
+
+- "the pinned toolchain must be at least the MSRV" means your `rust-toolchain*` channel is older than `rust-version` in `Cargo.toml`; raise the pin or lower the MSRV.
+- If you keep both `rust-toolchain` and `rust-toolchain.toml`, delete one — rustup only reads the `.toml` form, so the other silently drifts.
+- The hook only reads the repository-root `Cargo.toml`; MSRVs declared by individual workspace members are not compared.
+
+#### `check-go-version-consistency`
+
+Ensures the Go version a project pins agrees with the version its module requires. A Go project states this in up to three places:
+
+- `go.mod` — the `go` directive, the minimum language version the module requires
+- `go.mod` — the optional `toolchain` directive, the toolchain the `go` command switches to
+- `.go-version` — the toolchain pin honoured by goenv and `actions/setup-go`
+
+The hook enforces three relationships:
+
+1. The `toolchain` directive is not below the `go` directive (the `go` command itself rejects that).
+2. `.go-version` is not below the `go` directive — the pinned toolchain could not build the module.
+3. `.go-version` names the same version as the `toolchain` directive (when both are present).
+
+A leading `go` prefix is stripped before comparison, so `go1.22.5` and `1.22.5` are the same pin, as are `1.22` and `1.22.0`. Non-numeric values (`toolchain default`, `toolchain local`) carry no version and are accepted without comparison. Contents of parenthesised `require (…)` blocks are skipped, so a dependency such as `go.uber.org/zap` is never mistaken for the `go` directive. A repository with none of these files passes.
+
+**Triggers on:** Changes to `.go-version` or `go.mod`
+
+**Usage:**
+
+```yaml
+- id: check-go-version-consistency
+```
+
+**Troubleshooting:**
+
+- "which is below the go.mod go directive" means the pinned toolchain is older than the module's minimum; raise `.go-version`/`toolchain`, or lower the `go` directive.
+- If `.go-version` and `toolchain` disagree, decide which one is authoritative — CI (`actions/setup-go`) reads the former while local `go build` obeys the latter, so a skew builds different code in the two places.
+- The hook reads only `go.mod`; `go.work` directives in a multi-module workspace are not compared.
 
 #### `check-template-bundles`
 
