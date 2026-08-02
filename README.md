@@ -31,6 +31,7 @@ repos:
       - id: check-python-version-consistency
       - id: check-rust-version-consistency
       - id: check-go-version-consistency
+      - id: check-bumpversion-config
       - id: check-template-bundles
 ```
 
@@ -51,6 +52,7 @@ pre-commit install
 | `check-python-version-consistency` | `.python-version`, `pyproject.toml` | ❌ validates only | `1` on mismatch, else `0` |
 | `check-rust-version-consistency` | `rust-toolchain`, `rust-toolchain.toml`, `Cargo.toml` | ❌ validates only | `1` on mismatch, else `0` |
 | `check-go-version-consistency` | `.go-version`, `go.mod` | ❌ validates only | `1` on mismatch, else `0` |
+| `check-bumpversion-config` | `pyproject.toml`, `.bumpversion.toml`, `.bumpversion.cfg`, `setup.cfg`, `.rhiza/.cfg.toml` | ❌ validates only | `1` if no discoverable config or a drifted `current_version`, else `0` |
 | `check-template-bundles` | `.rhiza/template.yml` | ❌ validates only (network) | `1` on validation failure, else `0`; `0` when `--offline` |
 
 Details for each hook follow.
@@ -224,6 +226,35 @@ A leading `go` prefix is stripped before comparison, so `go1.22.5` and `1.22.5` 
 - "which is below the go.mod go directive" means the pinned toolchain is older than the module's minimum; raise `.go-version`/`toolchain`, or lower the `go` directive.
 - If `.go-version` and `toolchain` disagree, decide which one is authoritative — CI (`actions/setup-go`) reads the former while local `go build` obeys the latter, so a skew builds different code in the two places.
 - The hook reads only `go.mod`; `go.work` directives in a multi-module workspace are not compared.
+
+#### `check-bumpversion-config`
+
+Ensures `bump-my-version` can actually find this project's version configuration.
+
+`bump-my-version` reads its config from a fixed set of filenames — `.bumpversion.toml`, `pyproject.toml`, `.bumpversion.cfg`, `setup.cfg` — and nothing else. When it finds none it does **not** fail: it falls back to `git describe` and reports the last reachable tag as the current version. Release tooling then computes bump candidates from that number rather than the project's own, which can offer a version that has already been published.
+
+The hook enforces two relationships for any project with a static `[project].version`:
+
+1. A bumpversion section exists in one of the searched files.
+2. If that section declares `current_version`, it equals `[project].version` — a stale value bumps from the wrong number and then fails to match the file it is meant to rewrite.
+
+The motivating case is rhiza-specific: rhiza syncs a fully-formed `[tool.bumpversion]` block into `.rhiza/.cfg.toml`, which is not a searched filename and so never takes effect. When the hook finds that file and no discoverable config, it names it directly rather than just reporting an absence. See [jebel-quant/rhiza#1453](https://github.com/Jebel-Quant/rhiza/issues/1453).
+
+Projects with no `pyproject.toml`, or with `dynamic = ["version"]`, are out of scope and pass — their version does not live in a file `bump-my-version` would rewrite. Declaring `current_version` is optional: with a `[tool.bumpversion]` table present in `pyproject.toml`, `bump-my-version` reads and rewrites PEP 621 `[project].version` natively, so omitting it keeps a single source of truth.
+
+**Triggers on:** Changes to `pyproject.toml`, `.bumpversion.toml`, `.bumpversion.cfg`, `setup.cfg` or `.rhiza/.cfg.toml`
+
+**Usage:**
+
+```yaml
+- id: check-bumpversion-config
+```
+
+**Troubleshooting:**
+
+- "no bumpversion config was found" means releases are computing versions from git tags. Add a `[tool.bumpversion]` table to `pyproject.toml`; it needs no other keys.
+- If the error names `.rhiza/.cfg.toml`, that block is inert — it is synced from the template but never read. Do not edit it; add the table to `pyproject.toml` instead.
+- A `current_version` mismatch usually means a bump was reverted or hand-edited. Reconcile the two values before releasing.
 
 #### `check-template-bundles`
 
