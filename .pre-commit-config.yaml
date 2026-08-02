@@ -176,3 +176,26 @@ repos:
         language: script
         files: ^\.rhiza/template\.yml$
         types: [yaml]
+
+      # Template-ownership and CI-consistency hooks
+      # No `files:` pattern: any staged file may be a template-owned one, and
+      # pass_filenames hands the hook exactly the staged paths to test. Bypass a
+      # deliberate sync commit with `SKIP=check-managed-files git commit`.
+      - id: check-managed-files
+        name: Check no template-owned file is modified
+        entry: scripts/run_hook.sh check-managed-files
+        language: script
+
+      - id: check-workflow-make-targets
+        name: Check make targets invoked by CI exist
+        entry: scripts/run_hook.sh check-workflow-make-targets
+        language: script
+        files: (^\.github/workflows/.*\.ya?ml$|^\.gitlab-ci\.yml$|^Makefile$|^\.rhiza/.*\.mk$)
+        pass_filenames: false
+
+      - id: check-license-metadata
+        name: Check license metadata is coherent
+        entry: scripts/run_hook.sh check-license-metadata
+        language: script
+        files: ^pyproject\.toml$
+        pass_filenames: false

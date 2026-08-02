@@ -85,7 +85,9 @@ run against the working tree rather than the last release. **Consequence: this
 file is now yours.** Upstream improvements to the shared hook list (ruff,
 bandit, markdownlint, …) no longer arrive by sync and must be ported by hand;
 check it against the template's copy periodically. Hook entries mirror
-`.pre-commit-hooks.yaml`, so a new hook must be added in both. See #293.
+`.pre-commit-hooks.yaml`, so a new hook must be added in both — plus a console
+script in `[project.scripts]`, which `tests/meta/test_pre_commit_manifest.py`
+checks in both directions. See #293.
 
 Note that `make mutation` (from the managed `.rhiza/make.d/test.mk`) and the
 mutation section of `docs/development/TESTS.md` still exist — both are Rhiza-owned
