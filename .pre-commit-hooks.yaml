@@ -47,6 +47,22 @@
   pass_filenames: false
   always_run: true
 
+- id: check-rust-version-consistency
+  name: Check Rust version consistency
+  description: Ensures the pinned Rust toolchain agrees with Cargo.toml's rust-version (MSRV)
+  entry: check-rust-version-consistency
+  language: python
+  files: (^rust-toolchain$|^rust-toolchain\.toml$|^Cargo\.toml$)
+  pass_filenames: false
+
+- id: check-go-version-consistency
+  name: Check Go version consistency
+  description: Ensures .go-version agrees with the go and toolchain directives in go.mod
+  entry: check-go-version-consistency
+  language: python
+  files: (^\.go-version$|^go\.mod$)
+  pass_filenames: false
+
 - id: check-template-bundles
   name: Check template bundles configuration
   description: Validates templates against remote template-bundles.yml from template repository
