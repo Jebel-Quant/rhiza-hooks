@@ -66,7 +66,7 @@ def _coerce_scalar(raw: str) -> object:
 
     Handles the narrow subset the ``[tool.check_test_layout]`` table uses:
     quoted strings, ``true``/``false`` booleans, and single-line arrays of
-    quoted strings. Everything else is returned as its stripped token.
+    quoted strings. Everything else is returned as its stripped literal.
     """
     raw = raw.strip()
     if raw[:1] in {'"', "'"}:
@@ -76,12 +76,12 @@ def _coerce_scalar(raw: str) -> object:
         end = raw.find("]")
         inner = raw[1 : end if end != -1 else len(raw)]
         return [v for v in (_coerce_scalar(item) for item in inner.split(",")) if v != ""]
-    token = raw.split("#", 1)[0].strip()
-    if token == "true":
+    literal = raw.split("#", 1)[0].strip()
+    if literal == "true":
         return True
-    if token == "false":
+    if literal == "false":
         return False
-    return token
+    return literal
 
 
 def _parse_flat_section(text: str, header: str) -> dict[str, object]:
@@ -151,9 +151,7 @@ def _test_files(tests: Path, exempt: set[str] | None = None) -> list[Path]:
     """Return the ``test_*.py`` files under *tests* (ignoring conftest/exempt dirs)."""
     exempt = _DEFAULT_EXEMPT_DIRS if exempt is None else exempt
     return sorted(
-        p
-        for p in tests.rglob("test_*.py")
-        if p.name not in _IGNORED and p.relative_to(tests).parts[0] not in exempt
+        p for p in tests.rglob("test_*.py") if p.name not in _IGNORED and p.relative_to(tests).parts[0] not in exempt
     )
 
 
@@ -186,8 +184,7 @@ def check(src: Path, tests: Path, config: Mapping[str, object] | None = None) ->
         for cls in sorted(_top_level_classes(test_file)):
             if cls.startswith("Test") and cls[len("Test") :] not in source_classes:
                 errors.append(
-                    f"orphan test class {cls} in {test_file} "
-                    f"(no class {cls[len('Test') :]} in {source_path})"
+                    f"orphan test class {cls} in {test_file} (no class {cls[len('Test') :]} in {source_path})"
                 )
 
     return errors
