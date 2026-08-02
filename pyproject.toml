@@ -97,3 +97,22 @@ fail_under = 100
 # itself). They have no corresponding src/ module, so exempt the subtree from the
 # reverse (orphan) check while keeping forward parity enforced for every source module.
 exempt_dirs = ["meta"]
+
+# Version bumping. This block must live here: bump-my-version only searches
+# .bumpversion.toml, pyproject.toml, setup.cfg and .bumpversion.cfg — never
+# .rhiza/.cfg.toml, whose [tool.bumpversion] block is therefore inert. Without a
+# table in this file the tool falls back to `git describe` and computes bumps off
+# the last reachable tag rather than the version below.
+#
+# Deliberately no `current_version` and no [[tool.bumpversion.files]] entry:
+# bump-my-version reads and rewrites PEP 621 `[project].version` natively once it
+# treats this file as its config, so that field stays the single source of truth.
+# Adding either one would duplicate the version string. A [[files]] entry IS needed
+# for any *additional* location (e.g. a self-referencing CI stub pin) — anchor its
+# search to a table, since search/replace applies to every match in the file.
+#
+# /release drives the commit and tag itself, hence commit/tag = false.
+[tool.bumpversion]
+allow_dirty = false
+commit = false
+tag = false
