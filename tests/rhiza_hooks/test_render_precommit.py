@@ -654,6 +654,40 @@ def test_an_explicit_out_overrides_the_declared_output(layout: Layout, repo: Pat
     assert path == (repo / "custom.yaml").resolve()
 
 
+def test_rendering_onto_an_input_fragment_is_refused(repo: Path, layout: Layout) -> None:
+    """The output must not be one of its own sources.
+
+    The merge would be idempotent, so this fails no test on its own — it is refused
+    because it is one-way: the first render absorbs the other fragments into the base,
+    after which deleting a fragment no longer removes its hooks.
+    """
+    with pytest.raises(FragmentError, match="both the output and an input fragment"):
+        plan([["base.yaml", "python.yaml"]], f"{DEFAULT_FRAGMENT_DIR}/base.yaml", set(), set(), layout)
+
+
+def test_a_fragment_whose_own_output_points_at_itself_is_refused(repo: Path, layout: Layout) -> None:
+    """Same guard via ``output:`` rather than ``--out`` — neither route is special."""
+    (layout.fragment_dir / "selfref.yaml").write_text(
+        f"output: {DEFAULT_FRAGMENT_DIR}/selfref.yaml\n\nrepos:\n  - repo: local\n    hooks:\n      - id: a\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(FragmentError, match="both the output and an input fragment"):
+        plan([["selfref.yaml"]], None, set(), set(), layout)
+
+
+def test_rendering_beside_an_input_fragment_is_allowed(repo: Path, layout: Layout) -> None:
+    """The guard is about identity, not about sharing a directory."""
+    [(path, _)] = plan([["python.yaml"]], f"{DEFAULT_FRAGMENT_DIR}/rendered.yaml", set(), set(), layout)
+    assert path == (repo / DEFAULT_FRAGMENT_DIR / "rendered.yaml").resolve()
+
+
+def test_the_self_reference_guard_reports_through_the_cli(repo: Path, monkeypatch, capsys) -> None:
+    """It reaches the user as an error message and exit 1, not a traceback."""
+    monkeypatch.chdir(repo)
+    assert main(["base.yaml", "--out", f"{DEFAULT_FRAGMENT_DIR}/base.yaml", "--write"]) == 1
+    assert "both the output and an input fragment" in capsys.readouterr().err
+
+
 def test_a_chain_with_no_destination_is_an_error(layout: Layout) -> None:
     """A mixin rendered on its own has nowhere to go."""
     with pytest.raises(FragmentError, match="declares no output"):

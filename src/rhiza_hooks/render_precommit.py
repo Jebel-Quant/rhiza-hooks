@@ -810,8 +810,9 @@ def plan(
         The ``(path, text)`` pairs to write, in target order.
 
     Raises:
-        FragmentError: If a chain cannot be resolved or merged, or if it declares no
-            destination and none was given.
+        FragmentError: If a chain cannot be resolved or merged, if it declares no
+            destination and none was given, or if the destination is one of its own
+            inputs.
     """
     rendered: list[tuple[Path, str]] = []
     for references in targets:
@@ -820,8 +821,40 @@ def plan(
         if not destination:
             msg = f"{layout.display(fragments[-1].path)} declares no output: -- pass --out"
             raise FragmentError(msg)
-        rendered.append(((layout.repo_root / destination).resolve(), render(fragments, layout, hooks, repos)))
+        target = (layout.repo_root / destination).resolve()
+        _reject_self_reference(target, fragments, layout)
+        rendered.append((target, render(fragments, layout, hooks, repos)))
     return rendered
+
+
+def _reject_self_reference(target: Path, fragments: list[Fragment], layout: Layout) -> None:
+    """Refuse to render a config on top of one of the fragments it was rendered from.
+
+    Rendering into an input looks harmless -- the merge is idempotent, because repos
+    dedupe by URL and the generated header is re-parsed as file header and dropped -- but
+    it quietly makes the arrangement one-way. On the first render the additions are
+    absorbed into the base, so *deleting* a fragment no longer removes its hooks, and the
+    only way back is to hand-edit a file whose own header says not to. It also makes the
+    default check vacuous: a file that is its own source always matches.
+
+    Args:
+        target: The resolved destination.
+        fragments: The chain being rendered.
+        layout: Where the repository root is, for display paths.
+
+    Raises:
+        FragmentError: If the destination is one of the chain's fragments.
+    """
+    culprit = next((f for f in fragments if f.path.resolve() == target), None)
+    if culprit is None:
+        return
+    msg = (
+        f"{layout.display(target)} is both the output and an input fragment. A rendered "
+        f"config must not be one of its own sources: the first render would absorb the "
+        f"others into it, after which removing a fragment no longer removes its hooks. "
+        f"Keep the base at a path that is not the output."
+    )
+    raise FragmentError(msg)
 
 
 def _apply(path: Path, text: str, write: bool, layout: Layout) -> bool:
