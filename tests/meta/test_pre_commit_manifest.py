@@ -220,6 +220,51 @@ def _pre_commit_command() -> list[str] | None:
     return None
 
 
+# ``try-repo`` builds its shadow repo from **git**, so a source module that exists on
+# disk but is not yet tracked is absent from the package pre-commit installs. Every
+# hook importing it then dies at import time, while the rest of the suite — which
+# imports from the working tree — passes. The result is a single red test whose output
+# blames the hook rather than the staging area, so match it and say so. Only reachable
+# locally: CI checks out a commit, where nothing is untracked by definition.
+#
+# Two exception types, because the package uses both import styles and they fail
+# differently: ``from rhiza_hooks._x import y`` raises ModuleNotFoundError, while
+# ``from rhiza_hooks import _x`` (as check_template_bundles does) raises ImportError.
+_MISSING_PACKAGE_MODULE_RE = re.compile(
+    r"ModuleNotFoundError: No module named '(?P<dotted>rhiza_hooks[\w.]*)'"
+    r"|ImportError: cannot import name '(?P<name>\w+)' from 'rhiza_hooks'"
+)
+
+
+def _untracked_sources() -> list[str]:
+    """Return the untracked files under ``src/``, as git reports them."""
+    listed = _run(["git", "ls-files", "--others", "--exclude-standard", "src"], cwd=_REPO_ROOT)
+    if listed.returncode != 0:
+        return []
+    return sorted(line.strip() for line in listed.stdout.splitlines() if line.strip())
+
+
+def _fail_on_untracked_source(combined: str) -> None:
+    """Fail with the real cause when an untracked module explains an import error.
+
+    Silent when the two do not coincide, leaving the generic assertion to report
+    whatever actually went wrong.
+    """
+    missing = _MISSING_PACKAGE_MODULE_RE.search(combined)
+    untracked = _untracked_sources()
+    if not (missing and untracked):
+        return
+    module = missing.group("dotted") or f"rhiza_hooks.{missing.group('name')}"
+    listing = "\n".join(f"  {path}" for path in untracked)
+    pytest.fail(
+        f"try-repo could not import {module}, and these files under src/ are untracked:\n"
+        f"{listing}\n\n"
+        "`pre-commit try-repo` builds its shadow repo from git, so a module that is only on "
+        "disk is missing from the package it installs. Run `git add` on the files above and "
+        f"re-run.\n\nFull output:\n{combined}"
+    )
+
+
 def _hook_statuses(output: str) -> dict[str, str]:
     """Parse pre-commit's per-hook result lines into ``{hook name: status}``."""
     statuses = {}
@@ -265,6 +310,9 @@ def test_manifest_hooks_run_through_pre_commit_try_repo(tmp_path: Path) -> None:
 
     if result.returncode != 0 and any(marker in combined for marker in _ENV_FAILURE_MARKERS):
         _skip_or_fail(f"pre-commit could not build the hook environment:\n{combined}", transient=True)
+
+    if result.returncode != 0:
+        _fail_on_untracked_source(combined)
 
     assert result.returncode == 0, f"try-repo failed:\n{combined}"
 
