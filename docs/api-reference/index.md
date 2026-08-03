@@ -1,6 +1,6 @@
 # API Reference
 
-`rhiza_hooks` ships one pre-commit hook per module, each implemented as a standalone module with a `main()` entry point.
+`rhiza_hooks` ships a console script per module, each a standalone module with a `main()` entry point. All but one are also published as pre-commit hooks — see the note below the table.
 
 | Module | Entry point | Purpose |
 |---|---|---|
@@ -15,7 +15,13 @@
 | [`check_template_bundles`](check_template_bundles.md) | `check-template-bundles` | Validate `template-bundles.yml` structure |
 | [`check_workflow_make_targets`](check_workflow_make_targets.md) | `check-workflow-make-targets` | Assert every make target a CI workflow runs is defined in the Makefile or its includes |
 | [`check_workflow_names`](check_workflow_names.md) | `check-rhiza-workflow-names` | Enforce `(RHIZA)` prefix on GitHub Actions workflow names |
+| [`render_precommit`](render_precommit.md) | `render-precommit` | Render a `.pre-commit-config.yaml` from fragments; checks for drift unless given `--write` |
 | [`update_readme_help`](update_readme_help.md) | `update-readme-help` | Embed `make help` output into `README.md` |
+
+`render_precommit` is the one module that is **not** a pre-commit hook. It renders a
+`.pre-commit-config.yaml`, and pre-commit reads that file once before any hook runs — so
+a render can only ever affect the *next* invocation. It belongs in the build step ahead
+of pre-commit, and ships here as a console script only.
 
 ## Internal modules
 
