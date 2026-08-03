@@ -26,6 +26,7 @@ These modules hold shared logic used by the hooks above. They have no `main()` e
 | [`_bundles_config`](_bundles_config.md) | Read the project's `.rhiza/template.yml` configuration |
 | [`_bundles_fetch`](_bundles_fetch.md) | Load/fetch a template-bundles document (local, bytes, or remote) into a typed result |
 | [`_bundles_validate`](_bundles_validate.md) | Structural validation of a template-bundles document |
+| [`_bumpversion_config`](_bumpversion_config.md) | Locate and parse the bumpversion config bump-my-version would read, in either format |
 | [`_config_schema`](_config_schema.md) | Canonical `.rhiza/template.yml` keys, aliases, and config normalization |
 | [`_makefile`](_makefile.md) | Shared Makefile parsing: target extraction and `include` expansion |
 | [`_managed`](_managed.md) | Resolve the template-owned paths — `.rhiza/template.lock`'s `files:` minus `template.yml`'s `exclude:` |

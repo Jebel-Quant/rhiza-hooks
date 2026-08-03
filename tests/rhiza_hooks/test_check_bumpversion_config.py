@@ -2,6 +2,10 @@
 
 Combines unit tests, subprocess-level integration tests and property-based
 (Hypothesis) invariants for the ``rhiza_hooks.check_bumpversion_config`` module.
+
+Locating and parsing the configuration lives in ``rhiza_hooks._bumpversion_config``
+and is tested in ``test__bumpversion_config.py``; what follows exercises the
+judgements this module layers on top of that result.
 """
 
 from __future__ import annotations
@@ -16,8 +20,6 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from rhiza_hooks.check_bumpversion_config import (
-    _load_ini,
-    _load_toml,
     check_bumpversion_config,
     find_discoverable_config,
     has_undiscovered_config,
@@ -82,99 +84,20 @@ def test_malformed_toml_reads_none(tmp_path: Path) -> None:
     assert read_project_version(tmp_path) is None
 
 
-def test_unreadable_toml_reads_none(tmp_path: Path) -> None:
-    """An OSError while opening is treated as absent."""
-    _write(tmp_path, "pyproject.toml", PYPROJECT)
-    with patch("pathlib.Path.open", side_effect=OSError("boom")):
-        assert _load_toml(tmp_path / "pyproject.toml") is None
-
-
 # ---------------------------------------------------------------------------
 # find_discoverable_config
 # ---------------------------------------------------------------------------
-def test_finds_pyproject_tool_table(tmp_path: Path) -> None:
-    """[tool.bumpversion] in pyproject.toml is discoverable."""
-    _write(tmp_path, "pyproject.toml", PYPROJECT + BUMP_TABLE)
-    assert find_discoverable_config(tmp_path) == ("pyproject.toml", None)
-
-
-def test_finds_declared_current_version(tmp_path: Path) -> None:
-    """A declared current_version is returned alongside the filename."""
-    _write(tmp_path, "pyproject.toml", PYPROJECT + BUMP_TABLE + 'current_version = "1.2.3"\n')
+# The search itself is covered in test__bumpversion_config.py; these pin the
+# narrowing this module publishes — a (filename, current_version) pair rather
+# than the full config.
+def test_discoverable_config_drops_the_targets(tmp_path: Path) -> None:
+    """A found config is reported as its filename and declared version alone."""
+    _write(
+        tmp_path,
+        "pyproject.toml",
+        PYPROJECT + BUMP_TABLE + 'current_version = "1.2.3"\n\n[[tool.bumpversion.files]]\nfilename = "README.md"\n',
+    )
     assert find_discoverable_config(tmp_path) == ("pyproject.toml", "1.2.3")
-
-
-def test_non_string_current_version_reads_none(tmp_path: Path) -> None:
-    """A non-string current_version is reported as absent."""
-    _write(tmp_path, "pyproject.toml", PYPROJECT + BUMP_TABLE + "current_version = 123\n")
-    assert find_discoverable_config(tmp_path) == ("pyproject.toml", None)
-
-
-def test_bumpversion_toml_wins_over_pyproject(tmp_path: Path) -> None:
-    """.bumpversion.toml is searched before pyproject.toml."""
-    _write(tmp_path, "pyproject.toml", PYPROJECT + BUMP_TABLE + 'current_version = "9.9.9"\n')
-    _write(tmp_path, ".bumpversion.toml", '[tool.bumpversion]\ncurrent_version = "1.2.3"\n')
-    assert find_discoverable_config(tmp_path) == (".bumpversion.toml", "1.2.3")
-
-
-def test_top_level_bumpversion_section(tmp_path: Path) -> None:
-    """A top-level [bumpversion] table (not nested under [tool]) is accepted."""
-    _write(tmp_path, ".bumpversion.toml", '[bumpversion]\ncurrent_version = "1.2.3"\n')
-    assert find_discoverable_config(tmp_path) == (".bumpversion.toml", "1.2.3")
-
-
-def test_tool_table_without_bumpversion_is_skipped(tmp_path: Path) -> None:
-    """A [tool] table lacking a bumpversion section does not count as a config."""
-    _write(tmp_path, "pyproject.toml", PYPROJECT + "\n[tool.ruff]\nline-length = 100\n")
-    assert find_discoverable_config(tmp_path) is None
-
-
-def test_tool_not_a_table_is_skipped(tmp_path: Path) -> None:
-    """A [tool] key that is not a table does not crash the search."""
-    _write(tmp_path, "pyproject.toml", 'tool = "oops"\n')
-    assert find_discoverable_config(tmp_path) is None
-
-
-def test_bumpversion_section_not_a_table_is_skipped(tmp_path: Path) -> None:
-    """A bumpversion key that is not a table is not a usable config."""
-    _write(tmp_path, "pyproject.toml", '[tool]\nbumpversion = "oops"\n')
-    assert find_discoverable_config(tmp_path) is None
-
-
-def test_finds_setup_cfg_section(tmp_path: Path) -> None:
-    """A [bumpversion] section in setup.cfg is discoverable."""
-    _write(tmp_path, "setup.cfg", "[bumpversion]\ncurrent_version = 1.2.3\n")
-    assert find_discoverable_config(tmp_path) == ("setup.cfg", "1.2.3")
-
-
-def test_finds_bumpversion_cfg_without_current_version(tmp_path: Path) -> None:
-    """An INI config lacking current_version reports None for it."""
-    _write(tmp_path, ".bumpversion.cfg", "[bumpversion]\ntag = True\n")
-    assert find_discoverable_config(tmp_path) == (".bumpversion.cfg", None)
-
-
-def test_setup_cfg_without_bumpversion_section_is_skipped(tmp_path: Path) -> None:
-    """An unrelated setup.cfg does not count as a bumpversion config."""
-    _write(tmp_path, "setup.cfg", "[metadata]\nname = demo\n")
-    assert find_discoverable_config(tmp_path) is None
-
-
-def test_malformed_ini_is_skipped(tmp_path: Path) -> None:
-    """Malformed INI is treated as absent, not raised."""
-    _write(tmp_path, "setup.cfg", "not an ini at all\n= = =\n")
-    assert find_discoverable_config(tmp_path) is None
-
-
-def test_missing_ini_reads_none(tmp_path: Path) -> None:
-    """A missing INI file yields None from the loader."""
-    assert _load_ini(tmp_path / "setup.cfg") is None
-
-
-def test_unreadable_ini_reads_none(tmp_path: Path) -> None:
-    """An OSError while reading an INI file is treated as absent."""
-    _write(tmp_path, "setup.cfg", "[bumpversion]\n")
-    with patch("configparser.ConfigParser.read", side_effect=OSError("boom")):
-        assert _load_ini(tmp_path / "setup.cfg") is None
 
 
 def test_no_config_anywhere(tmp_path: Path) -> None:
@@ -557,11 +480,11 @@ def test_version_mismatch_and_target_error_are_both_reported(tmp_path: Path) -> 
 
 
 def test_binary_pyproject_does_not_crash(tmp_path: Path) -> None:
-    """A pyproject.toml that is not valid UTF-8 is treated as absent, not a traceback.
+    """A pyproject.toml that is not valid UTF-8 leaves the hook silent, not raising.
 
-    tomllib decodes the byte stream itself, so invalid UTF-8 arrives as
-    UnicodeDecodeError rather than TOMLDecodeError.
+    The loader's own leniency is covered in test__bumpversion_config.py; what
+    matters here is that an unreadable project file reads as "no static version"
+    and so takes the hook out of scope rather than producing a traceback.
     """
     (tmp_path / "pyproject.toml").write_bytes(b"\xff\xfe\x00[project]")
-    assert _load_toml(tmp_path / "pyproject.toml") is None
     assert check_bumpversion_config(tmp_path) == []
