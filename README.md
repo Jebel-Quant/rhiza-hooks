@@ -110,6 +110,13 @@ Validates the `.rhiza/template.yml` configuration file to ensure:
 - No unknown keys are present
 - The `include` list (if present) is not empty
 - The `templates` list (or alias `profiles`, if present) is not empty
+- The `language` key (if present) is a non-empty string
+
+`language` names the project's rhiza language layer — `python`, `rust` or `go` — and an
+absent key means Python, which is why only non-Python pointers carry it. The value is
+type-checked but deliberately not validated against a fixed list of languages: this
+package is version-pinned by the projects that use it, so enumerating the known languages
+here would break every repo on an older pin as soon as rhiza gained another layer.
 
 **Usage:**
 

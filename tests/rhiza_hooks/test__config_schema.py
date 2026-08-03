@@ -21,7 +21,20 @@ def test_valid_keys_is_union_of_required_and_optional() -> None:
     """VALID_KEYS is exactly the union of the required and optional key sets."""
     assert VALID_KEYS == REQUIRED_KEYS | OPTIONAL_KEYS
     assert {"template-repository", "template-branch"} == REQUIRED_KEYS
-    assert {"include", "exclude", "templates"} == OPTIONAL_KEYS
+    assert {"include", "exclude", "templates", "language"} == OPTIONAL_KEYS
+
+
+def test_language_is_optional_not_an_alias() -> None:
+    """`language` is its own canonical key, not a spelling of something else (#330).
+
+    It named a real axis the plugin reads back — language detection, gate discovery,
+    badge rendering — so normalization must leave it alone rather than fold it into
+    another key. Every non-Python repo rhiza scaffolds carries it.
+    """
+    assert "language" in OPTIONAL_KEYS
+    assert "language" not in KEY_ALIASES
+    assert "language" not in set(KEY_ALIASES.values())
+    assert normalize_config({"language": "go"}) == {"language": "go"}
 
 
 def test_key_aliases_map_to_canonical_keys() -> None:
