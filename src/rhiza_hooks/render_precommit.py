@@ -133,16 +133,25 @@ class Layout:
         directory = Path(fragment_dir)
         return cls(repo_root=root, fragment_dir=directory if directory.is_absolute() else root / directory)
 
-    def display(self, path: Path) -> Path:
-        """Return a path relative to the repository root where possible.
+    def display(self, path: Path) -> str:
+        """Return a path for display, repo-relative where possible, always POSIX.
+
+        Forward slashes are not cosmetic here. :func:`header` embeds these strings *in
+        the rendered file*, so returning the platform form would make the same
+        fragments render different bytes on Windows and on Linux -- and the drift check
+        would then fail on whichever platform did not render last. Same reasoning as
+        pinning ``newline=""`` on the write: output must be a function of its input
+        alone.
 
         Args:
             path: The path to shorten.
 
         Returns:
-            The repo-relative path, or the original if it lies outside the repository.
+            The repo-relative POSIX path, or the full POSIX path if it lies outside
+            the repository.
         """
-        return path.relative_to(self.repo_root) if path.is_relative_to(self.repo_root) else path
+        relative = path.relative_to(self.repo_root) if path.is_relative_to(self.repo_root) else path
+        return relative.as_posix()
 
 
 @dataclass
@@ -597,7 +606,7 @@ def resolve(reference: str, relative_to: Path, layout: Layout) -> Path:
     # dict.fromkeys, not set(): the candidates collapse to one entry when the referring
     # fragment sits at the repository root, and the order they were tried in is the
     # useful part of the message.
-    tried = ", ".join(dict.fromkeys(str(layout.display(candidate)) for candidate in candidates))
+    tried = ", ".join(dict.fromkeys(layout.display(candidate) for candidate in candidates))
     msg = f"no fragment {reference!r} (tried: {tried})"
     raise FragmentError(msg)
 
@@ -681,7 +690,7 @@ def header(fragments: list[Fragment], layout: Layout) -> list[str]:
         The header lines, naming the fragments so whoever opens the deployed config
         is sent to the right place to edit it.
     """
-    names = ", ".join(str(layout.display(fragment.path)) for fragment in fragments)
+    names = ", ".join(layout.display(fragment.path) for fragment in fragments)
     return [
         "# GENERATED FILE - do not edit. Rendered by rhiza-hooks (render-precommit)",
         f"# from {names}.",

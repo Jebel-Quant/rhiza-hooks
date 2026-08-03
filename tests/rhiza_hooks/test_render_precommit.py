@@ -133,12 +133,24 @@ class TestLayout:
 
     def test_display_shortens_paths_inside_the_repository(self, layout: Layout, repo: Path) -> None:
         """Paths under the root are reported relative to it."""
-        assert layout.display(repo / "pre-commit" / "base.yaml") == Path("pre-commit/base.yaml")
+        assert layout.display(repo / "pre-commit" / "base.yaml") == "pre-commit/base.yaml"
 
     def test_display_leaves_outside_paths_absolute(self, layout: Layout, tmp_path: Path) -> None:
         """A path outside the repository has no useful relative form."""
         outside = (tmp_path.parent / "somewhere-else").resolve()
-        assert layout.display(outside) == outside
+        assert layout.display(outside) == outside.as_posix()
+
+    def test_display_always_uses_forward_slashes(self, layout: Layout, repo: Path) -> None:
+        """The property that keeps rendered output byte-identical across platforms.
+
+        ``display`` output is embedded in the generated file's header, so a backslash
+        here would make Windows and Linux render different bytes from the same
+        fragments — and the drift check would then fail on whichever platform did not
+        render last.
+        """
+        nested = repo / DEFAULT_FRAGMENT_DIR / "nested" / "frag.yaml"
+        assert "\\" not in layout.display(nested)
+        assert layout.display(nested) == f"{DEFAULT_FRAGMENT_DIR}/nested/frag.yaml"
 
 
 class TestBlock:
