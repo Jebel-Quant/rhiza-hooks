@@ -831,10 +831,11 @@ def test_module_executes_main(repo: Path, monkeypatch) -> None:
 
 
 def test_a_repo_with_no_fragment_directory_passes(tmp_path: Path, monkeypatch, capsys) -> None:
-    """Adopting the hook must not break a repo that renders nothing.
+    """A repo that renders nothing is reported, not failed.
 
-    Most consumers have no ``pre-commit/`` directory; for them the hook has nothing to
-    check and must say so and pass, rather than failing on a missing directory.
+    Most repositories have no ``pre-commit/`` directory, and a shared build step or CI
+    job may call this across all of them; for those there is nothing to check and the
+    run must say so and succeed rather than failing on a missing directory.
     """
     (tmp_path / ".git").mkdir()
     monkeypatch.chdir(tmp_path)

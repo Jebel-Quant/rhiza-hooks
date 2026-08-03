@@ -205,14 +205,3 @@ repos:
         language: script
         files: ^pyproject\.toml$
         pass_filenames: false
-
-      # Dogfooded like the rest, though this repo renders nothing: it has no
-      # pre-commit/ directory, so the hook reports "nothing to render" and passes.
-      # That is precisely the case worth exercising here — it is what every consumer
-      # that adopts the hook without adopting fragments will hit.
-      - id: check-precommit-render
-        name: Check rendered pre-commit configs
-        entry: scripts/run_hook.sh render-precommit
-        language: script
-        files: (^pre-commit/.*\.ya?ml$|(^|/)\.pre-commit-config\.yaml$)
-        pass_filenames: false

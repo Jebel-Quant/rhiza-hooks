@@ -54,13 +54,17 @@ through a YAML parser, because the explanatory comments on these hooks carry as 
 of the reasoning as the hooks do and no YAML emitter preserves them faithfully. The
 rendered result is parsed and checked for duplicate hook ids before it is written.
 
-**Checking is the default; rendering requires ``--write``.** The inverse would be the
-friendlier CLI, but this entry point is also published as a pre-commit hook, where a
-config that rewrites itself mid-run is a footgun: pre-commit reads
-``.pre-commit-config.yaml`` once, before any hook executes, so a write can only ever
-affect the *next* invocation while silently changing the file under the current one. A
-read-only default means the hook cannot do that even if a consumer overrides its
-``args``.
+**This is a console script, not a pre-commit hook**, and deliberately so. pre-commit
+reads ``.pre-commit-config.yaml`` once, before any hook executes, so a hook that
+rendered it could only ever affect the *next* invocation while changing the file under
+the current one. Rendering belongs in the build step that runs *ahead* of pre-commit —
+which is where the ordering can actually be guaranteed.
+
+**Checking is the default; rendering requires ``--write``.** A tool invoked in a
+repository should not rewrite tracked files unless it was asked to: the check mode is
+the one safe to run anywhere, including from a CI drift guard, and ``--write`` is the
+explicit request. It also means a bare invocation in the wrong directory reports rather
+than edits.
 
 Exit codes:
   0 - every rendered config matches what is on disk (or was written, with --write)
@@ -895,8 +899,8 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     layout = Layout.discover(fragment_dir=args.fragment_dir)
 
-    # A repository that renders nothing is the normal case for most consumers, and this
-    # entry point is published as a hook they may adopt wholesale. So an absent *default*
+    # A repository that renders nothing is the normal case, and a shared build step or CI
+    # job may call this unconditionally across a fleet of them. So an absent *default*
     # fragment directory is "nothing to do", not an error. An explicit --fragment-dir is
     # an assertion that fragments live there, and a missing one still fails below.
     if not args.fragments and args.fragment_dir == DEFAULT_FRAGMENT_DIR and not layout.fragment_dir.is_dir():

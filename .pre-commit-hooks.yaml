@@ -105,19 +105,3 @@
   language: python
   files: ^pyproject\.toml$
   pass_filenames: false
-
-##@ Rendered configuration
-
-# The one hook whose id differs from its entry, deliberately. The console script is
-# named for rendering because that is what a build step calls it to do; the hook is the
-# read-only check, because a pre-commit hook must not rewrite the very file pre-commit
-# read before it started -- a write could only affect the *next* run while changing the
-# file under the current one. `render-precommit` checks unless given --write, so the
-# hook needs no args and cannot be turned into a writer by a consumer overriding them.
-- id: check-precommit-render
-  name: Check rendered pre-commit configs
-  description: Ensures every rendered .pre-commit-config.yaml still matches the fragments it comes from
-  entry: render-precommit
-  language: python
-  files: (^pre-commit/.*\.ya?ml$|(^|/)\.pre-commit-config\.yaml$)
-  pass_filenames: false
