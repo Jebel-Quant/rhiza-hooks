@@ -15,7 +15,13 @@
 | [`check_template_bundles`](check_template_bundles.md) | `check-template-bundles` | Validate `template-bundles.yml` structure |
 | [`check_workflow_make_targets`](check_workflow_make_targets.md) | `check-workflow-make-targets` | Assert every make target a CI workflow runs is defined in the Makefile or its includes |
 | [`check_workflow_names`](check_workflow_names.md) | `check-rhiza-workflow-names` | Enforce `(RHIZA)` prefix on GitHub Actions workflow names |
+| [`render_precommit`](render_precommit.md) | `render-precommit` | Render a `.pre-commit-config.yaml` from fragments; checks for drift unless given `--write` |
 | [`update_readme_help`](update_readme_help.md) | `update-readme-help` | Embed `make help` output into `README.md` |
+
+`render_precommit` is the one module whose hook id (`check-precommit-render`) differs
+from its console script: the script is named for rendering, which is what a build step
+calls it to do, while the hook is the read-only check. See the module page for why a
+pre-commit hook must not rewrite the config pre-commit already read.
 
 ## Internal modules
 
