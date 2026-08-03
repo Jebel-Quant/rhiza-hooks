@@ -149,3 +149,27 @@ comm -23 <(git tag | sort -u) \
 
 Prefer fetching the template with `git fetch rhiza --no-tags` to avoid the
 pollution in the first place.
+
+## Local-dev gotcha: a new `src/` module must be `git add`ed before `make test`
+
+`tests/meta/test_pre_commit_manifest.py::test_manifest_hooks_run_through_pre_commit_try_repo`
+fails when you add a module under `src/rhiza_hooks/` and have not staged it yet —
+even though the module is on disk and every other test passes.
+
+`pre-commit try-repo` builds its shadow repo from **git**, not from the working
+tree, so an untracked file is absent from the package pre-commit installs into the
+hook environment. Any hook importing it dies with
+`ModuleNotFoundError: No module named 'rhiza_hooks._your_new_module'`, while the
+rest of the suite — which imports from the working tree — is perfectly happy. The
+failure therefore points at the hook rather than at the staging area.
+
+```sh
+git add src/rhiza_hooks/_your_new_module.py
+```
+
+CI never hits this: it checks out a commit, where nothing is untracked by
+definition. It bites during a local refactor that extracts a helper module — see
+#324/#326, where the split of `check_bumpversion_config.py` hit it. The test now
+detects the combination and names the untracked files in its failure message, so
+you should not have to rediscover this; the section stays as the explanation of
+*why* staging is what fixes it.
