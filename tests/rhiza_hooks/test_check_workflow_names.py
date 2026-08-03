@@ -371,7 +371,7 @@ def test_missing_prefix(mock_project: Callable[[dict[str, str]], Path]) -> None:
     assert result.returncode == 1
 
 
-def test_check_workflow_names_on_project(project_root: Path) -> None:
+def test_check_workflow_names_on_project(project_root: Path, tmp_path: Path) -> None:
     """Test check-rhiza-workflow-names on actual project workflows."""
     workflows_dir = project_root / ".github/workflows"
     if not workflows_dir.exists():
@@ -381,10 +381,25 @@ def test_check_workflow_names_on_project(project_root: Path) -> None:
     if not workflows:
         pytest.skip("No workflow files found")
 
-    # Just verify the script runs without crashing on actual workflows
+    # Copy each workflow into tmp_path before invoking the checker.
+    #
+    # `check_file` REWRITES a non-conforming name in place, and this test passes
+    # paths straight to it — so run against the real .github/workflows/ and
+    # `make test` silently edits the working tree. That stayed invisible while
+    # every workflow was a template-owned rhiza_*.yml already carrying the
+    # "(RHIZA) " prefix (the rewrite was a no-op), and only surfaced on adding a
+    # repo-owned workflow, which `make test` renamed to "(RHIZA) ..." behind the
+    # developer's back. The hook itself has no filename guard by design — the
+    # `files: ^\.github/workflows/rhiza_.*\.ya?ml$` pattern in
+    # .pre-commit-config.yaml is what scopes it, and this test bypassed that.
+    #
+    # Copying keeps the intent (exercise the checker against real-world workflow
+    # content and assert it does not crash) without the side effect.
     for workflow in workflows:
+        scratch = tmp_path / workflow.name
+        scratch.write_bytes(workflow.read_bytes())
         result = subprocess.run(  # nosec B603
-            [sys.executable, "-m", "rhiza_hooks.check_workflow_names", str(workflow)],
+            [sys.executable, "-m", "rhiza_hooks.check_workflow_names", str(scratch)],
             capture_output=True,
             text=True,
             check=False,
