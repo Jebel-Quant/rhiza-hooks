@@ -726,9 +726,14 @@ def test_merge_is_pure(layout: Layout) -> None:
 
 
 def test_header_names_a_fragment_outside_the_repository(layout: Layout, tmp_path: Path) -> None:
-    """An out-of-tree fragment is named absolutely rather than crashing."""
+    """An out-of-tree fragment is named in full rather than crashing.
+
+    ``as_posix()``, not ``str()``: there is no repo-relative form to shorten to, but the
+    header still spells it with forward slashes so the rendered bytes do not depend on
+    the platform that produced them.
+    """
     outside = (tmp_path.parent / "outside.yaml").resolve()
-    assert str(outside) in "\n".join(header([Fragment(path=outside)], layout))
+    assert outside.as_posix() in "\n".join(header([Fragment(path=outside)], layout))
 
 
 # ---------------------------------------------------------------------------
