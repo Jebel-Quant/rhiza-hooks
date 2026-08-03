@@ -84,7 +84,11 @@ def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
     new_content = pattern.sub(new_section, content)
 
     if new_content != content:
-        readme_path.write_text(new_content, encoding="utf-8")
+        # newline="" suppresses the \n -> os.linesep translation. `content` came back
+        # from a universal-newline read and `help_output` from a text-mode subprocess,
+        # so `new_content` is all \n; without this the write would emit CRLF on Windows
+        # and reflow the entire README instead of just the help block.
+        readme_path.write_text(new_content, encoding="utf-8", newline="")
         print(f"Updated {readme_path} with make help output")
         return True
 

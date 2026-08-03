@@ -74,10 +74,19 @@ def _replace_name_lines(lines: list[str], expected_name: str) -> list[str]:
 
 
 def _rewrite_workflow_name(filepath: str, expected_name: str) -> None:
-    """Rewrite the top-level ``name:`` of a workflow file, preserving comments."""
+    r"""Rewrite the top-level ``name:`` of a workflow file, preserving comments.
+
+    ``newline=""`` on the write is load-bearing. The read above is universal-newline,
+    so ``lines`` always holds ``\n`` regardless of what is on disk; without
+    ``newline=""`` the write would translate every one of them to ``os.linesep``, and
+    on Windows a one-line fix would land as a whole-file CRLF diff. Suppressing the
+    translation makes the hook's output a function of its input alone — identical bytes
+    on every platform, which is the only sane contract for a hook whose output gets
+    committed.
+    """
     with open(filepath, encoding="utf-8") as f_read:
         lines = f_read.readlines()
-    with open(filepath, "w", encoding="utf-8") as f_write:
+    with open(filepath, "w", encoding="utf-8", newline="") as f_write:
         f_write.writelines(_replace_name_lines(lines, expected_name))
 
 

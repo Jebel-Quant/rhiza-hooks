@@ -131,6 +131,28 @@ def test_non_ascii_readme_round_trips_as_utf8(tmp_path: Path) -> None:
     assert "cible : aide" in content
 
 
+def test_lf_line_endings_survive_the_rewrite(tmp_path: Path) -> None:
+    r"""A README with LF endings keeps them outside the help block.
+
+    ``content`` comes back from a universal-newline read and ``help_output`` from a
+    text-mode subprocess, so ``new_content`` is all ``\n``; the write pins
+    ``newline=""`` so those stay ``\n`` instead of becoming ``os.linesep``. Without it
+    a help-block refresh rewrites every line ending in the README on Windows.
+
+    ``read_bytes`` is deliberate — ``read_text`` would translate CRLF back to LF and
+    pass regardless. Only the Windows CI leg can fail this; the static half of the
+    invariant is enforced in ``tests/meta/test_encoding_hygiene.py``.
+    """
+    readme = tmp_path / "README.md"
+    readme.write_bytes(b"# Title\n\n<!-- MAKE_HELP_START -->\nold\n<!-- MAKE_HELP_END -->\n\nFooter\n")
+
+    assert update_readme_with_help(readme, "help me\n") is True
+
+    assert readme.read_bytes() == (
+        b"# Title\n\n<!-- MAKE_HELP_START -->\n```\nhelp me\n```\n<!-- MAKE_HELP_END -->\n\nFooter\n"
+    )
+
+
 def test_no_markers_returns_false(tmp_path: Path) -> None:
     """File without markers is not modified."""
     readme = tmp_path / "README.md"
