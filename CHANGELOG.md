@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com),
 and entries are generated from [Conventional Commits](https://www.conventionalcommits.org).
 
+## [1.1.0] - 2026-08-03
+
+### New Features
+- Ship the pre-commit fragment renderer as an installable CLI (#329)
+
+### Bug Fixes
+- Accept the `language:` key in .rhiza/template.yml (#331)
+
 ## [1.0.0] - 2026-08-03
 
 ### New Features
