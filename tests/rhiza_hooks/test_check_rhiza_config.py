@@ -148,6 +148,65 @@ def test_empty_include(temp_config):
     assert errors == ["include list cannot be empty"]
 
 
+@pytest.mark.parametrize("language", ["go", "rust", "python"])
+def test_the_pointer_rhiza_init_writes_for_a_non_python_repo_is_valid(temp_config, language):
+    """The exact pointer `/rhiza:init` writes, verbatim, must validate (#330).
+
+    This is the regression: `language:` was in neither the canonical nor the alias set,
+    so it fell through to the unknown-key error and every Rust and Go repo rhiza
+    scaffolded was born failing `make fmt` — and with it `make all` and its own
+    pre-commit hook — on the very first run. Python pointers omit the key, which is
+    why it went unnoticed. Written with the alias spellings the plugin emits, so this
+    fails if alias handling and the new key ever stop composing.
+    """
+    config = temp_config(f"""
+        repository: "jebel-quant/rhiza"
+        ref: "v1.3.0"
+        language: {language}
+
+        profiles:
+          - {language}-local
+    """)
+    assert validate_rhiza_config(config) == []
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("[go]", "language must be a string"),
+        ('""', "language cannot be empty"),
+    ],
+)
+def test_language_is_type_checked_but_not_enumerated(temp_config, value, expected):
+    """A malformed value is reported; an unrecognised *spelling* deliberately is not.
+
+    rhiza pins a rhiza-hooks version, so enumerating {python, rust, go} here would make
+    adding a language layer upstream break every repo still on an older pin — which is
+    the failure this key already caused once. So `language: zig` passes: policing the
+    value is the consumer's job, and being wrong about it costs more than it saves.
+    """
+    config = temp_config(f"""
+        template-repository: owner/repo
+        template-branch: main
+        templates:
+          - core
+        language: {value}
+    """)
+    assert validate_rhiza_config(config) == [expected]
+
+
+def test_an_unrecognised_language_spelling_is_accepted(temp_config):
+    """The other half of the pin argument: a future layer must not need a hooks release."""
+    config = temp_config("""
+        template-repository: owner/repo
+        template-branch: main
+        templates:
+          - core
+        language: zig
+    """)
+    assert validate_rhiza_config(config) == []
+
+
 def test_unknown_key(temp_config):
     """Test that unknown keys are reported with the exact message."""
     config = temp_config("""

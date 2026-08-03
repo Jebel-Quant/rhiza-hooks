@@ -18,7 +18,18 @@ from __future__ import annotations
 from typing import Any
 
 REQUIRED_KEYS = {"template-repository", "template-branch"}
-OPTIONAL_KEYS = {"include", "exclude", "templates"}
+# `language` names the project's rhiza language layer (python, rust, go). The
+# rhiza-claude plugin writes it for every non-Python repo it scaffolds and reads it
+# back for language detection, gate discovery and badge rendering, so it is
+# load-bearing on the consumer side rather than decoration. Absent means Python,
+# which is why Python pointers omit it and why its absence from this set went
+# unnoticed until the language layers shipped in rhiza v1.3.0 (#330).
+#
+# Deliberately no enum of accepted values here. rhiza pins a rhiza-hooks version, so
+# a hard-coded {python, rust, go} would make adding a fourth language layer upstream
+# break every repo still on an older pin — the same failure this key already caused
+# once. The value is type-checked in check_rhiza_config instead.
+OPTIONAL_KEYS = {"include", "exclude", "templates", "language"}
 VALID_KEYS = REQUIRED_KEYS | OPTIONAL_KEYS
 # Alternative (alias) key names mapped to their canonical spellings.
 KEY_ALIASES = {

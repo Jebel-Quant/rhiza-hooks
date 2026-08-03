@@ -94,6 +94,10 @@ _FIELD_RULES: tuple[_FieldRule, ...] = (
     _FieldRule("include", (list,), "include must be a list", "include list cannot be empty"),
     _FieldRule("templates", (list,), "templates must be a list", "templates list cannot be empty"),
     _FieldRule("exclude", (list, type(None)), "exclude must be a list or null"),
+    # Type-checked but not enumerated: see the note on OPTIONAL_KEYS in _config_schema.
+    # This catches `language: [go]` and an empty value; it does not police the spelling,
+    # because this package is pinned and upstream may add a layer at any time.
+    _FieldRule("language", (str,), "language must be a string", "language cannot be empty"),
 )
 
 
