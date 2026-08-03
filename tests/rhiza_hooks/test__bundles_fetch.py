@@ -291,3 +291,24 @@ class Test_Opener:  # noqa: N801  # name mandated by check_test_layout.py (mirro
         """Urlopen is accepted where an _Opener is expected — the seam matches the real callable."""
         opener: _bundles_fetch._Opener = urlopen
         assert callable(opener)
+
+
+class TestFetcher:
+    """Tests for the injected fetcher protocol — the same seam one layer up."""
+
+    def test_fetch_remote_bundles_satisfies_the_protocol(self):
+        """The real fetcher is accepted where a Fetcher is expected."""
+        fetcher: _bundles_fetch.Fetcher = fetch_remote_bundles
+        assert callable(fetcher)
+
+    def test_protocol_call_accepts_the_shape_main_uses(self):
+        """The protocol's __call__ names exactly the arguments ``check_template_bundles`` passes.
+
+        The orchestration layer calls ``fetcher(repo, branch, attempts=..., timeout=...)``.
+        Pinning that here means a change to either side that leaves them disagreeing is a
+        test failure rather than a TypeError at the first real fetch.
+        """
+        params = inspect.signature(_bundles_fetch.Fetcher.__call__).parameters
+        assert list(params) == ["self", "repo", "branch", "attempts", "timeout"]
+        assert params["attempts"].kind is inspect.Parameter.KEYWORD_ONLY
+        assert params["timeout"].kind is inspect.Parameter.KEYWORD_ONLY
