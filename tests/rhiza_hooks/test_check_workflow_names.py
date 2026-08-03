@@ -37,6 +37,30 @@ def test_missing_prefix_updates_file(tmp_path: Path, capsys: pytest.CaptureFixtu
     assert capsys.readouterr().out == (f"Updating {workflow}: name 'My Workflow' -> '(RHIZA) MY WORKFLOW'\n")
 
 
+def test_lf_line_endings_survive_the_rewrite(tmp_path: Path) -> None:
+    r"""An LF workflow keeps LF endings on every line the rewrite did not touch.
+
+    ``_rewrite_workflow_name`` reads with universal newlines, so ``lines`` holds ``\n``
+    whatever is on disk; the write pins ``newline=""`` to stop Python translating those
+    back to ``os.linesep``. Without it, fixing one ``name:`` line reflows the entire
+    file to CRLF on Windows — a one-line fix landing as a whole-file diff.
+
+    Asserting on ``read_bytes`` is what makes that visible: ``read_text`` translates the
+    endings back on the way in and would pass either way. The assertion can only fail on
+    the Windows CI leg, since ``os.linesep`` is already ``\n`` here; the platform-
+    independent half of this invariant lives in ``tests/meta/test_encoding_hygiene.py``,
+    which rejects a text-mode write that omits ``newline=`` at all.
+    """
+    workflow = tmp_path / "workflow.yml"
+    workflow.write_bytes(b"name: My Workflow\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n")
+
+    assert check_file(str(workflow)) is False
+
+    assert workflow.read_bytes() == (
+        b'name: "(RHIZA) MY WORKFLOW"\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n'
+    )
+
+
 def test_missing_name_field_returns_false(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """File without name field returns False with the exact error message."""
     workflow = tmp_path / "workflow.yml"
