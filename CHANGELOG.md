@@ -5,6 +5,31 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com),
 and entries are generated from [Conventional Commits](https://www.conventionalcommits.org).
 
+## [1.0.0] - 2026-08-03
+
+### New Features
+- Three invariant hooks and bumpversion target validation (nine hooks to twelve) (#309)
+
+### Bug Fixes
+- Pin newline="" at the two shipped write sites (#321)
+
+### Documentation
+- Correct the sync instruction and the stale .claude/ snapshot (#311)
+- Publish the 6 missing API-reference pages and gate docs parity (#322) (#323)
+
+### Maintenance
+- Declare the package-internal API and flatten the last B-rank block (#303)
+- Inject the fetch opener instead of patching urlopen by name (#308)
+- Detect .pre-commit-config.yaml drift from the template's hook list (#310)
+- Update rhiza to v1.3.0 (#316)
+- Extract the shared makefile parser and read every file as UTF-8 (#317)
+- Inject the bundles fetcher instead of patching it by name in 15 tests (#319)
+- Split the bumpversion config readers out of the hook (#324) (#326)
+- Diagnose an untracked src/ module behind a try-repo import failure (#327)
+
+### Other Changes
+- Dogfood the hooks locally instead of by remote rev, and run all nine (#298)
+
 ## [0.8.0] - 2026-08-02
 
 ### New Features

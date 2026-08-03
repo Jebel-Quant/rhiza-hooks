@@ -19,7 +19,7 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/Jebel-Quant/rhiza-hooks
-    rev: v0.8.0  # Use the latest release
+    rev: v1.0.0  # Use the latest release
     hooks:
       # Migrated from rhiza
       - id: check-rhiza-workflow-names
