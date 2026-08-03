@@ -28,6 +28,7 @@ nav:
           - _bundles_config: api-reference/_bundles_config.md
           - _bundles_fetch: api-reference/_bundles_fetch.md
           - _bundles_validate: api-reference/_bundles_validate.md
+          - _bumpversion_config: api-reference/_bumpversion_config.md
           - _config_schema: api-reference/_config_schema.md
           - _makefile: api-reference/_makefile.md
           - _managed: api-reference/_managed.md
