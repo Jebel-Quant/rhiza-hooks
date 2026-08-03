@@ -40,6 +40,7 @@ from rhiza_hooks._bundles_config import get_config_data
 from rhiza_hooks._bundles_fetch import (
     FETCH_ATTEMPTS,
     FETCH_TIMEOUT_SECONDS,
+    Fetcher,
     fetch_remote_bundles,
 )
 
@@ -82,10 +83,16 @@ def _validate_remote_bundles(
     template_repo: str,
     template_branch: str,
     templates_set: set[str],
+    *,
+    fetcher: Fetcher,
     attempts: int = FETCH_ATTEMPTS,
     timeout: float = FETCH_TIMEOUT_SECONDS,
 ) -> tuple[dict[Any, Any] | None, list[str]]:
     """Fetch and validate remote bundles.
+
+    ``fetcher`` is required rather than defaulted: this is the function that would
+    otherwise reach the network, so making the dependency explicit is what keeps a
+    test from silently doing so. The default lives once, on :func:`main`.
 
     Returns:
         Tuple of (bundles_data, errors) or (None, errors) if fetch fails
@@ -93,7 +100,7 @@ def _validate_remote_bundles(
     print(f"Fetching template bundles from {template_repo} (branch: {template_branch})")
     print(f"Checking templates: {', '.join(sorted(templates_set))}")
 
-    fetched = fetch_remote_bundles(template_repo, template_branch, attempts=attempts, timeout=timeout)
+    fetched = fetcher(template_repo, template_branch, attempts=attempts, timeout=timeout)
     if fetched.data is None:
         _report_errors("\n✗ Failed to fetch template bundles:", fetched.errors)
         return None, fetched.errors
@@ -172,6 +179,7 @@ def _run_remote_validation(
     config_path: Path,
     retries: int,
     timeout: float,
+    fetcher: Fetcher,
 ) -> int:
     """Fetch remote bundles and validate the requested templates; return an exit code."""
     template_repo = config.get("template-repository")
@@ -184,6 +192,7 @@ def _run_remote_validation(
         template_repo,
         template_branch,
         templates_set,
+        fetcher=fetcher,
         attempts=retries + 1,
         timeout=timeout,
     )
@@ -200,8 +209,13 @@ def _run_remote_validation(
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Main entry point."""
+def main(argv: list[str] | None = None, fetcher: Fetcher = fetch_remote_bundles) -> int:
+    """Main entry point.
+
+    ``fetcher`` is the one place the real network call is named. The console script
+    takes the default; a test passes a fake document source as an argument rather than
+    rebinding this module's ``fetch_remote_bundles`` global.
+    """
     _ensure_utf8_stdout()
 
     args = _parse_args(argv)
@@ -219,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     config, templates_set = result
 
-    return _run_remote_validation(config, templates_set, config_path, args.retries, args.timeout)
+    return _run_remote_validation(config, templates_set, config_path, args.retries, args.timeout, fetcher)
 
 
 if __name__ == "__main__":  # pragma: no mutate

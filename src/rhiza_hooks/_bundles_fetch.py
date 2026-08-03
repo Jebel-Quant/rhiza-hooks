@@ -58,6 +58,25 @@ class BundlesDoc:
     errors: list[str]
 
 
+class Fetcher(Protocol):
+    """The :func:`fetch_remote_bundles`-shaped callable a validation run obtains its document from.
+
+    The same reasoning as :class:`_Opener`, one layer up. ``check_template_bundles``
+    injects this rather than reaching for the module global, so a test supplies a fake
+    document through the argument every caller uses instead of rebinding
+    ``check_template_bundles.fetch_remote_bundles`` by dotted name — a rebinding that
+    pins the wiring rather than the behaviour, and breaks on any rename.
+
+    Unprefixed, unlike :class:`_Opener`: this module's convention is that a leading
+    underscore marks a helper with no caller outside its own file, and this one is
+    named in another module's signatures.
+    """
+
+    def __call__(self, repo: str, branch: str, *, attempts: int, timeout: float) -> BundlesDoc:
+        """Fetch the template-bundles document for ``repo``/``branch``."""
+        ...
+
+
 def load_local_bundles(bundles_path: Path) -> BundlesDoc:
     """Load and parse a local template-bundles file into a :class:`BundlesDoc`.
 
