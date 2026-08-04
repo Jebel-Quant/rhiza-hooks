@@ -66,18 +66,27 @@ extend_exclude = ["book"]
 pyyaml = "yaml"
 
 [dependency-groups]
-dev = [
-    "types-pyyaml>=6.0.12.20260518",
-]
 test = [
     "pytest>=9.1.1",
     "hypothesis>=6.164.0",
 ]
+# mypy, ruff, interrogate and pre-commit are deliberately absent: nothing resolves the
+# *tools* from the project environment. ruff and the hook suite run through uvx (`fmt` in
+# the root Makefile via prek, and .rhiza/make.d/quality.mk), mypy through
+# `uv run --with mypy` and interrogate through `uv run --with interrogate` in
+# .rhiza/make.d/test.mk — each provisions its own ephemeral environment. Declaring them
+# here only pinned a second, unused copy in uv.lock for renovate to bump.
+#
+# types-pyyaml is the exception and must stay, because it is not a tool: stubs are input
+# to the analysis, so they have to be present in the environment mypy *inspects*, not the
+# one it runs from. `uv run --with mypy` supplies only mypy, so dropping the stubs made
+# `make typecheck` fail under --strict with "Library stubs not installed for yaml" on
+# every module importing yaml. It passed locally anyway — `make install` syncs with
+# --inexact, which never prunes, so an already-installed copy lingered in .venv after it
+# left uv.lock. Clean checkouts (i.e. CI) had no such copy. Moving this to a
+# `--with types-pyyaml` in test.mk would suit the rule above better, but that file is
+# Rhiza-managed, so it needs an upstream change first.
 lint = [
-    "ruff>=0.16.1,<1.0",
-    "interrogate>=1.7,<2.0",
-    "pre-commit>=4.6.1,<5.0",
-    "mypy>=1.11,<2.0",
     "types-pyyaml>=6.0.12.20260518",
 ]
 
