@@ -212,11 +212,22 @@ def _run(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
 
 
 def _pre_commit_command() -> list[str] | None:
-    """Return the command that invokes pre-commit, or None if it is unavailable."""
+    """Return the command that invokes pre-commit, or None if it is unavailable.
+
+    The ``uvx`` fallback is what keeps this test alive: pre-commit is deliberately
+    not a declared dependency of this project (every other gate reaches it through
+    ``uvx`` too — see ``fmt`` in the root Makefile and .rhiza/make.d/quality.mk), so
+    neither PATH nor the project venv has it. Without the fallback this test does not
+    quietly skip — ``_skip_or_fail(transient=False)`` turns a missing pre-commit into
+    a hard failure under CI.
+    """
     if shutil.which("pre-commit") is not None:
         return ["pre-commit"]
     if importlib.util.find_spec("pre_commit") is not None:
         return [sys.executable, "-m", "pre_commit"]
+    uvx = shutil.which("uvx")
+    if uvx is not None:
+        return [uvx, "pre-commit"]
     return None
 
 
