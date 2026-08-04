@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
 from urllib.request import urlopen
 
 import yaml
@@ -154,7 +153,7 @@ def fetch_remote_bundles(
     attempts: int = FETCH_ATTEMPTS,
     backoff: float = FETCH_BACKOFF_SECONDS,
     timeout: float = FETCH_TIMEOUT_SECONDS,
-    opener: _Opener = urlopen,  # nosec B310
+    opener: _Opener = urlopen,
 ) -> BundlesDoc:
     """Fetch template-bundles.yml from a remote GitHub repository.
 
@@ -170,19 +169,32 @@ def fetch_remote_bundles(
         backoff: Base seconds to sleep between attempts (multiplied by attempt number)
         timeout: Per-request socket timeout in seconds
         opener: Performs one HTTP GET; defaults to :func:`urllib.request.urlopen`.
-            Only the scheme-checked URL built below is ever passed to it — tests
-            substitute a fake instead of rebinding this module's ``urlopen``.
+            Only the https URL built below is ever passed to it — tests substitute a
+            fake instead of rebinding this module's ``urlopen``.
 
     Returns:
         A :class:`BundlesDoc` with the parsed mapping on success, or errors.
     """
-    # Construct GitHub raw content URL
+    # The scheme and host are literal, and `repo`/`branch` interpolate only into the
+    # path that follows them, so this URL is https by construction. There used to be a
+    # `urlparse(url).scheme != "https"` guard here "for bandit B310" (#340): it could
+    # not fire for any argument, the only way to cover the line was a test that
+    # monkeypatched this module's `urlparse`, and a control that needs a patched parser
+    # to trigger asserts a safety property nobody is checking. If a caller-supplied URL
+    # is ever wanted, validate it *there*, where it can actually be untrusted.
+    #
+    # The `nosec B310` marker on the `opener` default above went with it, and for a
+    # related reason: B310 flags *calls* to urlopen, which this module never makes —
+    # every request goes through the injected `opener`, and `urlopen` appears only as
+    # that parameter's default value. So the marker was silencing a finding bandit does
+    # not raise. Confirmed by running the configured hook without it (`.bandit` skips
+    # B101 only, so B310 was live): bandit passes.
+    #
+    # Written without the leading `#` on purpose: bandit greps comments for that token
+    # and parses whatever follows as test ids, so spelling it in prose logs a dozen
+    # "Test in comment: ... is not a test name" warnings and quietly registers a
+    # suppression on this line.
     url = f"https://raw.githubusercontent.com/{repo}/{branch}/.rhiza/template-bundles.yml"
-
-    # Validate URL scheme for security (bandit B310)
-    parsed = urlparse(url)
-    if parsed.scheme != "https":
-        return BundlesDoc(None, [f"Invalid URL scheme: {parsed.scheme}. Only https is allowed."])
 
     # pragma below: equivalent mutant — the final `return BundlesDoc(None, errors)` is only
     # reached after a transient-error iteration has reassigned `errors` (success and HTTP

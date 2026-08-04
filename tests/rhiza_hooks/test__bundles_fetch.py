@@ -10,7 +10,6 @@ from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock
 from urllib.error import HTTPError, URLError
-from urllib.parse import ParseResult
 from urllib.request import urlopen
 
 import pytest
@@ -212,23 +211,20 @@ def test_fetch_remote_bundles_not_dict():
     assert result.errors == ["Remote template bundles must be a dictionary"]
 
 
-def test_fetch_remote_bundles_invalid_scheme(monkeypatch):
-    """A non-https URL is rejected before any request is made."""
+def test_fetch_remote_bundles_url_is_https():
+    """The URL handed to the opener is https, whatever the repo and branch contain.
 
-    def mock_urlparse(url):
-        """Return a parsed URL with an http scheme to trigger scheme rejection."""
-        return ParseResult(scheme="http", netloc="raw.githubusercontent.com", path="", params="", query="", fragment="")
-
-    # The URL is built internally with a literal https scheme, so this guard is
-    # unreachable through the public arguments — urlparse is the only seam. Patched
-    # through the module object rather than by name so a rename is a real reference.
-    monkeypatch.setattr(_bundles_fetch, "urlparse", mock_urlparse)
+    Replaces a former ``test_fetch_remote_bundles_invalid_scheme`` (#340), which could
+    only reach the deleted ``urlparse`` guard by monkeypatching this module's
+    ``urlparse`` — it pinned the implementation of an unreachable branch. This asserts
+    the property that guard was reaching for, through the public arguments: the scheme
+    is a literal prefix, so no interpolated value can move the request off https.
+    """
     opener, calls = _opener_for([_response(b"version: 1.0\nbundles: {}")])
 
-    result = fetch_remote_bundles("test/repo", "main", opener=opener)
-    assert result.data is None
-    assert result.errors == ["Invalid URL scheme: http. Only https is allowed."]
-    assert calls.call_count == 0
+    result = fetch_remote_bundles("../../evil", "http://elsewhere", opener=opener)
+    assert result.errors == []
+    assert calls.call_args.args[0].startswith("https://raw.githubusercontent.com/")
 
 
 def test_fetch_remote_bundles_success():
