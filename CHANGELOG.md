@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com),
 and entries are generated from [Conventional Commits](https://www.conventionalcommits.org).
 
+## [1.2.0] - 2026-08-04
+
+### New Features
+- Run the hook suite with prek instead of pre-commit (#332)
+
+### Bug Fixes
+- Drop the unreachable HTTPS scheme guard in _bundles_fetch (#340) (#341)
+
+### Maintenance
+- Drop pytest-cov and pytest-timeout from the test group (#334)
+- Chore(deps-dev)(deps-dev): bump the python-dependencies group with 2 updates (#336)
+- Chore(deps)(deps): bump the github-actions group with 3 updates (#337)
+- Drop the dev group and the uvx-provisioned lint dependencies (#335)
+- Rename the stubs dependency group from lint to types (#338)
+
+### Reverts
+- Drop the render-precommit CLI shipped in v1.1.0 (#333)
+
 ## [1.1.0] - 2026-08-03
 
 ### New Features
