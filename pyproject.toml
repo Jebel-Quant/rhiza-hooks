@@ -86,7 +86,15 @@ test = [
 # left uv.lock. Clean checkouts (i.e. CI) had no such copy. Moving this to a
 # `--with types-pyyaml` in test.mk would suit the rule above better, but that file is
 # Rhiza-managed, so it needs an upstream change first.
-lint = [
+#
+# Named `types`, not `lint`, on purpose. Rhiza retired the `lint` group upstream
+# (jebel-quant/rhiza#1484): prek/uvx provision every linter, so the group had nothing
+# legitimate to hold, the shipped `test_lint_group_present` check is gone, and
+# .rhiza/CONTRIBUTING.md now states outright that no such group exists. Reusing the name
+# for a stubs-only group would read as that retired convention still being alive. The
+# name is otherwise inert — UV_SYNC_ARGS in .rhiza/make.d/python.mk is `--all-groups`,
+# so nothing selects this group by name.
+types = [
     "types-pyyaml>=6.0.12.20260518",
 ]
 
