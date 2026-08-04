@@ -52,19 +52,6 @@ def _console_scripts() -> dict[str, str]:
     return dict(tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))["project"]["scripts"])
 
 
-#: Console scripts that are deliberately **not** published as pre-commit hooks.
-#:
-#: The reverse check below exists to catch a hook that was built and tested here but
-#: never published — an accident. A tool that is not a hook at all is a different thing,
-#: and has to be named here so the accident stays detectable.
-#:
-#: ``render-precommit`` renders a ``.pre-commit-config.yaml`` from fragments. It cannot
-#: usefully be a hook: pre-commit reads that file once, before any hook runs, so a
-#: render can only ever affect the *next* invocation. It belongs in the build step that
-#: runs before pre-commit, not in pre-commit.
-_NOT_HOOKS = frozenset({"render-precommit"})
-
-
 # ---------------------------------------------------------------------------
 # Static contract: manifest <-> [project.scripts]
 # ---------------------------------------------------------------------------
@@ -73,35 +60,13 @@ def test_hook_entries_match_console_scripts() -> None:
 
     Both directions matter and fail differently. An ``entry`` with no console
     script breaks every consumer at hook-install time; a console script with no
-    ``entry`` is a hook that was built and tested here but never published —
-    unless it is named in ``_NOT_HOOKS``, i.e. it is not a hook to begin with.
+    ``entry`` is a hook that was built and tested here but never published.
     """
     entries = {hook["entry"] for hook in _manifest()}
-    scripts = set(_console_scripts()) - _NOT_HOOKS
+    scripts = set(_console_scripts())
 
     assert entries - scripts == set(), "hook entries with no matching [project.scripts] console script"
     assert scripts - entries == set(), "console scripts not published in .pre-commit-hooks.yaml"
-
-
-def test_non_hook_scripts_really_are_absent_from_the_manifest() -> None:
-    """``_NOT_HOOKS`` names scripts with no hook, so it must not shadow a real one.
-
-    Without this, adding a hook for an exempted script would leave the exemption in
-    place and quietly remove that hook from the parity check above.
-    """
-    entries = {hook["entry"] for hook in _manifest()}
-    assert _NOT_HOOKS & entries == set(), (
-        f"_NOT_HOOKS names published hook entries: {sorted(_NOT_HOOKS & entries)}. "
-        "Drop them from _NOT_HOOKS — they are hooks after all."
-    )
-
-
-def test_non_hook_scripts_are_installed() -> None:
-    """An exemption must name a script that exists, not a stale leftover."""
-    scripts = set(_console_scripts())
-    assert _NOT_HOOKS - scripts == set(), (
-        f"_NOT_HOOKS names console scripts that are not declared: {sorted(_NOT_HOOKS - scripts)}"
-    )
 
 
 def test_hook_ids_are_unique() -> None:
