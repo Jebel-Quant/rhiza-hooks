@@ -55,10 +55,6 @@ check-template-bundles = "rhiza_hooks.check_template_bundles:main"
 check-managed-files = "rhiza_hooks.check_managed_files:main"
 check-workflow-make-targets = "rhiza_hooks.check_workflow_make_targets:main"
 check-license-metadata = "rhiza_hooks.check_license_metadata:main"
-# The one script that is not a pre-commit hook: it renders a .pre-commit-config.yaml,
-# which pre-commit reads once before any hook runs, so it belongs in the build step
-# ahead of pre-commit rather than inside it. Exempted in tests/meta/test_pre_commit_manifest.py.
-render-precommit = "rhiza_hooks.render_precommit:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rhiza_hooks"]

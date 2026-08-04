@@ -23,7 +23,6 @@ nav:
       - check_template_bundles: api-reference/check_template_bundles.md
       - check_workflow_make_targets: api-reference/check_workflow_make_targets.md
       - check_workflow_names: api-reference/check_workflow_names.md
-      - render_precommit: api-reference/render_precommit.md
       - update_readme_help: api-reference/update_readme_help.md
       - Internals:
           - _bundles_config: api-reference/_bundles_config.md
