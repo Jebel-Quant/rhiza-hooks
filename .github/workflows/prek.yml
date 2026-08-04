@@ -1,0 +1,56 @@
+# Repo-owned workflow — NOT synced from jebel-quant/rhiza.
+#
+# Deliberately not named `rhiza_*.yml`: that prefix is Rhiza's namespace, and
+# `check-rhiza-workflow-names` would then require a "(RHIZA)" name prefix and the
+# next sync would treat the file as template-owned.
+#
+# Workflow: run the pre-commit hook suite with prek (https://github.com/j178/prek)
+#
+# Purpose: prek is a single Rust binary that reads the very same
+#          .pre-commit-config.yaml, so this job checks exactly what the upstream
+#          "ci / Pre-commit hooks" job checks — just faster (measured on this
+#          repo: 1.6s warm / 14.8s cold against pre-commit's 11.5s warm).
+#
+# Why this exists as a separate workflow: the pre-commit step lives inside the
+# reusable workflow at jebel-quant/rhiza/.github/workflows/rhiza_ci.yml, and
+# .rhiza/make.d/quality.mk, .rhiza/make.d/python.mk and the
+# `ci / Pre-commit hooks` required-status-check name are all Rhiza-owned. None of
+# them can be edited here, so CI cannot be switched in place — it can only be
+# joined. Consequence: for now BOTH this job and the upstream pre-commit job run
+# the same hooks. That redundancy is intentional and temporary; it collapses once
+# quality.mk and the reusable workflow move to prek upstream, at which point this
+# file and the `fmt` override in the root Makefile both go away.
+#
+# Trigger: on push and pull_request, mirroring rhiza_ci.yml.
+
+name: "Prek hooks"
+
+permissions:
+  contents: read
+
+on:
+  push:
+  pull_request:
+
+# A second push to a PR makes the in-flight run redundant.
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  prek:
+    name: "Prek hooks"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.1.0
+
+      # Puts uv/uvx on PATH, so the Makefile's `install-uv` no-ops and UVX_BIN
+      # resolves to this cached uv rather than curl-installing one into ./bin.
+      - uses: astral-sh/setup-uv@v7.6.0
+
+      # Go through `make fmt` rather than invoking prek directly so PREK_VERSION
+      # in the root Makefile stays the single source of truth for the pinned
+      # version, and so this job runs byte-identically to a developer's `make fmt`.
+      # `check-workflow-make-targets` verifies this target exists.
+      - name: Run hooks with prek
+        run: make fmt
