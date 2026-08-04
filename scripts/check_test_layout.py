@@ -27,7 +27,11 @@ gate) can opt out via a ``[tool.check_test_layout]`` table in ``pyproject.toml``
 
 ``enforce = false`` requires a non-empty ``reason`` so the deviation is always
 documented. The same table accepts ``exempt_dirs = [...]`` to extend the
-built-in benchmarks/stress exemptions when parity *is* enforced.
+built-in benchmarks/stress exemptions when parity *is* enforced, and
+``exempt_files = [...]`` to exempt individual test files by their path relative
+to the tests root — for a single loose file, ``exempt_dirs`` cannot express it,
+since its first path component is the file itself and exempting that reads as a
+directory that does not exist.
 
 Usage:
   uv run --python 3.12 --no-project python \
@@ -136,6 +140,19 @@ def _exempt_dirs(config: Mapping[str, object]) -> set[str]:
     return dirs
 
 
+def _exempt_files(config: Mapping[str, object]) -> set[str]:
+    """Return the exempt test files from *config* (none are exempt by default).
+
+    Entries are paths relative to the tests root (POSIX separators), not bare
+    names, so exempting one file cannot silently exempt a same-named file
+    elsewhere in the tree.
+    """
+    entries = config.get("exempt_files")
+    if not isinstance(entries, list):
+        return set()
+    return {str(f) for f in entries}
+
+
 def _top_level_classes(path: Path) -> set[str]:
     """Return the names of top-level classes defined in *path*.
 
@@ -156,17 +173,24 @@ def _source_modules(src: Path) -> list[Path]:
     return sorted(p for p in src.rglob("*.py") if p.name not in _IGNORED)
 
 
-def _test_files(tests: Path, exempt: set[str] | None = None) -> list[Path]:
-    """Return the ``test_*.py`` files under *tests* (ignoring conftest/exempt dirs)."""
+def _test_files(tests: Path, exempt: set[str] | None = None, exempt_files: set[str] | None = None) -> list[Path]:
+    """Return the ``test_*.py`` files under *tests* (ignoring conftest/exempt dirs and files)."""
     exempt = _DEFAULT_EXEMPT_DIRS if exempt is None else exempt
+    exempt_files = exempt_files or set()
     return sorted(
-        p for p in tests.rglob("test_*.py") if p.name not in _IGNORED and p.relative_to(tests).parts[0] not in exempt
+        p
+        for p in tests.rglob("test_*.py")
+        if p.name not in _IGNORED
+        and p.relative_to(tests).parts[0] not in exempt
+        and p.relative_to(tests).as_posix() not in exempt_files
     )
 
 
 def check(src: Path, tests: Path, config: Mapping[str, object] | None = None) -> list[str]:
     """Return a list of layout violations (empty when the layout is clean)."""
-    exempt = _exempt_dirs(config or {})
+    config = config or {}
+    exempt = _exempt_dirs(config)
+    exempt_files = _exempt_files(config)
     errors: list[str] = []
 
     # Forward: every source module needs a mirrored test file + Test* classes.
@@ -182,7 +206,7 @@ def check(src: Path, tests: Path, config: Mapping[str, object] | None = None) ->
                 errors.append(f"missing class Test{cls} in {test_path} for class {cls} in {module}")
 
     # Reverse: every test file/class must trace back to a source module/class.
-    for test_file in _test_files(tests, exempt):
+    for test_file in _test_files(tests, exempt, exempt_files):
         rel = test_file.relative_to(tests)
         source_name = test_file.stem[len("test_") :]
         source_path = src / rel.parent / f"{source_name}.py"

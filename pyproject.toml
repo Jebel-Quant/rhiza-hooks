@@ -116,6 +116,14 @@ fail_under = 100
 # reverse (orphan) check while keeping forward parity enforced for every source module.
 exempt_dirs = ["meta"]
 
+# tests/test_rhiza_packaging.py is delivered by Rhiza's python-core bundle (it arrived
+# with the v1.3.2 sync) and asserts that [project].version matches the version actually
+# installed into the environment. It covers packaging, not a src/ module, so the reverse
+# check reads it as an orphan looking for src/rhiza_packaging.py. It is a synced,
+# template-owned file: deleting it would be undone by the next sync, and excluding it in
+# .rhiza/template.yml would drop a real invariant, so exempt it here instead.
+exempt_files = ["test_rhiza_packaging.py"]
+
 # Version bumping. This block must live here: bump-my-version only searches
 # .bumpversion.toml, pyproject.toml, setup.cfg and .bumpversion.cfg. Without a
 # table in one of those the tool does not error — it falls back to `git describe`

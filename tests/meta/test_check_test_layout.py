@@ -236,6 +236,30 @@ def test_check_respects_config_exempt_dirs(tmp_path: Path) -> None:
     assert ctl.check(src, tests, {"exempt_dirs": ["integration"]}) == []
 
 
+def test_exempt_files_from_config() -> None:
+    """``_exempt_files`` reads the config list and defaults to exempting nothing."""
+    assert ctl._exempt_files({}) == set()
+    assert ctl._exempt_files({"exempt_files": ["test_ghost.py"]}) == {"test_ghost.py"}
+    assert ctl._exempt_files({"exempt_files": "nope"}) == set()
+
+
+def test_check_respects_config_exempt_files(tmp_path: Path) -> None:
+    """An ``exempt_files`` entry clears orphan errors for that one file only.
+
+    Entries are matched on the path relative to the tests root, so a same-named
+    file in a subdirectory keeps being reported.
+    """
+    src, tests = tmp_path / "src", tmp_path / "tests"
+    src.mkdir()
+    _write(tests / "test_ghost.py", "class TestNothing:\n    pass\n")
+    assert any("orphan test file" in e for e in ctl.check(src, tests))
+    assert ctl.check(src, tests, {"exempt_files": ["test_ghost.py"]}) == []
+
+    _write(tests / "pkg" / "test_ghost.py", "def test_x():\n    pass\n")
+    errors = ctl.check(src, tests, {"exempt_files": ["test_ghost.py"]})
+    assert [e for e in errors if "pkg" in e]
+
+
 def test_main_enforce_false_ok(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """``enforce = false`` with a reason exits 0 and prints the opt-out message."""
     pyproject = tmp_path / "pyproject.toml"
