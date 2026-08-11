@@ -68,7 +68,7 @@ pyyaml = "yaml"
 [dependency-groups]
 test = [
     "pytest>=9.1.1",
-    "hypothesis>=6.164.0",
+    "hypothesis>=6.165.2",
 ]
 # mypy, ruff, interrogate and pre-commit are deliberately absent: nothing resolves the
 # *tools* from the project environment. ruff and the hook suite run through uvx (`fmt` in
