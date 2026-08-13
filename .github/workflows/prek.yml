@@ -48,6 +48,26 @@ jobs:
       # resolves to this cached uv rather than curl-installing one into ./bin.
       - uses: astral-sh/setup-uv@v7.6.0
 
+      # Cache prek's hook environments (~/.cache/prek/{repos,hooks}).
+      #
+      # Without this every run is a cold install, and one hook in the suite —
+      # shellcheck-py — has no wheel carrying the binary: its build backend
+      # downloads the shellcheck release tarball from GitHub during
+      # `uv pip install`. That put a network round-trip on the critical path of
+      # every single run, and when it was dropped mid-flight the job failed with
+      # `error: Remote end closed connection without response` at
+      # `running setuptools_download` — nothing to do with the hooks' verdict.
+      # See the failure on #346, whose twin run on the identical commit passed.
+      #
+      # Keyed on the hook list plus the Makefile (which pins PREK_VERSION), since
+      # either changing can invalidate a built environment. `restore-keys` lets a
+      # stale entry seed the cache so only the changed hook re-installs.
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ~/.cache/prek
+          key: "prek-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml', 'Makefile') }}"
+          restore-keys: "prek-${{ runner.os }}-"
+
       # Go through `make fmt` rather than invoking prek directly so PREK_VERSION
       # in the root Makefile stays the single source of truth for the pinned
       # version, and so this job runs byte-identically to a developer's `make fmt`.
