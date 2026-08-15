@@ -59,6 +59,17 @@ def repo_relative(filename: str, repo_root: Path) -> str:
 
     Returns:
         The path, relative to ``repo_root`` where possible, with forward slashes.
+
+    >>> from pathlib import Path
+    >>> repo_relative("Makefile", Path("."))
+    'Makefile'
+
+    A ``./`` prefix is normalised away, and separators come out as forward
+    slashes on every platform, so comparison against the managed-path list is
+    not OS-dependent:
+
+    >>> repo_relative("./.github/workflows/rhiza_ci.yml", Path("."))
+    '.github/workflows/rhiza_ci.yml'
     """
     path = Path(filename)
     if path.is_absolute():
@@ -147,9 +158,12 @@ def main(argv: list[str] | None = None) -> int:
     errors = check_managed_files(args.filenames, find_repo_root(), set(args.allow))
 
     for error in errors:
-        print(f"ERROR: {error}")
+        print(f"ERROR: {error}", file=sys.stderr)
     if errors:
-        print("Bypass this hook for a sync commit with: SKIP=check-managed-files git commit ...")
+        print(
+            "Bypass this hook for a sync commit with: SKIP=check-managed-files git commit ...",
+            file=sys.stderr,
+        )
 
     return 1 if errors else 0
 

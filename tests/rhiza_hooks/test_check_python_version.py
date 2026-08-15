@@ -430,10 +430,11 @@ def test_main_inconsistent_returns_one(tmp_path: Path, capsys: pytest.CaptureFix
         result = main([])
         assert result == 1
         captured = capsys.readouterr()
-        # Exact stdout pins the "ERROR: {error}" print format.
-        assert captured.out == (
+        # Exact stderr pins the "ERROR: {error}" print format; stdout stays clean.
+        assert captured.err == (
             "ERROR: Python version mismatch: .python-version has 3.10, but pyproject.toml requires-python is >=3.11\n"
         )
+        assert captured.out == ""
 
 
 def test_main_no_files_returns_zero(tmp_path: Path) -> None:

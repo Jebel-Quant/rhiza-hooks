@@ -359,7 +359,7 @@ def test_main_inconsistent_returns_one(tmp_path: Path, capsys: pytest.CaptureFix
     with patch("rhiza_hooks.check_go_version.find_repo_root", return_value=tmp_path):
         assert main([]) == 1
 
-    assert capsys.readouterr().out == (
+    assert capsys.readouterr().err == (
         "ERROR: Go version mismatch: .go-version is 1.21.0, which is below the go.mod go directive 1.22\n"
     )
 
@@ -455,7 +455,8 @@ def test_subprocess_inconsistent(mock_project: Callable[[dict[str, str]], Path])
         check=False,
     )
     assert result.returncode == 1
-    assert "toolchain directive pins 1.22.5" in result.stdout
+    assert "toolchain directive pins 1.22.5" in result.stderr
+    assert result.stdout == ""
 
 
 def test_subprocess_on_this_project(project_root: Path) -> None:

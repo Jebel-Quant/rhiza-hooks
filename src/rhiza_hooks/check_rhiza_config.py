@@ -33,7 +33,16 @@ def _load_config(filepath: Path) -> dict[str, Any] | list[str]:
 
 
 def _validate_required_keys(config: dict[str, Any]) -> list[str]:
-    """Validate required keys are present."""
+    """Validate required keys are present.
+
+    >>> _validate_required_keys({"template-repository": "jebel-quant/rhiza", "template-branch": "v1.3.3"})
+    []
+    >>> _validate_required_keys({"template-repository": "jebel-quant/rhiza"})
+    ['Missing required key: template-branch']
+
+    Aliases are resolved before this runs (see :func:`_config_schema.normalize_config`),
+    so a config spelling the key ``ref:`` reaches here already canonical.
+    """
     errors = []
     for key in REQUIRED_KEYS:
         if key not in config:
@@ -42,7 +51,19 @@ def _validate_required_keys(config: dict[str, Any]) -> list[str]:
 
 
 def _validate_unknown_keys(config: dict[str, Any]) -> list[str]:
-    """Check for unknown keys."""
+    """Check for unknown keys.
+
+    >>> _validate_unknown_keys({"template-repository": "o/r", "template-branch": "v1"})
+    []
+    >>> _validate_unknown_keys({"template-repository": "o/r", "tempalte-branch": "v1"})
+    ['Unknown key: tempalte-branch']
+
+    Alias spellings are accepted here as well as canonical ones, so validation
+    does not depend on having normalized first:
+
+    >>> _validate_unknown_keys({"repository": "o/r", "ref": "v1", "profiles": ["core"]})
+    []
+    """
     errors = []
     # Accept both canonical keys and their aliases
     all_valid_keys = VALID_KEYS | set(KEY_ALIASES.keys())
@@ -159,9 +180,9 @@ def main(argv: list[str] | None = None) -> int:
         filepath = Path(filename)
         errors = validate_rhiza_config(filepath)
         if errors:
-            print(f"{filename}:")
+            print(f"{filename}:", file=sys.stderr)
             for error in errors:
-                print(f"  - {error}")
+                print(f"  - {error}", file=sys.stderr)
             retval = 1
 
     return retval

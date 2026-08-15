@@ -55,6 +55,24 @@ def resolve_recommended_targets(targets: list[str] | None, extra_targets: list[s
 
     Returns:
         The set of target names a Makefile is expected to define.
+
+    With neither option, the built-in defaults apply:
+
+    >>> sorted(resolve_recommended_targets(None, None))
+    ['fmt', 'help', 'install', 'test']
+
+    ``--target`` *replaces* them, so a project with its own vocabulary is not
+    also held to the defaults:
+
+    >>> sorted(resolve_recommended_targets(["build"], None))
+    ['build']
+
+    ``--extend-target`` *adds* to whichever set is active:
+
+    >>> sorted(resolve_recommended_targets(None, ["deploy"]))
+    ['deploy', 'fmt', 'help', 'install', 'test']
+    >>> sorted(resolve_recommended_targets(["build"], ["deploy"]))
+    ['build', 'deploy']
     """
     base = set(targets) if targets else set(RECOMMENDED_TARGETS)
     return base | set(extra_targets or [])
@@ -94,9 +112,9 @@ def main(argv: list[str] | None = None) -> int:
         filepath = Path(filename)
         warnings = check_makefile(filepath, recommended)
         if warnings:
-            print(f"{filename}:")
+            print(f"{filename}:", file=sys.stderr)
             for warning in warnings:
-                print(f"  - {warning}")
+                print(f"  - {warning}", file=sys.stderr)
             if args.strict:
                 retval = 1
 

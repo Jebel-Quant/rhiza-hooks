@@ -145,6 +145,25 @@ def version_satisfies_constraint(version: str, operator: str, constraint_version
 
     Returns:
         True if version satisfies the constraint
+
+    >>> version_satisfies_constraint("3.12", ">=", "3.11")
+    True
+    >>> version_satisfies_constraint("3.10", ">=", "3.11")
+    False
+
+    ``~=`` additionally pins the major component:
+
+    >>> version_satisfies_constraint("3.12", "~=", "3.11")
+    True
+    >>> version_satisfies_constraint("4.0", "~=", "3.11")
+    False
+
+    An operator this hook does not model is treated permissively rather than as a
+    violation — the hook reports disagreements it is sure about, not everything it
+    cannot parse:
+
+    >>> version_satisfies_constraint("3.10", "<>", "3.11")
+    True
     """
     comparator = _COMPARATORS.get(operator)
     if comparator is None:
@@ -203,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if errors:
         for error in errors:
-            print(f"ERROR: {error}")
+            print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
     return 0

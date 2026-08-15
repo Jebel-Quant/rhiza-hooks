@@ -37,20 +37,20 @@ def get_make_help_output() -> str | None:
             timeout=30,
         )
     except subprocess.CalledProcessError as e:
-        print(f"Error running 'make help': {e}")
+        print(f"Error running 'make help': {e}", file=sys.stderr)
         return None
     except subprocess.TimeoutExpired:
-        print("Error: 'make help' timed out")
+        print("Error: 'make help' timed out", file=sys.stderr)
         return None
     except FileNotFoundError:
-        print("Error: 'make' command not found")
+        print("Error: 'make' command not found", file=sys.stderr)
         return None
     else:
         return result.stdout
 
 
 def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
-    """Update README.md with the make help output.
+    r"""Update README.md with the make help output.
 
     Args:
         readme_path: Path to the README.md file.
@@ -58,9 +58,47 @@ def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
 
     Returns:
         True if the file was modified, False otherwise.
+
+    The marker pair is the whole contract. Without both markers there is nothing
+    to replace and the hook is a silent no-op — which is the usual answer to "why
+    did my README not update?":
+
+    >>> import contextlib, io, tempfile
+    >>> from pathlib import Path
+    >>> tmp = tempfile.TemporaryDirectory()
+    >>> readme = Path(tmp.name) / "README.md"
+    >>> _ = readme.write_text("intro\n", encoding="utf-8")
+    >>> update_readme_with_help(readme, "test: run tests\n")
+    False
+
+    With both markers present, everything between them is replaced by the fenced
+    help output. The "Updated ..." notice goes to stderr, so it is redirected here
+    rather than appearing as expected output:
+
+    >>> _ = readme.write_text(
+    ...     "intro\n<!-- MAKE_HELP_START -->\nstale\n<!-- MAKE_HELP_END -->\n", encoding="utf-8"
+    ... )
+    >>> with contextlib.redirect_stderr(io.StringIO()):
+    ...     update_readme_with_help(readme, "test: run tests\n")
+    True
+    >>> print(readme.read_text(encoding="utf-8"), end="")
+    intro
+    <!-- MAKE_HELP_START -->
+    ```
+    test: run tests
+    ```
+    <!-- MAKE_HELP_END -->
+
+    Re-running with the same help output changes nothing, so the hook converges
+    instead of failing every commit:
+
+    >>> with contextlib.redirect_stderr(io.StringIO()):
+    ...     update_readme_with_help(readme, "test: run tests\n")
+    False
+    >>> tmp.cleanup()
     """
     if not readme_path.exists():
-        print(f"Warning: {readme_path} not found, skipping update")
+        print(f"Warning: {readme_path} not found, skipping update", file=sys.stderr)
         return False
 
     content = readme_path.read_text(encoding="utf-8")
@@ -89,7 +127,7 @@ def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
         # so `new_content` is all \n; without this the write would emit CRLF on Windows
         # and reflow the entire README instead of just the help block.
         readme_path.write_text(new_content, encoding="utf-8", newline="")
-        print(f"Updated {readme_path} with make help output")
+        print(f"Updated {readme_path} with make help output", file=sys.stderr)
         return True
 
     return False

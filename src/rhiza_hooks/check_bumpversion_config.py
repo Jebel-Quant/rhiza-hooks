@@ -207,6 +207,13 @@ def _version_mismatch(filename: str, declared: str | None, project_version: str)
 
     A config that declares no ``current_version`` at all is not a mismatch: there is
     no stale value to bump from.
+
+    >>> _version_mismatch(".bumpversion.toml", "1.2.0", "1.2.0")
+    []
+    >>> _version_mismatch(".bumpversion.toml", None, "1.2.0")
+    []
+    >>> _version_mismatch(".bumpversion.toml", "1.1.0", "1.2.0")[0].startswith("Version mismatch:")
+    True
     """
     if declared is None or declared == project_version:
         return []
@@ -257,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
     errors = check_bumpversion_config(find_repo_root())
 
     for error in errors:
-        print(f"ERROR: {error}")
+        print(f"ERROR: {error}", file=sys.stderr)
 
     return 1 if errors else 0
 

@@ -292,9 +292,12 @@ def test_main_with_alias_form_config(tmp_path, monkeypatch, capsys):
 
     result = main([], fetcher=mock_fetch_remote_bundles)
     assert result == 0
-    out = capsys.readouterr().out.splitlines()
-    assert "✓ Template bundles validation passed!" in out
-    assert "Missing template-repository or template-branch in " + str(rhiza_dir / "template.yml") not in out
+    captured = capsys.readouterr()
+    assert "✓ Template bundles validation passed!" in captured.out.splitlines()
+    # Negative assertion spans both streams: the message it guards against now goes to
+    # stderr, so checking stdout alone would pass vacuously.
+    both = captured.out.splitlines() + captured.err.splitlines()
+    assert "Missing template-repository or template-branch in " + str(rhiza_dir / "template.yml") not in both
 
 
 def test_alias_form_accepted_by_both_hooks(tmp_path, monkeypatch):
@@ -356,7 +359,7 @@ def test_main_missing_template_repository(tmp_path, monkeypatch, capsys):
     result = main([], fetcher=stub)
     assert result == 1
     config_path = tmp_path / ".rhiza" / "template.yml"
-    assert f"Missing template-repository or template-branch in {config_path}" in capsys.readouterr().out.splitlines()
+    assert f"Missing template-repository or template-branch in {config_path}" in capsys.readouterr().err.splitlines()
 
 
 def test_main_missing_template_branch(tmp_path, monkeypatch, capsys):
@@ -385,7 +388,7 @@ def test_main_missing_template_branch(tmp_path, monkeypatch, capsys):
     result = main([], fetcher=stub)
     assert result == 1
     config_path = tmp_path / ".rhiza" / "template.yml"
-    assert f"Missing template-repository or template-branch in {config_path}" in capsys.readouterr().out.splitlines()
+    assert f"Missing template-repository or template-branch in {config_path}" in capsys.readouterr().err.splitlines()
 
 
 def test_main_fetch_remote_fails(tmp_path, monkeypatch):
@@ -491,7 +494,7 @@ def test_main_template_not_in_bundles(tmp_path, monkeypatch, capsys):
     assert result == 1
     # Exact failure header + bullet lines (splitlines membership rejects mutated wrappers).
     config_path = tmp_path / ".rhiza" / "template.yml"
-    lines = capsys.readouterr().out.splitlines()
+    lines = capsys.readouterr().err.splitlines()
     assert "✗ Template bundles validation failed:" in lines
     assert f"  - Template 'nonexistent' specified in {config_path} not found in remote bundles" in lines
 
@@ -531,8 +534,8 @@ def test_main_invalid_bundle_structure_in_remote(tmp_path, monkeypatch):
 # --- main() stdout guard --------------------------------------------------
 
 
-def test_main_with_non_textiowrapper_stdout(tmp_path, monkeypatch):
-    """main() skips reconfigure when stdout is not a TextIOWrapper."""
+def test_main_with_non_textiowrapper_streams(tmp_path, monkeypatch):
+    """main() skips reconfigure when neither output stream is a TextIOWrapper."""
     import io
 
     from rhiza_hooks.check_template_bundles import main
@@ -543,7 +546,10 @@ def test_main_with_non_textiowrapper_stdout(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     # io.StringIO is not a TextIOWrapper, so the reconfigure branch is skipped.
+    # Both streams are patched so the skip is exercised deterministically for each,
+    # rather than depending on what the test runner happens to install as stderr.
     monkeypatch.setattr("sys.stdout", io.StringIO())
+    monkeypatch.setattr("sys.stderr", io.StringIO())
     assert main([]) == 0
 
 
@@ -631,12 +637,10 @@ def test_fetch_failure_prints_errors(capsys):
     data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, fetcher=fetcher)
     assert data is None
     assert errors == ["boom"]
-    assert capsys.readouterr().out == (
-        "Fetching template bundles from test/repo (branch: main)\n"
-        "Checking templates: core\n"
-        "\n✗ Failed to fetch template bundles:\n"
-        "  - boom\n"
-    )
+    captured = capsys.readouterr()
+    # The progress lines stay on stdout; only the failure block moves to stderr.
+    assert captured.out == ("Fetching template bundles from test/repo (branch: main)\nChecking templates: core\n")
+    assert captured.err == "\n✗ Failed to fetch template bundles:\n  - boom\n"
 
 
 def test_invalid_top_level_returns_none(capsys):
@@ -646,7 +650,7 @@ def test_invalid_top_level_returns_none(capsys):
     # data is None pins `errors = validate_top_level_fields(data)` (vs the `errors = None` mutant).
     assert data is None
     assert errors == ["Missing required field: version"]
-    lines = capsys.readouterr().out.splitlines()
+    lines = capsys.readouterr().err.splitlines()
     assert "✗ Template bundles validation failed:" in lines
     assert "  - Missing required field: version" in lines
 
@@ -657,7 +661,7 @@ def test_bundles_not_dict_returns_none(capsys):
     data, errors = _validate_remote_bundles("test/repo", "main", {"core"}, fetcher=fetcher)
     assert data is None
     assert errors == ["'bundles' must be a dictionary"]
-    lines = capsys.readouterr().out.splitlines()
+    lines = capsys.readouterr().err.splitlines()
     assert "✗ Template bundles validation failed:" in lines
     assert "  - 'bundles' must be a dictionary" in lines
 
@@ -696,8 +700,13 @@ def test_templates_not_list_returns_none(tmp_path, capsys):
 # --- main() extra coverage ------------------------------------------------
 
 
-def test_reconfigures_stdout_encoding(tmp_path, monkeypatch):
-    """When stdout is a TextIOWrapper, main reconfigures it with the exact encoding/errors."""
+def test_reconfigures_both_stream_encodings(tmp_path, monkeypatch):
+    """Both stdout and stderr are reconfigured with the exact encoding/errors.
+
+    stderr is not incidental: :func:`_report_errors` writes the ``✗`` headers there,
+    so a guard that covered stdout alone would leave the failure path able to raise
+    ``UnicodeEncodeError`` on a non-UTF-8 console.
+    """
     import io
     from unittest.mock import MagicMock
 
@@ -706,13 +715,16 @@ def test_reconfigures_stdout_encoding(tmp_path, monkeypatch):
     (rhiza_dir / "template.yml").write_text("# no templates field")
     monkeypatch.chdir(tmp_path)
 
-    wrapper = io.TextIOWrapper(io.BytesIO())
-    reconfigure = MagicMock()
-    monkeypatch.setattr(wrapper, "reconfigure", reconfigure)
-    monkeypatch.setattr("sys.stdout", wrapper)
+    calls = {}
+    for name in ("stdout", "stderr"):
+        wrapper = io.TextIOWrapper(io.BytesIO())
+        calls[name] = MagicMock()
+        monkeypatch.setattr(wrapper, "reconfigure", calls[name])
+        monkeypatch.setattr(f"sys.{name}", wrapper)
 
     assert main([]) == 0
-    reconfigure.assert_called_once_with(encoding="utf-8", errors="replace")
+    calls["stdout"].assert_called_once_with(encoding="utf-8", errors="replace")
+    calls["stderr"].assert_called_once_with(encoding="utf-8", errors="replace")
 
 
 def test_help_text(capsys):

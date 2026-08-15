@@ -267,7 +267,9 @@ def test_fetch_remote_bundles_logs_each_attempt(monkeypatch, capsys):
     monkeypatch.setattr(time, "sleep", MagicMock())
 
     fetch_remote_bundles("test/repo", "main", attempts=2, backoff=1.0, opener=opener)
-    out = capsys.readouterr().out
+    captured = capsys.readouterr()
+    out = captured.err
+    assert captured.out == ""  # retry diagnostics are stderr-only
     assert "Attempt 1/2 failed" in out
     assert "retrying in 1.0s" in out
     # The final attempt is logged but has nothing to retry.

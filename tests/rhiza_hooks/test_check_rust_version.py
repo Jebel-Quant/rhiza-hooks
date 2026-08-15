@@ -410,7 +410,7 @@ def test_main_inconsistent_returns_one(tmp_path: Path, capsys: pytest.CaptureFix
     with patch("rhiza_hooks.check_rust_version.find_repo_root", return_value=tmp_path):
         assert main([]) == 1
 
-    assert capsys.readouterr().out == (
+    assert capsys.readouterr().err == (
         "ERROR: Rust version mismatch: rust-toolchain.toml pins channel 1.70.0, "
         "but Cargo.toml [package] rust-version is 1.75 "
         "(the pinned toolchain must be at least the MSRV)\n"
@@ -508,7 +508,8 @@ def test_subprocess_inconsistent(mock_project: Callable[[dict[str, str]], Path])
         check=False,
     )
     assert result.returncode == 1
-    assert "rust-version is 1.75" in result.stdout
+    assert "rust-version is 1.75" in result.stderr
+    assert result.stdout == ""
 
 
 def test_subprocess_on_this_project(project_root: Path) -> None:

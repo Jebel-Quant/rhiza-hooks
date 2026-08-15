@@ -73,10 +73,10 @@ def _load_and_validate_config(config_path: Path) -> tuple[dict[str, Any], set[st
 
 
 def _report_errors(header: str, errors: list[str]) -> None:
-    """Print a failure ``header`` followed by each error as a bullet."""
-    print(header)
+    """Print a failure ``header`` followed by each error as a bullet, on stderr."""
+    print(header, file=sys.stderr)
     for error in errors:
-        print(f"  - {error}")
+        print(f"  - {error}", file=sys.stderr)
 
 
 def _validate_remote_bundles(
@@ -124,7 +124,23 @@ def _validate_remote_bundles(
 
 
 def _validate_templates_in_bundles(templates_set: set[str], bundles: dict[Any, Any], config_path: Path) -> list[str]:
-    """Validate that requested templates exist in the remote bundles and are well-formed."""
+    """Validate that requested templates exist in the remote bundles and are well-formed.
+
+    >>> bundles = {"core": {"description": "Core files", "files": [".gitignore"]}}
+    >>> _validate_templates_in_bundles({"core"}, bundles, Path("template.yml"))
+    []
+
+    A template this repo asks for but the template repository does not publish is
+    the error this hook exists to catch:
+
+    >>> _validate_templates_in_bundles({"nope"}, bundles, Path("template.yml"))
+    ["Template 'nope' specified in template.yml not found in remote bundles"]
+
+    A published bundle missing its required fields is reported too:
+
+    >>> _validate_templates_in_bundles({"core"}, {"core": {}}, Path("template.yml"))
+    ["Bundle 'core' missing 'description'", "Bundle 'core' missing 'files'"]
+    """
     return _bundles_validate.validate_selected_bundles(
         templates_set,
         bundles,
@@ -167,10 +183,17 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     return args
 
 
-def _ensure_utf8_stdout() -> None:
-    """Reconfigure stdout to UTF-8 so the ✓/✗ status glyphs never crash a non-UTF-8 console."""
-    if isinstance(sys.stdout, io.TextIOWrapper):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+def _ensure_utf8_output() -> None:
+    """Reconfigure both output streams to UTF-8 so the ✓/✗ glyphs never crash a non-UTF-8 console.
+
+    Both, not just stdout: the ``✓`` goes to stdout on the success path but the ``✗``
+    headers from :func:`_report_errors` go to stderr, so guarding one stream would
+    leave the failure path — the one a user is most likely to be reading — able to
+    raise ``UnicodeEncodeError`` on a cp1252 console.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 def _run_remote_validation(
@@ -185,7 +208,7 @@ def _run_remote_validation(
     template_repo = config.get("template-repository")
     template_branch = config.get("template-branch")
     if not template_repo or not template_branch:
-        print(f"Missing template-repository or template-branch in {config_path}")
+        print(f"Missing template-repository or template-branch in {config_path}", file=sys.stderr)
         return 1
 
     data, _fetch_errors = _validate_remote_bundles(
@@ -216,7 +239,7 @@ def main(argv: list[str] | None = None, fetcher: Fetcher = fetch_remote_bundles)
     takes the default; a test passes a fake document source as an argument rather than
     rebinding this module's ``fetch_remote_bundles`` global.
     """
-    _ensure_utf8_stdout()
+    _ensure_utf8_output()
 
     args = _parse_args(argv)
 

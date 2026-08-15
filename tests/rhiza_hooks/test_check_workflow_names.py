@@ -33,8 +33,9 @@ def test_missing_prefix_updates_file(tmp_path: Path, capsys: pytest.CaptureFixtu
     assert result is False
     # Exact file content pins the rewritten `name:` line (and that nothing else changed).
     assert workflow.read_text() == 'name: "(RHIZA) MY WORKFLOW"\non: push\n'
-    # Exact stdout pins the "Updating ..." message.
-    assert capsys.readouterr().out == (f"Updating {workflow}: name 'My Workflow' -> '(RHIZA) MY WORKFLOW'\n")
+    # Exact stderr pins the "Updating ..." message: it accompanies a False return
+    # (the hook fails so pre-commit re-stages), so it is a diagnostic, not output.
+    assert capsys.readouterr().err == (f"Updating {workflow}: name 'My Workflow' -> '(RHIZA) MY WORKFLOW'\n")
 
 
 def test_lf_line_endings_survive_the_rewrite(tmp_path: Path) -> None:
@@ -69,7 +70,7 @@ def test_missing_name_field_returns_false(tmp_path: Path, capsys: pytest.Capture
     result = check_file(str(workflow))
 
     assert result is False
-    assert capsys.readouterr().out == f"Error: {workflow} missing 'name' field.\n"
+    assert capsys.readouterr().err == f"Error: {workflow} missing 'name' field.\n"
 
 
 def test_invalid_yaml_returns_false(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -81,7 +82,7 @@ def test_invalid_yaml_returns_false(tmp_path: Path, capsys: pytest.CaptureFixtur
 
     assert result is False
     # startswith pins the leading literal so a wrapped/mutated message is rejected.
-    assert capsys.readouterr().out.startswith(f"Error parsing YAML {workflow}: ")
+    assert capsys.readouterr().err.startswith(f"Error parsing YAML {workflow}: ")
 
 
 def test_first_line_not_name_is_preserved(tmp_path: Path) -> None:
@@ -256,7 +257,7 @@ def test_missing_top_level_name_with_job_names(tmp_path: Path, capsys: pytest.Ca
     result = check_file(str(workflow))
 
     assert result is False
-    assert capsys.readouterr().out == f"Error: {workflow} missing 'name' field.\n"
+    assert capsys.readouterr().err == f"Error: {workflow} missing 'name' field.\n"
     # The job-level name is not mistaken for the workflow name and the file is unchanged.
     assert workflow.read_text() == original
 
