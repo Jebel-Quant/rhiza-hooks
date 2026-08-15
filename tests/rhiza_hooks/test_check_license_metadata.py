@@ -146,7 +146,7 @@ def test_main_reports_and_fails(tmp_path: Path, monkeypatch, capsys) -> None:
     _pyproject(tmp_path, f'license = "MIT"\n{_CLASSIFIER}')
     monkeypatch.setattr(clm, "find_repo_root", lambda: tmp_path)
     assert clm.main(["pyproject.toml"]) == 1
-    assert "ERROR: pyproject.toml declares both" in capsys.readouterr().out
+    assert "ERROR: pyproject.toml declares both" in capsys.readouterr().err
 
 
 def test_main_require_license_flag(tmp_path: Path, monkeypatch) -> None:

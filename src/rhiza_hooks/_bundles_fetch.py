@@ -9,6 +9,7 @@ the returned mapping lives in :mod:`rhiza_hooks._bundles_validate`.
 
 from __future__ import annotations
 
+import sys
 import time
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
@@ -141,10 +142,10 @@ def _log_failed_attempt(attempt: int, attempts: int, error: str, backoff: float)
     """
     if attempt + 1 < attempts:
         delay = backoff * (attempt + 1)
-        print(f"  Attempt {attempt + 1}/{attempts} failed: {error}; retrying in {delay:.1f}s")
+        print(f"  Attempt {attempt + 1}/{attempts} failed: {error}; retrying in {delay:.1f}s", file=sys.stderr)
         time.sleep(delay)
     else:
-        print(f"  Attempt {attempt + 1}/{attempts} failed: {error}")
+        print(f"  Attempt {attempt + 1}/{attempts} failed: {error}", file=sys.stderr)
 
 
 def fetch_remote_bundles(

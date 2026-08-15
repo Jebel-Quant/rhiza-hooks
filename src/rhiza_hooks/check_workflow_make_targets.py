@@ -145,7 +145,28 @@ def _targets_in_command(words: list[str]) -> list[str]:
 
 
 def invoked_targets(snippet: str) -> set[str]:
-    """Return the resolvable make targets a shell snippet invokes."""
+    """Return the resolvable make targets a shell snippet invokes.
+
+    >>> sorted(invoked_targets("make fmt && make test"))
+    ['fmt', 'test']
+
+    Flags are dropped, including the value of a flag that takes one, so the
+    argument of ``-C`` is never read as a target:
+
+    >>> sorted(invoked_targets("make -C sub build"))
+    ['build']
+
+    ``VAR=value`` overrides are not targets either:
+
+    >>> sorted(invoked_targets("make CFLAGS=-O2 release"))
+    ['release']
+
+    A word only make or a shell can resolve abandons the whole command, rather
+    than contributing invented target names:
+
+    >>> sorted(invoked_targets("make ${{ matrix.task }}"))
+    []
+    """
     targets: set[str] = set()
     for line in snippet.splitlines():
         words = line.replace(";", " ; ").replace("&&", " && ").split()
@@ -223,7 +244,7 @@ def main(argv: list[str] | None = None) -> int:
     errors = check_workflow_make_targets(find_repo_root())
 
     for error in errors:
-        print(f"ERROR: {error}")
+        print(f"ERROR: {error}", file=sys.stderr)
 
     return 1 if errors else 0
 

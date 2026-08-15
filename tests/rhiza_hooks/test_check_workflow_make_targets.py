@@ -215,7 +215,7 @@ def test_main_reports_and_fails(tmp_path: Path, monkeypatch, capsys) -> None:
     _workflow(tmp_path, "make validate")
     monkeypatch.setattr(cwmt, "find_repo_root", lambda: tmp_path)
     assert cwmt.main(["ignored.yml"]) == 1
-    assert "ERROR: .github/workflows/ci.yml runs `make validate`" in capsys.readouterr().out
+    assert "ERROR: .github/workflows/ci.yml runs `make validate`" in capsys.readouterr().err
 
 
 def test_module_executes_main(tmp_path: Path, monkeypatch) -> None:

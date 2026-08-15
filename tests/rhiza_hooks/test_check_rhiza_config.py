@@ -437,8 +437,9 @@ def test_main_invalid_config(temp_config, capsys: pytest.CaptureFixture[str]) ->
     result = main([str(config)])
     assert result == 1
     captured = capsys.readouterr()
-    # Exact stdout pins the "{filename}:" header and the "  - {error}" line.
-    assert captured.out == f"{config}:\n  - Configuration must be a YAML mapping\n"
+    # Exact stderr pins the "{filename}:" header and the "  - {error}" line; stdout stays clean.
+    assert captured.err == f"{config}:\n  - Configuration must be a YAML mapping\n"
+    assert captured.out == ""
 
 
 def test_main_no_files() -> None:

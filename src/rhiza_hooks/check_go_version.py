@@ -45,7 +45,7 @@ def _normalize(value: str) -> str:
 
 
 def parse_go_mod(text: str) -> dict[str, str]:
-    """Extract the ``go`` and ``toolchain`` directives from ``go.mod`` text.
+    r"""Extract the ``go`` and ``toolchain`` directives from ``go.mod`` text.
 
     Parenthesised blocks (``require (`` … ``)``) are skipped so their contents
     can never be mistaken for a top-level directive. A directive repeated at top
@@ -57,6 +57,22 @@ def parse_go_mod(text: str) -> dict[str, str]:
     Returns:
         Mapping of directive name to its normalized value, containing only the
         directives actually present.
+
+    The ``go`` prefix is stripped, so both directives compare as plain versions:
+
+    >>> parse_go_mod("module example.com/m\n\ngo 1.22\ntoolchain go1.22.5\n")
+    {'go': '1.22', 'toolchain': '1.22.5'}
+
+    A directive-shaped line inside a parenthesised block belongs to that block,
+    never to the file:
+
+    >>> parse_go_mod("module m\n\nrequire (\n\tgo 9.99\n)\n\ngo 1.21\n")
+    {'go': '1.21'}
+
+    Absent directives are absent from the result rather than defaulted:
+
+    >>> parse_go_mod("module m\n")
+    {}
     """
     directives: dict[str, str] = {}
     in_block = False
@@ -206,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if errors:
         for error in errors:
-            print(f"ERROR: {error}")
+            print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
     return 0

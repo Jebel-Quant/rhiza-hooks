@@ -116,7 +116,9 @@ def test_main_fails_and_explains_the_bypass(managed_repo, monkeypatch, capsys):
     root = managed_repo("- Makefile\n")
     monkeypatch.setattr(cmf, "find_repo_root", lambda: root)
     assert cmf.main(["Makefile"]) == 1
-    out = capsys.readouterr().out
+    captured = capsys.readouterr()
+    out = captured.err
+    assert captured.out == ""  # the error and the bypass hint are stderr-only
     assert "ERROR: Makefile is owned by jebel-quant/rhiza" in out
     assert "SKIP=check-managed-files" in out
 

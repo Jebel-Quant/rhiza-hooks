@@ -63,7 +63,17 @@ def _load_project_table(repo_root: Path) -> dict[str, Any] | None:
 
 
 def license_classifiers(project: dict[str, Any]) -> list[str]:
-    """Return the ``License :: …`` trove classifiers declared in ``[project]``."""
+    """Return the ``License :: …`` trove classifiers declared in ``[project]``.
+
+    >>> license_classifiers(
+    ...     {"classifiers": ["License :: OSI Approved :: MIT License", "Topic :: Utilities"]}
+    ... )
+    ['License :: OSI Approved :: MIT License']
+    >>> license_classifiers({"classifiers": ["Topic :: Utilities"]})
+    []
+    >>> license_classifiers({})
+    []
+    """
     classifiers = project.get("classifiers")
     if not isinstance(classifiers, list):
         return []
@@ -76,13 +86,32 @@ def spdx_expression(project: dict[str, Any]) -> str | None:
     PEP 639 makes ``license`` a string. The older table forms
     (``{file = …}`` / ``{text = …}``) are *not* SPDX expressions and do not conflict
     with a classifier, so they read as absent here.
+
+    >>> spdx_expression({"license": "MIT"})
+    'MIT'
+    >>> spdx_expression({"license": {"file": "LICENSE"}}) is None
+    True
+    >>> spdx_expression({}) is None
+    True
     """
     value = project.get("license")
     return value if isinstance(value, str) else None
 
 
 def _conflicting_declaration(expression: str | None, classifiers: list[str]) -> list[str]:
-    """Report the unbuildable combination: a PEP 639 expression *and* a classifier."""
+    """Report the unbuildable combination: a PEP 639 expression *and* a classifier.
+
+    Either form alone is fine; it is the pair that setuptools>=77 refuses to build.
+
+    >>> _conflicting_declaration("MIT", [])
+    []
+    >>> _conflicting_declaration(None, ["License :: OSI Approved :: MIT License"])
+    []
+    >>> _conflicting_declaration("MIT", ["License :: OSI Approved :: MIT License"])[0].startswith(
+    ...     "pyproject.toml declares both"
+    ... )
+    True
+    """
     if expression is None or not classifiers:
         return []
     listed = ", ".join(repr(c) for c in classifiers)
@@ -148,7 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     errors = check_license_metadata(find_repo_root(), require_license=args.require_license)
 
     for error in errors:
-        print(f"ERROR: {error}")
+        print(f"ERROR: {error}", file=sys.stderr)
 
     return 1 if errors else 0
 

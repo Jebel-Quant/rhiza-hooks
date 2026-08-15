@@ -131,8 +131,10 @@ def test_main_with_missing_targets_no_strict(tmp_path: Path, capsys: pytest.Capt
 
     assert result == 0
     captured = capsys.readouterr()
-    # Exact stdout pins both the "{filename}:" header and the "  - {warning}" line.
-    assert captured.out == f"{makefile}:\n  - Missing recommended targets: fmt, help, test\n"
+    # Exact stderr pins both the "{filename}:" header and the "  - {warning}" line;
+    # warnings are diagnostics even when they do not fail the run (no --strict).
+    assert captured.err == f"{makefile}:\n  - Missing recommended targets: fmt, help, test\n"
+    assert captured.out == ""
 
 
 def test_main_with_missing_targets_strict(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -170,7 +172,7 @@ def test_main_extend_target_strict_fails(tmp_path: Path, capsys: pytest.CaptureF
     result = main(["--strict", "--extend-target", "deploy", str(makefile)])
 
     assert result == 1
-    assert capsys.readouterr().out == f"{makefile}:\n  - Missing recommended targets: deploy\n"
+    assert capsys.readouterr().err == f"{makefile}:\n  - Missing recommended targets: deploy\n"
 
 
 def test_help_text(capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch) -> None:

@@ -48,7 +48,7 @@ def test_called_process_error(capsys: pytest.CaptureFixture[str]) -> None:
         result = get_make_help_output()
         assert result is None
         # startswith pins the leading literal; the {e} tail is interpreter-defined.
-        assert capsys.readouterr().out.startswith("Error running 'make help': ")
+        assert capsys.readouterr().err.startswith("Error running 'make help': ")
 
 
 def test_timeout_expired(capsys: pytest.CaptureFixture[str]) -> None:
@@ -59,7 +59,7 @@ def test_timeout_expired(capsys: pytest.CaptureFixture[str]) -> None:
     ):
         result = get_make_help_output()
         assert result is None
-        assert capsys.readouterr().out == "Error: 'make help' timed out\n"
+        assert capsys.readouterr().err == "Error: 'make help' timed out\n"
 
 
 def test_file_not_found(capsys: pytest.CaptureFixture[str]) -> None:
@@ -70,7 +70,7 @@ def test_file_not_found(capsys: pytest.CaptureFixture[str]) -> None:
     ):
         result = get_make_help_output()
         assert result is None
-        assert capsys.readouterr().out == "Error: 'make' command not found\n"
+        assert capsys.readouterr().err == "Error: 'make' command not found\n"
 
 
 def test_finds_git_dir(tmp_path: Path) -> None:
@@ -109,7 +109,7 @@ def test_updates_content_between_markers(tmp_path: Path, capsys: pytest.CaptureF
     assert "old content" not in content
     assert "Footer text" in content
     # Exact stdout pins the "Updated ..." message.
-    assert capsys.readouterr().out == f"Updated {readme} with make help output\n"
+    assert capsys.readouterr().err == f"Updated {readme} with make help output\n"
 
 
 def test_non_ascii_readme_round_trips_as_utf8(tmp_path: Path) -> None:
@@ -172,7 +172,7 @@ def test_missing_file_returns_false(tmp_path: Path, capsys: pytest.CaptureFixtur
     result = update_readme_with_help(readme, "help output")
 
     assert result is False
-    assert capsys.readouterr().out == f"Warning: {readme} not found, skipping update\n"
+    assert capsys.readouterr().err == f"Warning: {readme} not found, skipping update\n"
 
 
 def test_no_change_returns_false(tmp_path: Path) -> None:

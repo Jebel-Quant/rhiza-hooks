@@ -193,7 +193,7 @@ def test_main_returns_one_and_prints(tmp_path: Path, capsys: pytest.CaptureFixtu
     _write(tmp_path, "pyproject.toml", PYPROJECT)
     with patch("rhiza_hooks.check_bumpversion_config.find_repo_root", return_value=tmp_path):
         assert main([]) == 1
-    assert "ERROR:" in capsys.readouterr().out
+    assert "ERROR:" in capsys.readouterr().err
 
 
 def test_main_ignores_passed_filenames(tmp_path: Path) -> None:

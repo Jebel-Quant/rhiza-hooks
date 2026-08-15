@@ -198,6 +198,22 @@ def _is_below_msrv(channel_version: tuple[int, ...], msrv: str) -> bool:
     Returns:
         True only when *msrv* carries a version number that the channel fails to
         reach; False for a non-numeric MSRV, which gives nothing to compare.
+
+    >>> _is_below_msrv((1, 70, 0), "1.75")
+    True
+    >>> _is_below_msrv((1, 75, 0), "1.75")
+    False
+
+    Comparison is component-wise after zero-padding, so a shorter MSRV is not
+    treated as a lower one:
+
+    >>> _is_below_msrv((1, 75, 0), "1.75.0")
+    False
+
+    A named channel gives nothing to compare against, and reports no violation:
+
+    >>> _is_below_msrv((1, 70, 0), "stable")
+    False
     """
     msrv_version = parse_version(msrv)
     if msrv_version is None:
@@ -273,7 +289,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if errors:
         for error in errors:
-            print(f"ERROR: {error}")
+            print(f"ERROR: {error}", file=sys.stderr)
         return 1
 
     return 0

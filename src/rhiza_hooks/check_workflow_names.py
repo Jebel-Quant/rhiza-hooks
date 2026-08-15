@@ -16,7 +16,23 @@ import yaml
 
 
 def _expected_name(name: str) -> str:
-    """Return the canonical ``(RHIZA) <UPPERCASE>`` form of a workflow name."""
+    r"""Return the canonical ``(RHIZA) <UPPERCASE>`` form of a workflow name.
+
+    >>> _expected_name("My Workflow")
+    '(RHIZA) MY WORKFLOW'
+
+    Already-canonical input is left alone, which is what makes the hook safe to
+    run repeatedly:
+
+    >>> _expected_name("(RHIZA) MY WORKFLOW")
+    '(RHIZA) MY WORKFLOW'
+
+    A folded or block YAML scalar reaches this function with embedded newlines;
+    they collapse so the rewritten ``name:`` stays a single line:
+
+    >>> _expected_name("build\n  and  test\n")
+    '(RHIZA) BUILD AND TEST'
+    """
     prefix = "(RHIZA) "
     # Remove prefix if present to verify the rest of the string
     clean_name = name[len(prefix) :] if name.startswith(prefix) else name
@@ -103,7 +119,7 @@ def check_file(filepath: str) -> bool:
         try:
             content = yaml.safe_load(f)
         except yaml.YAMLError as exc:
-            print(f"Error parsing YAML {filepath}: {exc}")
+            print(f"Error parsing YAML {filepath}: {exc}", file=sys.stderr)
             return False
 
     if not isinstance(content, dict):
@@ -112,7 +128,7 @@ def check_file(filepath: str) -> bool:
 
     name = content.get("name")
     if not name:
-        print(f"Error: {filepath} missing 'name' field.")
+        print(f"Error: {filepath} missing 'name' field.", file=sys.stderr)
         return False
 
     expected_name = _expected_name(name)
@@ -120,7 +136,7 @@ def check_file(filepath: str) -> bool:
     if name == expected_name:
         return True
 
-    print(f"Updating {filepath}: name '{name}' -> '{expected_name}'")
+    print(f"Updating {filepath}: name '{name}' -> '{expected_name}'", file=sys.stderr)
     _rewrite_workflow_name(filepath, expected_name)
     return False  # Fail so pre-commit knows files were modified
 
