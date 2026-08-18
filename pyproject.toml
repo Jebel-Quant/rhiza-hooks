@@ -95,7 +95,7 @@ test = [
 # name is otherwise inert — UV_SYNC_ARGS in .rhiza/make.d/python.mk is `--all-groups`,
 # so nothing selects this group by name.
 types = [
-    "types-pyyaml>=6.0.12.20260518",
+    "types-pyyaml>=6.0.12.20260815",
 ]
 
 [tool.mypy]
