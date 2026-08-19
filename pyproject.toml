@@ -124,6 +124,62 @@ exempt_dirs = ["meta"]
 # .rhiza/template.yml would drop a real invariant, so exempt it here instead.
 exempt_files = ["test_rhiza_packaging.py"]
 
+[tool.rhiza-task]
+# Settings for the task runner that replaced the synced make layer in rhiza v1.4.0.
+# `.rhiza/rhiza.mk` and the ten fragments under `.rhiza/make.d/` are gone, and so is
+# the template-owned root Makefile; the Makefile here is now the shim
+# `uvx rhiza-task shim > Makefile` emits, so every target CLAUDE.md and the README
+# document still works -- it just delegates to the pinned CLI instead of to synced make.
+#
+# Read as layer 3 of rhiza-task's resolution order (defaults -> .rhiza/.env ->
+# pyproject.toml -> RHIZA_* environment). This repo has no `.rhiza/.env` (it is in
+# `exclude:`), so this table is the only place an override can live. Only entries that
+# differ from the CLI's defaults belong here; `uvx rhiza-task print <setting>` shows
+# what one resolves to.
+
+# CLAUDE.md and [tool.coverage.report] below both document 100% as a hard invariant.
+# The retired python.mk had `COVERAGE_FAIL_UNDER ?= 90` and the old root Makefile
+# raised it to 100 above the include. The `test` task passes --cov-fail-under on the
+# command line, which outranks the `fail_under = 100` in [tool.coverage.report], so
+# leaving this at the CLI default of 90 would quietly weaken the gate while the config
+# file still claimed 100. Keep the two in step.
+coverage-fail-under = 100
+
+# The retired python.mk had `TYPECHECKER ?= both`; the CLI defaults to `ty` alone, so a
+# bare migration would have dropped `mypy --strict` -- which [tool.mypy] configures and
+# CLAUDE.md relies on for the `types` group's whole justification (types-pyyaml is only
+# there because mypy --strict fails without it). `both` is also stricter here than it was
+# under make: the shell `case` let mypy's exit status win, so a ty failure could pass,
+# where the CLI raises on each run.
+typechecker = "both"
+
+# The retired quality.mk pinned `RHIZA_CHECKS_VERSION ?= 0.2.1`; the CLI defaults to
+# v0.2.0, so a bare migration would have *downgraded* the conformance checks -- the drift
+# the pin exists to prevent. These are the checks CLAUDE.md's "The rhiza checks are a
+# dependency, not a directory" section describes, still provisioned on the fly, so there
+# is nothing to add to [dependency-groups]. v0.2.2 is out; bumping to it is a separate
+# upgrade decision and not this migration's to make.
+pytest-rhiza = "pytest-rhiza @ git+https://github.com/Jebel-Quant/pytest-rhiza@v0.2.1"
+
+# The old root Makefile carried
+# `MKDOCS_EXTRA_PACKAGES = --with 'mkdocstrings[python]' --with .`.
+# rhiza-task 0.3.1 makes mkdocstrings[python] the default, so only the second half is a
+# real override -- and it is load-bearing: `book` builds the site through
+# `uvx zensical`, an isolated environment that does not contain this project, and the
+# ~20 pages under docs/api-reference/ are nothing but `::: rhiza_hooks.*` autodoc blocks.
+# Without `.` mkdocstrings cannot import the package and every one of them renders empty.
+# `.` resolves against the repo root because the task runs uvx with cwd there.
+mkdocs-extra-packages = ["mkdocstrings[python]", "."]
+
+# Not set, on purpose:
+#   source-folder / tests-folder -- the defaults `src` and `tests` are this repo's layout.
+#   marimo-folder      -- the default `docs/notebooks` is what the retired `.rhiza/.env`
+#       set before it was excluded, so the default already matches.
+#   layers             -- `python` is detected from pyproject.toml, and there is no second
+#       language layer for the inference to get wrong.
+#   uv-sync-args       -- `--all-extras --all-groups` is both the CLI default and what the
+#       retired python.mk used, which is why the `types` group needs nothing to be selected.
+
 # Version bumping. This block must live here: bump-my-version only searches
 # .bumpversion.toml, pyproject.toml, setup.cfg and .bumpversion.cfg. Without a
 # table in one of those the tool does not error — it falls back to `git describe`
