@@ -23,3 +23,14 @@ exclude:
   # the remote self-reference. Cost: upstream improvements to the shared hook
   # list must be ported by hand. See #293.
   - .pre-commit-config.yaml
+
+  # .rhiza/.env only ever set SOURCE_FOLDER=src and MARIMO_FOLDER=docs/notebooks,
+  # which are exactly the `?=` defaults in .rhiza/rhiza.mk — so the file changed
+  # nothing except making both values immune to an environment override. Removed;
+  # rhiza.mk `-include`s it, so its absence is a supported state. Put a new one
+  # back only to set a value that actually differs from the default.
+  - .rhiza/.env
+
+  # .rhiza/.gitignore existed solely to re-include .rhiza/.env against the root
+  # .gitignore's `.env` rule. With .env gone it has no other rule to carry.
+  - .rhiza/.gitignore

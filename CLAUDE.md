@@ -67,10 +67,13 @@ rather than synced into the repo.
 > Cross-check `exclude:` in [`.rhiza/template.yml`](.rhiza/template.yml).
 
 ### `.rhiza/` (the sync engine — treat the whole directory as managed)
-- `rhiza.mk`, `make.d/*.mk`, `semgrep.yml`, `.env`, `.gitignore`
+- `rhiza.mk`, `make.d/*.mk`, `semgrep.yml`
 - `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`
 - **Owned by you:** `.rhiza/template.yml` (and `.rhiza/template.lock`, which the
   tool regenerates).
+
+(`.env` and `.gitignore` **used to be** on this list and are now excluded — see
+[Excluded from sync](#excluded-from-sync).)
 
 `tests/**` (the synced template test-suite), `assets/` and `completions/` were on
 this list until the **v1.3.4** sync deleted all three — see [The rhiza checks are a
@@ -82,7 +85,7 @@ dependency, not a directory](#the-rhiza-checks-are-a-dependency-not-a-directory)
 
 ### Excluded from sync
 
-`.rhiza/template.yml` excludes two files. If another synced file needs to be
+`.rhiza/template.yml` excludes four files. If another synced file needs to be
 dropped locally, add it under `exclude:` there and re-sync.
 
 **`.github/workflows/rhiza_mutation.yml`** — mutation testing is not used here
@@ -98,6 +101,20 @@ and the pin silently drifts on every release (it sat at `v0.7.0` through
 run against the working tree rather than the last release. **Consequence: this
 file is now yours.** Upstream improvements to the shared hook list (ruff,
 bandit, markdownlint, …) no longer arrive by sync and must be ported by hand.
+
+**`.rhiza/.env`** — it set only `SOURCE_FOLDER=src` and
+`MARIMO_FOLDER=docs/notebooks`, which are exactly the `?=` defaults in
+`.rhiza/rhiza.mk`. Its sole effect was that a makefile assignment outranks an
+exported environment variable, so the two values could not be overridden except
+on the `make` command line. `rhiza.mk` `-include`s the file, so its absence is a
+supported state and the defaults now apply. Re-add it only to set a value that
+actually differs from the default (e.g. `RHIZA_CI_OS_MATRIX`, which the file
+deliberately left unset anyway).
+
+**`.rhiza/.gitignore`** — a single `!.env` rule, there only to re-include
+`.rhiza/.env` against the root `.gitignore`'s `.env` line. With `.env` gone it
+carried nothing. Consequence: a future `.rhiza/.env` would be git-ignored, so
+anyone re-adding one must `git add -f` it or restore this file.
 
 `tests/meta/test_pre_commit_template_parity.py` enforces that port: it fetches the
 template's `.pre-commit-config.yaml` **at the `ref:` this repo pins** and fails when a
