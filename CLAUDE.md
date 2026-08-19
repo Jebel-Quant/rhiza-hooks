@@ -56,25 +56,25 @@ rather than synced into the repo.
   `rhiza_weekly.yml`, `rhiza_fuzzing.yml`, `rhiza_scorecard.yml`
   (`rhiza_mutation.yml` is excluded — see the `exclude:` block in
   [`.rhiza/template.yml`](.rhiza/template.yml))
-- `CONFIG.md`, `dependabot.yml`, `release.yml`, `secret_scanning.yml`,
-  `pull_request_template.md`
+- `CONFIG.md`, `dependabot.yml`, `release.yml`, `secret_scanning.yml`
 - `DISCUSSION_TEMPLATE/`, `ISSUE_TEMPLATE/`, `rulesets/`
 
 > This snapshot reflects the files synced at the pinned `ref:` (currently
-> `v1.3.0`); the `files:` block of `.rhiza/template.lock` is the authoritative
-> list of what the profiles *offer*. Note it is not a list of what is on disk:
-> since v1.3.0 the lock records the excluded paths too, so
-> `.github/workflows/rhiza_mutation.yml` and `.pre-commit-config.yaml` appear
-> there despite the `exclude:` block keeping both off disk. Cross-check
-> `exclude:` in [`.rhiza/template.yml`](.rhiza/template.yml) before concluding a
-> file is managed.
+> `v1.3.4`); the `files:` block of `.rhiza/template.lock` is the authoritative
+> list, and it *is* what is on disk. The two excluded paths are not in it — the
+> lock records them under its own top-level `exclude:` key instead — so a path's
+> absence from `files:` does not by itself mean the template never offered it.
+> Cross-check `exclude:` in [`.rhiza/template.yml`](.rhiza/template.yml).
 
 ### `.rhiza/` (the sync engine — treat the whole directory as managed)
 - `rhiza.mk`, `make.d/*.mk`, `semgrep.yml`, `.env`, `.gitignore`
-- `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `assets/`, `completions/`
-- `tests/**` (the synced template test-suite)
+- `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`
 - **Owned by you:** `.rhiza/template.yml` (and `.rhiza/template.lock`, which the
   tool regenerates).
+
+`tests/**` (the synced template test-suite), `assets/` and `completions/` were on
+this list until the **v1.3.4** sync deleted all three — see [The rhiza checks are a
+dependency, not a directory](#the-rhiza-checks-are-a-dependency-not-a-directory).
 
 ### `docs/`
 `docs/assets/rhiza-logo.svg`, `docs/development/MARIMO.md`,
@@ -119,6 +119,44 @@ would require an upstream change in `jebel-quant/rhiza`.
 > Tests owned by bundles this repo does **not** select (e.g. `gh-aw`, `lfs`)
 > are never synced in the first place, so they need no `exclude:` entry.
 
+## The rhiza checks are a dependency, not a directory
+
+Up to **v1.3.3** the template synced its own test-suite into `.rhiza/tests/` — seven
+files (`conftest.py`, `test_pyproject.py`, `test_readme.py`, `test_readme_validation.py`,
+`test_docstrings.py`, `test_release_tags.py`, `README.md`) that `make rhiza-test` pointed
+pytest at. **v1.3.4 deleted all seven** (upstream #1540). The same checks now ship as the
+**`pytest-rhiza`** package on PyPI, and the sync also dropped `.rhiza/completions/`,
+`.rhiza/make.d/completions.mk`, `.rhiza/assets/rhiza-logo.svg` (`docs/assets/rhiza-logo.svg`
+is untouched) and `.github/pull_request_template.md`.
+
+`make rhiza-test` (in `.rhiza/make.d/quality.mk`) now runs module names rather than paths.
+Each bundle appends its own to a `RHIZA_CHECKS` accumulator:
+
+| Bundle file | Contributes |
+| --- | --- |
+| `quality.mk` | `pytest_rhiza.checks.test_readme`, `…test_release_tags` |
+| `python.mk` | `pytest_rhiza.checks.test_pyproject`, `…test_docstrings` |
+| `test.mk` | `pytest_rhiza.checks.test_readme_validation` |
+
+and the target invokes them with
+`uv run --with 'pytest-rhiza==$(RHIZA_CHECKS_VERSION)' pytest --pyargs $checks`.
+
+- **Nothing to add to `pyproject.toml`.** The pin is provisioned on the fly, which is also
+  why `python.mk` no longer carries a `.rhiza/tests` carve-out for deptry — there is no
+  longer a folder for deptry to resolve against the manifest.
+- **The version is Rhiza-owned:** `RHIZA_CHECKS_VERSION ?= 0.2.1` in `quality.mk`. It is
+  `?=`, so lead or lag it from `local.mk` (developer-local, uncommitted) rather than by
+  editing the managed file.
+- **A leftover `.rhiza/tests/` directory is inert but noisy.** `rhiza-test` checks for it
+  and prints a WARN telling you to `git rm -r .rhiza/tests`; nothing runs whatever is in
+  there. A local checkout that predates the v1.3.4 sync keeps the directory alive through
+  its `__pycache__`, which git never tracked and therefore the sync never deleted —
+  `rm -rf .rhiza/tests` clears the warning.
+- **`tests/test_rhiza_packaging.py` is template-owned** despite living in your `tests/`.
+  It is in the lock's `files:` list (it was before v1.3.4 too), so `check-managed-files`
+  rejects a commit that edits it. Deliberately fixture-free, so it does not depend on
+  anything `pytest-rhiza` contributes.
+
 ## Locally owned (safe to edit)
 
 Everything **not** listed above — notably `pyproject.toml`, `README.md`, `uv.lock`,
@@ -128,10 +166,13 @@ Everything **not** listed above — notably `pyproject.toml`, `README.md`, `uv.l
 
 ## Local-dev gotcha: `TestGitTagVersion` and template-remote tags
 
-`.rhiza/tests/test_pyproject.py::TestGitTagVersion` asserts that the
-**highest version-sorted `v*` git tag** equals `[project].version`. It passes in
-CI (a clean checkout only ever sees this repo's own tags — highest `v0.8.0`,
-matching `pyproject.toml`).
+`pytest_rhiza.checks.test_pyproject::TestGitTagVersion`, run by `make rhiza-test`,
+asserts that the **highest version-sorted `v*` git tag** equals `[project].version`.
+(Before v1.3.4 this was the synced file `.rhiza/tests/test_pyproject.py` — same
+assertion, same trap; only the location moved. See [The rhiza checks are a dependency,
+not a directory](#the-rhiza-checks-are-a-dependency-not-a-directory).) It passes in CI,
+where a clean checkout only ever sees this repo's own tags, whose highest matches
+`pyproject.toml`.
 
 It can fail **locally** if you have added a git remote for the template repo
 (e.g. `git remote add rhiza …jebel-quant/rhiza`): a plain `git fetch` pulls that
