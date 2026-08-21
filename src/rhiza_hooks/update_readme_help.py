@@ -84,7 +84,7 @@ def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
     >>> print(readme.read_text(encoding="utf-8"), end="")
     intro
     <!-- MAKE_HELP_START -->
-    ```
+    ```text
     test: run tests
     ```
     <!-- MAKE_HELP_END -->
@@ -112,7 +112,17 @@ def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
         return False
 
     # Build the new content between markers
-    new_section = f"{START_MARKER}\n```\n{help_output}```\n{END_MARKER}"
+    # ```text rather than a bare fence. The block holds `make help` output -- a rendered
+    # table, not code -- so there is no language to highlight, but an *untagged* fence is
+    # indistinguishable from one whose language nobody decided. Documentation checkers report
+    # it as uncheckable (jebel-quant/rhiza#1589), which means a fence that genuinely should
+    # have been tagged `python` or `bash` arrives into a README where one untagged fence is
+    # already normal. Tagging it says "checked, nothing to check".
+    #
+    # It must be written here rather than in the README: the substitution below replaces the
+    # whole span between the markers, fence lines included, so a hand-added tag downstream is
+    # overwritten by the next run.
+    new_section = f"{START_MARKER}\n```text\n{help_output}```\n{END_MARKER}"
 
     # Replace the content between markers
     pattern = re.compile(
