@@ -1,5 +1,5 @@
 repository: "jebel-quant/rhiza"
-ref: "v1.3.4"
+ref: "v1.4.2"
 
 profiles:
   - github-project
@@ -14,6 +14,13 @@ exclude:
   # mutation score, which is unreachable here without suppressing equivalent
   # mutants, and the signal did not justify the upkeep.
   - .github/workflows/rhiza_mutation.yml
+
+  # ClusterFuzzLite fuzzing was retired here: the .clusterfuzzlite/ config it
+  # drives was deleted, and the reusable workflow needs both that directory and
+  # an opt-in variable, so the stub could only ever skip. A workflow that exists
+  # solely to no-op still costs a queued job on every PR and reads, in the Actions
+  # tab, as coverage this repo does not have.
+  - .github/workflows/rhiza_fuzzing.yml
 
   # This repo IS rhiza-hooks. The template's copy consumes the hooks through a
   # published `rev:`, which is correct for the ~26 downstream repos but wrong
@@ -34,3 +41,14 @@ exclude:
   # .rhiza/.gitignore existed solely to re-include .rhiza/.env against the root
   # .gitignore's `.env` rule. With .env gone it has no other rule to carry.
   - .rhiza/.gitignore
+
+  # The three entries below are GitHub *repo metadata*, not build machinery: they
+  # shape what a human sees when filing an issue, opening a discussion, or looking
+  # up which secrets CI wants. rhiza-hooks is a pre-commit hook provider consumed by
+  # the other rhiza repos, so its intake needs to ask about hook IDs, prek/uvx
+  # invocation and the `rev:` a reporter pinned — questions the generic template
+  # forms have no field for. Excluded so this repo owns the wording; the cost is
+  # that upstream improvements to these forms must be ported by hand.
+  - .github/CONFIG.md
+  - .github/DISCUSSION_TEMPLATE
+  - .github/ISSUE_TEMPLATE
