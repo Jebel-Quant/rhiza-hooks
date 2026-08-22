@@ -15,7 +15,9 @@ Issue #312 fixed seven such calls by hand, found with
 ``scripts/`` — where ``check_test_layout.py`` read every test file in the repo with the
 platform default and broke the Windows CI job the moment a test file contained an em
 dash. This test replaces the grep with an AST walk so the invariant holds by
-construction rather than by having remembered to re-run a one-off command.
+construction rather than by having remembered to re-run a one-off command. (That module
+now lives in the package as ``rhiza_hooks.check_test_layout``, so it is covered by the
+``src/`` walk; the story is kept because it is why the walk exists.)
 
 **``newline=`` on writes.** A text-mode write with the default ``newline=None``
 translates every ``\n`` to ``os.linesep``. Since content reaches a write already
@@ -37,7 +39,7 @@ This static check is the platform-independent half of #320. Its runtime counterp
 leg, since ``os.linesep`` is already ``\n`` elsewhere — so a regression on a
 contributor's Mac would be invisible without the walk below.
 
-**Scope: ``src/`` and ``scripts/``** — the code that ships and the code CI runs. Tests
+**Scope: ``src/``** — the code that ships. Tests
 are excluded deliberately: they write ASCII fixtures into ``tmp_path`` and read them
 back through the same default, so the two cancel out, and holding ~100 fixture writes
 to the rule would obscure the calls that actually matter. A test that *does* care about
@@ -57,8 +59,11 @@ import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
-# Directories holding code that runs on a machine we do not control.
-_SCANNED_DIRS = ("src", "scripts")
+# Directories holding code that runs on a machine we do not control. ``scripts/`` was
+# here until check_test_layout.py moved into the package (#328) and left it with no
+# Python at all; a scanned directory that holds nothing contributes nothing but the
+# appearance of coverage, which is what the per-directory guard below now catches.
+_SCANNED_DIRS = ("src",)
 
 # Call names that open a file. ``open`` is the builtin; the other two are the
 # ``pathlib.Path`` conveniences. All three take ``encoding=`` in text mode.
@@ -158,9 +163,17 @@ def _python_sources() -> list[Path]:
     return sorted(p for directory in _SCANNED_DIRS for p in (_REPO_ROOT / directory).rglob("*.py"))
 
 
-def test_scanned_dirs_are_populated() -> None:
-    """Guard the guard: an empty file list would make the invariant vacuously true."""
-    assert len(_python_sources()) > 1
+@pytest.mark.parametrize("directory", _SCANNED_DIRS)
+def test_scanned_dir_is_populated(directory: str) -> None:
+    """Guard the guard: an empty file list would make the invariant vacuously true.
+
+    Parametrized per directory rather than asserting on the total. A single
+    ``len(_python_sources()) > 1`` is satisfied by whichever entry is largest, so
+    ``src/``'s two dozen modules masked ``scripts/`` going empty (#363) — the exact
+    vacuous-scope failure this test exists to prevent, one level up. Anything added
+    to ``_SCANNED_DIRS`` that does not exist, or holds no Python, now fails here.
+    """
+    assert list((_REPO_ROOT / directory).rglob("*.py")), f"{directory}/ holds no Python"
 
 
 def test_no_text_io_without_encoding() -> None:
