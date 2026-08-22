@@ -149,7 +149,7 @@ def test_lf_line_endings_survive_the_rewrite(tmp_path: Path) -> None:
     assert update_readme_with_help(readme, "help me\n") is True
 
     assert readme.read_bytes() == (
-        b"# Title\n\n<!-- MAKE_HELP_START -->\n```\nhelp me\n```\n<!-- MAKE_HELP_END -->\n\nFooter\n"
+        b"# Title\n\n<!-- MAKE_HELP_START -->\n```text\nhelp me\n```\n<!-- MAKE_HELP_END -->\n\nFooter\n"
     )
 
 
@@ -178,7 +178,7 @@ def test_missing_file_returns_false(tmp_path: Path, capsys: pytest.CaptureFixtur
 def test_no_change_returns_false(tmp_path: Path) -> None:
     """Returns False when content hasn't changed."""
     readme = tmp_path / "README.md"
-    readme.write_text("<!-- MAKE_HELP_START -->\n```\nsame content\n```\n<!-- MAKE_HELP_END -->")
+    readme.write_text("<!-- MAKE_HELP_START -->\n```text\nsame content\n```\n<!-- MAKE_HELP_END -->")
 
     result = update_readme_with_help(readme, "same content\n")
 
@@ -231,7 +231,7 @@ def test_main_readme_updated_returns_one(tmp_path: Path) -> None:
 def test_main_readme_unchanged_returns_zero(tmp_path: Path) -> None:
     """Returns 0 when README was not changed."""
     readme = tmp_path / "README.md"
-    readme.write_text("<!-- MAKE_HELP_START -->\n```\nsame content\n```\n<!-- MAKE_HELP_END -->")
+    readme.write_text("<!-- MAKE_HELP_START -->\n```text\nsame content\n```\n<!-- MAKE_HELP_END -->")
     (tmp_path / ".git").mkdir()
 
     with (
