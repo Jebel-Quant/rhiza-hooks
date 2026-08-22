@@ -1,17 +1,20 @@
-"""Tests for the canonical test-layout checker (``scripts/check_test_layout.py``).
+"""Tests for the ``rhiza_hooks.check_test_layout`` module.
 
-This file lives in ``tests/meta/`` — an exempt directory declared via
-``[tool.check_test_layout] exempt_dirs = ["meta"]`` in ``pyproject.toml`` — so
-the checker itself does not flag it as an orphan when it finds no matching
-``src/check_test_layout.py``.
+This file is itself the hook's own dogfood: ``test_repo_layout_passes`` runs the
+checker over this repository, so the mirroring rule it publishes is the rule its
+own tree is held to.
 """
 
 from __future__ import annotations
 
+import runpy
+import warnings
 from pathlib import Path
+from unittest.mock import patch
 
-import check_test_layout as ctl
 import pytest
+
+from rhiza_hooks import check_test_layout as ctl
 
 
 def _write(path: Path, text: str = "") -> None:
@@ -21,7 +24,7 @@ def _write(path: Path, text: str = "") -> None:
 
 
 def test_repo_layout_passes() -> None:
-    """The current repository layout satisfies the canonical checker."""
+    """The current repository layout satisfies the checker."""
     root = Path(__file__).resolve().parent.parent.parent
     config = ctl._read_config(root / "pyproject.toml")
     errors = ctl.check(root / "src", root / "tests", config)
@@ -128,45 +131,45 @@ def test_main_reports_and_fails(tmp_path: Path, capsys: pytest.CaptureFixture[st
     assert "check failed" in capsys.readouterr().err
 
 
+def test_main_ignores_passed_filenames(tmp_path: Path) -> None:
+    """Positional filenames are accepted and ignored.
+
+    The manifest sets ``pass_filenames: false`` because parity is a property of the
+    whole tree, but a consumer who flips that flag must not get an argparse error.
+    """
+    src, tests = tmp_path / "src", tmp_path / "tests"
+    _write(src / "foo.py", "class Bar:\n    pass\n")
+    _write(tests / "test_foo.py", "class TestBar:\n    pass\n")
+    assert ctl.main(["src/foo.py", "--src", str(src), "--tests", str(tests)]) == 0
+
+
+def test_main_defaults_to_the_repo_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With no flags the hook checks ``<repo root>/src`` against ``<repo root>/tests``.
+
+    pre-commit runs hooks from the repository root, but a hand invocation from a
+    subdirectory must not silently check two directories that do not exist and
+    report a clean layout.
+    """
+    _write(tmp_path / "src" / "foo.py", "class Bar:\n    pass\n")
+    _write(tmp_path / "tests" / "test_foo.py", "def test_x():\n    pass\n")
+    monkeypatch.setattr(ctl, "find_repo_root", lambda: tmp_path)
+    assert ctl.main([]) == 1
+
+
+def test_module_executes_main() -> None:
+    """Module execution calls main and exits with its return value."""
+    with patch("rhiza_hooks.check_test_layout.sys.exit") as mock_exit:
+        # The module is already imported (top-level test import), so runpy warns it was
+        # "found in sys.modules ... prior to execution"; filter just that warning rather
+        # than mutating sys.modules, which would break module identity for the tests above.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
+            with patch.object(ctl.sys, "argv", ["check-test-layout"]):
+                runpy.run_module("rhiza_hooks.check_test_layout", run_name="__main__")
+        mock_exit.assert_called_once_with(0)
+
+
 # --- configuration & opt-out --------------------------------------------------
-
-
-def test_coerce_scalar() -> None:
-    """``_coerce_scalar`` converts the TOML subset used by the config table."""
-    assert ctl._coerce_scalar('"hello"') == "hello"
-    assert ctl._coerce_scalar("'hello'") == "hello"
-    assert ctl._coerce_scalar('"tail # not a comment"') == "tail # not a comment"
-    assert ctl._coerce_scalar("true") is True
-    assert ctl._coerce_scalar("false  # inline comment") is False
-    assert ctl._coerce_scalar("bare") == "bare"
-    assert ctl._coerce_scalar('[ "a", "b" ]') == ["a", "b"]
-    assert ctl._coerce_scalar("[]") == []
-    assert ctl._coerce_scalar('"unterminated') == "unterminated"
-    assert ctl._coerce_scalar('["unterminated') == ["unterminated"]
-
-
-def test_parse_flat_section() -> None:
-    """``_parse_flat_section`` extracts the named table from raw TOML text."""
-    text = (
-        "# comment\n"
-        "[project]\n"
-        'name = "x"\n'
-        "\n"
-        "[tool.check_test_layout]\n"
-        "enforce = false\n"
-        "# a comment line\n"
-        'reason = "grouped by behaviour"\n'
-        'exempt_dirs = ["integration"]\n'
-        "\n"
-        "[tool.other]\n"
-        "ignored = true\n"
-    )
-    section = ctl._parse_flat_section(text, "tool.check_test_layout")
-    assert section == {
-        "enforce": False,
-        "reason": "grouped by behaviour",
-        "exempt_dirs": ["integration"],
-    }
 
 
 def test_read_config_absent(tmp_path: Path) -> None:
@@ -174,8 +177,8 @@ def test_read_config_absent(tmp_path: Path) -> None:
     assert ctl._read_config(tmp_path / "pyproject.toml") == {}
 
 
-def test_read_config_via_tomllib(tmp_path: Path) -> None:
-    """``_read_config`` parses the section when ``tomllib``/``tomli`` is available."""
+def test_read_config_reads_the_section(tmp_path: Path) -> None:
+    """``_read_config`` parses the ``[tool.check_test_layout]`` table."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
         '[tool.check_test_layout]\nenforce = false\nreason = "behaviour-grouped"\n',
@@ -205,15 +208,15 @@ def test_read_config_malformed_toml(tmp_path: Path) -> None:
     assert ctl._read_config(pyproject) == {}
 
 
-def test_read_config_fallback_without_tomllib(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The flat-table fallback reader works when ``tomllib`` is unavailable."""
-    monkeypatch.setattr(ctl, "tomllib", None)
+def test_read_config_invalid_utf8(tmp_path: Path) -> None:
+    """``_read_config`` returns an empty dict for a file that is not valid UTF-8.
+
+    tomllib decodes the stream itself, so bad bytes surface as ``UnicodeDecodeError``
+    rather than as a TOML error — a separate arm of the same ``except``.
+    """
     pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text(
-        '[tool.check_test_layout]\nenforce = false\nreason = "behaviour-grouped"\n',
-        encoding="utf-8",
-    )
-    assert ctl._read_config(pyproject) == {"enforce": False, "reason": "behaviour-grouped"}
+    pyproject.write_bytes(b'[tool.check_test_layout]\nreason = "\xff\xfe"\n')
+    assert ctl._read_config(pyproject) == {}
 
 
 def test_exempt_dirs_extends_defaults() -> None:

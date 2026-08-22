@@ -105,3 +105,14 @@
   language: python
   files: ^pyproject\.toml$
   pass_filenames: false
+
+# pass_filenames is false because parity is a property of the whole tree: the orphan
+# direction has to see every test file, not just the staged ones. `files:` still gates
+# *when* it runs, so an unrelated commit does not pay for the walk.
+- id: check-test-layout
+  name: Check tests mirror sources 1:1 (files + Test classes)
+  description: Ensures every source module has a mirrored test module and every class a Test class, in both directions
+  entry: check-test-layout
+  language: python
+  files: \.py$
+  pass_filenames: false

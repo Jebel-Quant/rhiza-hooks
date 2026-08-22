@@ -72,7 +72,7 @@ repos:
     rev: 1.9.4
     hooks:
       - id: bandit
-        args: ["--ini", ".bandit", "--exclude", ".venv,tests,.rhiza/tests,.git,.pytest_cache"]
+        args: ["--ini", ".bandit", "--exclude", ".venv,tests,.git,.pytest_cache"]
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.11.0.1
@@ -204,4 +204,11 @@ repos:
         entry: scripts/run_hook.sh check-license-metadata
         language: script
         files: ^pyproject\.toml$
+        pass_filenames: false
+
+      - id: check-test-layout
+        name: Check tests mirror sources 1:1 (files + Test classes)
+        entry: scripts/run_hook.sh check-test-layout
+        language: script
+        files: \.py$
         pass_filenames: false
