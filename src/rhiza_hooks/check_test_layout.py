@@ -91,7 +91,23 @@ def _read_config(pyproject: Path) -> dict[str, object]:
 
 
 def _exempt_dirs(config: Mapping[str, object]) -> set[str]:
-    """Return the exempt top-level test dirs: defaults plus any from *config*."""
+    """Return the exempt top-level test dirs: defaults plus any from *config*.
+
+    Config *extends* the built-ins rather than replacing them, so a repo that
+    exempts one extra directory does not silently re-arm the benchmarks and
+    stress trees.
+
+    A value of the wrong type is ignored rather than raising: a typo in a
+    consumer's ``pyproject.toml`` degrades to the defaults instead of breaking
+    every commit in that repo.
+
+    >>> sorted(_exempt_dirs({}))
+    ['benchmarks', 'stress']
+    >>> sorted(_exempt_dirs({"exempt_dirs": ["meta"]}))
+    ['benchmarks', 'meta', 'stress']
+    >>> sorted(_exempt_dirs({"exempt_dirs": "meta"}))  # a string, not a list
+    ['benchmarks', 'stress']
+    """
     dirs = set(_DEFAULT_EXEMPT_DIRS)
     extra = config.get("exempt_dirs")
     if isinstance(extra, list):
@@ -105,6 +121,16 @@ def _exempt_files(config: Mapping[str, object]) -> set[str]:
     Entries are paths relative to the tests root (POSIX separators), not bare
     names, so exempting one file cannot silently exempt a same-named file
     elsewhere in the tree.
+
+    As with :func:`_exempt_dirs`, a value of the wrong type is ignored rather
+    than raising.
+
+    >>> sorted(_exempt_files({}))
+    []
+    >>> sorted(_exempt_files({"exempt_files": ["test_rhiza_packaging.py"]}))
+    ['test_rhiza_packaging.py']
+    >>> sorted(_exempt_files({"exempt_files": "test_rhiza_packaging.py"}))
+    []
     """
     entries = config.get("exempt_files")
     if not isinstance(entries, list):
@@ -122,6 +148,11 @@ def _top_level_classes(path: Path) -> set[str]:
     ``ast.parse`` decodes bytes per PEP 263, honouring a ``# -*- coding: -*-`` cookie
     and defaulting to UTF-8, which is exactly the rule the interpreter itself applies
     to the file.
+
+    Deliberately carries no ``>>>`` example: it needs a file on disk, so the example
+    would be three lines of ``tempfile`` setup around one assertion. The behaviour
+    worth pinning — that nested classes and functions are excluded — is covered by
+    ``test_top_level_classes`` instead.
     """
     tree = ast.parse(path.read_bytes(), filename=str(path))
     return {node.name for node in tree.body if isinstance(node, ast.ClassDef)}
