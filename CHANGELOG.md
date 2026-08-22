@@ -5,6 +5,38 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com),
 and entries are generated from [Conventional Commits](https://www.conventionalcommits.org).
 
+## [1.3.0] - 2026-08-22
+
+### New Features
+- Adopt check-test-layout as a shared hook, drop the GitHub form templates (#360)
+
+### Bug Fixes
+- Route hook diagnostics to stderr and document the entry points (#350)
+- *(update-readme-help)* Tag the generated fence as `text` (#358)
+- The four /rhiza:quality findings (#361, #362, #363, #364) (#365)
+- Guard the documented install path, retire the fuzz harness (#366, #367, #368) (#369)
+
+### Documentation
+- Update CLAUDE.md for the v1.3.4 removal of .rhiza/tests (#354)
+
+### Maintenance
+- Update rhiza to v1.3.2 (#342)
+- *(ci)* Bump the rhiza pin to v1.3.3 (#345)
+- Chore(deps)(deps): bump the github-actions group with 2 updates (#344)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#343)
+- Cache prek hook environments so shellcheck stops flaking (#347)
+- Update rhiza to v1.3.3 (#346)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#351)
+- Chore(deps-dev)(deps-dev): bump types-pyyaml (#352)
+- Update rhiza to v1.3.4 (#353)
+- Drop .rhiza/.env and .rhiza/.gitignore (#355)
+- Update rhiza to v1.4.2 (#357)
+
+### Other Changes
+- Delete .clusterfuzzlite directory
+- Delete .rhiza/history (#356)
+- Delete .github/workflows/rhiza_fuzzing.yml (#359)
+
 ## [1.2.0] - 2026-08-04
 
 ### New Features
