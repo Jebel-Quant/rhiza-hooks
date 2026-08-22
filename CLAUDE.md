@@ -64,13 +64,23 @@ layer](#the-task-runner-replaced-the-make-layer).)
 > is not by itself evidence that the mechanism works on a file upstream is actively
 > editing.
 >
-> **The stale ClusterFuzzLite bullet is gone**, forward-ported out rather than waiting on
-> a ref bump: upstream #1568 deleted it on 2026-08-20, and no rhiza release past `v1.4.2`
-> (2026-08-19) carries that change yet. This file is now upstream `main` plus the local
-> SBOM lines above, so the eventual bump is a no-op on that line. It was committed with a
-> one-off `SKIP=check-managed-files`; since that hook diffs *staged* changes against
+> **The stale ClusterFuzzLite bullet is gone**, forward-ported out in #371 rather than
+> waiting on a ref bump: upstream #1568 deleted it on 2026-08-20, and no rhiza release past
+> `v1.4.2` (2026-08-19) carries that change yet. This file is now upstream `main` plus the
+> local SBOM lines above, so the eventual bump is a no-op on that line. It was committed
+> with a one-off `SKIP=check-managed-files`; since that hook diffs *staged* changes against
 > `HEAD`, the committed state needs no waiver and CI is unaffected. Prefer that to a
-> `--allow` entry, which would waive the file indefinitely. Tracked in #368.
+> `--allow` entry, which would waive the file indefinitely.
+>
+> **The ref bump itself is still pending, and #368 was closed without it.** The false
+> claim was the defect and it is fixed; bumping the ref is ordinary `/rhiza:update` work,
+> and no issue tracks it. Two things to know when it happens. Upstream sat **24 commits
+> ahead of `v1.4.2`** as of 2026-08-22, so the first sync past that tag is a large one —
+> the Makefile shim rework, the retired mutation workflow, `rhiza-task` 1.1.0,
+> `pytest-rhiza` 0.3.0 — not the one-line `SECURITY.md` change #368 was named for. And
+> #1568 also retires the template's issue and discussion forms, so the
+> `.github/DISCUSSION_TEMPLATE` and `.github/ISSUE_TEMPLATE` entries in `exclude:` become
+> redundant once it lands (harmless to leave in place).
 
 ### `.claude/`
 Nothing. The template no longer syncs `.claude/` at the pinned `ref:` — the lock's
