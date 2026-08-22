@@ -48,14 +48,3 @@ exclude:
   # repo owns it; the cost is that upstream improvements must be ported by hand.
   - .github/CONFIG.md
 
-  # The two form directories below are excluded *and deleted*. The exclude entries are
-  # what keeps them deleted: drop them and the next sync restores the template's forms.
-  #
-  # The generic forms ask a reporter for a project version and a reproduction script,
-  # which is the wrong intake for a hook provider — what matters here is the hook id,
-  # the `rev:` that was pinned and whether it ran under pre-commit or prek. Rather than
-  # maintain a second, hand-ported copy of forms nobody filled in correctly, both
-  # directories are gone: GitHub falls back to a free-text issue body and to
-  # unstructured discussions, which is what people were writing anyway.
-  - .github/DISCUSSION_TEMPLATE
-  - .github/ISSUE_TEMPLATE
