@@ -10,18 +10,6 @@ templates:
 # Files from the profiles above that this project deliberately does not want.
 # Listed here so `rhiza sync` never restores them.
 exclude:
-  # Mutation testing is not used in this repository. The gate enforces a 100%
-  # mutation score, which is unreachable here without suppressing equivalent
-  # mutants, and the signal did not justify the upkeep.
-  - .github/workflows/rhiza_mutation.yml
-
-  # ClusterFuzzLite fuzzing was retired here: the .clusterfuzzlite/ config it
-  # drives was deleted, and the reusable workflow needs both that directory and
-  # an opt-in variable, so the stub could only ever skip. A workflow that exists
-  # solely to no-op still costs a queued job on every PR and reads, in the Actions
-  # tab, as coverage this repo does not have.
-  - .github/workflows/rhiza_fuzzing.yml
-
   # This repo IS rhiza-hooks. The template's copy consumes the hooks through a
   # published `rev:`, which is correct for the ~26 downstream repos but wrong
   # here: at the moment a release is cut the pinned tag does not exist yet, so
