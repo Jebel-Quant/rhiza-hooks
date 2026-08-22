@@ -122,10 +122,9 @@ def test_every_documented_hook_exists_at_the_pinned_rev() -> None:
     rev = _pinned_rev()
     released = _manifest_at(rev)
     if released is None:
-        reason = (
-            f"{rev} is not tagged in this checkout"
-            f"{' (expected during a release PR: version is bumped before the tag exists)' if rev == f'v{_project_version()}' else ''}"
-        )
+        reason = f"{rev} is not tagged in this checkout"
+        if rev == f"v{_project_version()}":
+            reason += " (expected during a release PR: the version is bumped before the tag exists)"
         pytest.skip(reason)
 
     missing = sorted(_documented_ids() - released)
