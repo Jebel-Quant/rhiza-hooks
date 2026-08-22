@@ -70,13 +70,20 @@ list and are now excluded — see [Excluded from sync](#excluded-from-sync).)
 > Cross-check `exclude:` in [`.rhiza/template.yml`](.rhiza/template.yml).
 
 ### `.rhiza/` (the sync engine — treat the whole directory as managed)
-- `rhiza.mk`, `make.d/*.mk`, `semgrep.yml`
+- `semgrep.yml`
 - `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`
 - **Owned by you:** `.rhiza/template.yml` (and `.rhiza/template.lock`, which the
   tool regenerates).
 
+That is the whole directory — five files, three of them managed. `ls .rhiza/` is the
+quickest way to check this section has not gone stale again.
+
 (`.env` and `.gitignore` **used to be** on this list and are now excluded — see
 [Excluded from sync](#excluded-from-sync).)
+
+`rhiza.mk` and `make.d/*.mk` were on this list until the **v1.4.0** sync deleted the
+whole synced make layer — see [The task runner replaced the make
+layer](#the-task-runner-replaced-the-make-layer).
 
 `tests/**` (the synced template test-suite), `assets/` and `completions/` were on
 this list until the **v1.3.4** sync deleted all three — see [The rhiza checks are a
@@ -111,13 +118,18 @@ file is now yours.** Upstream improvements to the shared hook list (ruff,
 bandit, markdownlint, …) no longer arrive by sync and must be ported by hand.
 
 **`.rhiza/.env`** — it set only `SOURCE_FOLDER=src` and
-`MARIMO_FOLDER=docs/notebooks`, which are exactly the `?=` defaults in
-`.rhiza/rhiza.mk`. Its sole effect was that a makefile assignment outranks an
-exported environment variable, so the two values could not be overridden except
-on the `make` command line. `rhiza.mk` `-include`s the file, so its absence is a
-supported state and the defaults now apply. Re-add it only to set a value that
-actually differs from the default (e.g. `RHIZA_CI_OS_MATRIX`, which the file
-deliberately left unset anyway).
+`MARIMO_FOLDER=docs/notebooks`, which were exactly the `?=` defaults in the
+then-synced `.rhiza/rhiza.mk`. Its sole effect was that a makefile assignment
+outranks an exported environment variable, so the two values could not be
+overridden except on the `make` command line.
+
+Since v1.4.0 the file has a different job — it is **layer 2 of rhiza-task's
+resolution order** (defaults → `.rhiza/.env` → `pyproject.toml` → `RHIZA_*`
+environment), so it is now outranked by `[tool.rhiza-task]` in `pyproject.toml`
+rather than the reverse. Because this repo excludes it, that table is the only
+override layer available here — which is why it carries every setting that differs
+from a CLI default. Re-add `.env` only to set something `pyproject.toml` cannot,
+and note it would be git-ignored (see the next entry).
 
 **`.rhiza/.gitignore`** — a single `!.env` rule, there only to re-include
 `.rhiza/.env` against the root `.gitignore`'s `.env` line. With `.env` gone it
@@ -147,13 +159,48 @@ Hook entries mirror `.pre-commit-hooks.yaml`, so a new hook must be added in bot
 a console script in `[project.scripts]`, which `tests/meta/test_pre_commit_manifest.py`
 checks in both directions.
 
-Note that `make mutation` (from the managed `.rhiza/make.d/test.mk`) and the
-mutation section of `docs/development/TESTS.md` still exist — both are Rhiza-owned
-files that cannot be excluded without losing unrelated content, so removing them
-would require an upstream change in `jebel-quant/rhiza`.
+Note that the `mutation` task (now from `rhiza-task`, not the deleted
+`.rhiza/make.d/test.mk`) and the mutation section of `docs/development/TESTS.md`
+still exist. The task ships inside the pinned CLI and the doc is Rhiza-owned, so
+neither can be excluded here — removing them would require an upstream change in
+`jebel-quant/rhiza`. Only the *workflow* is excluded.
 
 > Tests owned by bundles this repo does **not** select (e.g. `gh-aw`, `lfs`)
 > are never synced in the first place, so they need no `exclude:` entry.
+
+## The task runner replaced the make layer
+
+Up to **v1.3.x** the template synced a makefile layer: `.rhiza/rhiza.mk` plus ten
+fragments under `.rhiza/make.d/`, ~1023 lines, and a template-owned root `Makefile` that
+included them. **v1.4.0 deleted all of it.** The gates now come from the
+[`rhiza-task`](https://pypi.org/project/rhiza-task/) CLI, and the root `Makefile` is a
+repo-owned shim that `uvx rhiza-task shim > Makefile` emits.
+
+`make` is still the front door — every target this file and the README document works
+unchanged — but it no longer *contains* anything. A catch-all `%:` rule forwards each
+target to `uvx $(RHIZA_TASK) $@`, and `RHIZA_TASK ?= rhiza-task@0.3.1` in the Makefile is
+the entire version contract, in place of a template ref plus eleven synced `.mk` files.
+
+**Consequences worth knowing before you go looking for something:**
+
+- **`.rhiza/` holds no build machinery at all** — five files, listed above. If a
+  document tells you to read `rhiza.mk` or a `make.d/*.mk` fragment, that document is
+  stale (this one was; see #361).
+- **Settings live in `[tool.rhiza-task]` in `pyproject.toml`.** Resolution order is
+  defaults → `.rhiza/.env` → `pyproject.toml` → `RHIZA_*` environment. This repo excludes
+  `.rhiza/.env`, so that table is the only override layer, and every key in it is
+  annotated with why it differs from the CLI default. `uvx rhiza-task print <setting>`
+  shows what one resolves to.
+- **`make help` is not a static list.** It runs `uvx rhiza-task list`, so it reports what
+  the pinned CLI actually defines — roughly 45 tasks across sections, far more than the
+  old makefile exposed. Read it rather than guessing a target name.
+- **Two probes that used to work now mislead.** `test -f .rhiza/rhiza.mk` is no longer a
+  test of whether the repo is synced — it always fails, on every v1.4.x repo — and
+  `make -n <target>` always succeeds, because the catch-all resolves any name. Neither
+  tells you anything. Use `.rhiza/template.lock` for the first and `make help` for the
+  second. (`/rhiza:quality` 0.9.0 gets both wrong: Jebel-Quant/rhiza-claude#212, #213.)
+- **`make <typo>` is forwarded, not caught.** The CLI's "unknown task" error is the
+  backstop, so a mistyped target fails there rather than at make.
 
 ## The rhiza checks are a dependency, not a directory
 
@@ -165,24 +212,30 @@ pytest at. **v1.3.4 deleted all seven** (upstream #1540). The same checks now sh
 `.rhiza/make.d/completions.mk`, `.rhiza/assets/rhiza-logo.svg` (`docs/assets/rhiza-logo.svg`
 is untouched) and `.github/pull_request_template.md`.
 
-`make rhiza-test` (in `.rhiza/make.d/quality.mk`) now runs module names rather than paths.
-Each bundle appends its own to a `RHIZA_CHECKS` accumulator:
+`make rhiza-test` now runs module names rather than paths. The five checks were
+assembled by a `RHIZA_CHECKS` accumulator across `quality.mk`, `python.mk` and `test.mk`
+until **v1.4.0 deleted all three** — the task now lives in `rhiza-task` and resolves the
+same five internally:
 
-| Bundle file | Contributes |
-| --- | --- |
-| `quality.mk` | `pytest_rhiza.checks.test_readme`, `…test_release_tags` |
-| `python.mk` | `pytest_rhiza.checks.test_pyproject`, `…test_docstrings` |
-| `test.mk` | `pytest_rhiza.checks.test_readme_validation` |
+```
+pytest_rhiza.checks.test_readme      pytest_rhiza.checks.test_release_tags
+pytest_rhiza.checks.test_pyproject   pytest_rhiza.checks.test_docstrings
+pytest_rhiza.checks.test_readme_validation
+```
 
-and the target invokes them with
-`uv run --with 'pytest-rhiza==$(RHIZA_CHECKS_VERSION)' pytest --pyargs $checks`.
+Run `make rhiza-test` and read the echoed command line to see the current set — the task
+prints the full `uv run --with 'pytest-rhiza @ …' pytest --pyargs …` invocation, which is
+authoritative in a way this list cannot be.
 
-- **Nothing to add to `pyproject.toml`.** The pin is provisioned on the fly, which is also
-  why `python.mk` no longer carries a `.rhiza/tests` carve-out for deptry — there is no
+- **Nothing to add to `pyproject.toml`'s dependencies.** The pin is provisioned on the
+  fly, which is also why there is no `.rhiza/tests` carve-out for deptry — there is no
   longer a folder for deptry to resolve against the manifest.
-- **The version is Rhiza-owned:** `RHIZA_CHECKS_VERSION ?= 0.2.1` in `quality.mk`. It is
-  `?=`, so lead or lag it from `local.mk` (developer-local, uncommitted) rather than by
-  editing the managed file.
+- **The version is pinned by you, in `[tool.rhiza-task]`.** It was
+  `RHIZA_CHECKS_VERSION ?= 0.2.1` in the managed `quality.mk`; it is now the
+  `pytest-rhiza` key in `pyproject.toml`, which this repo sets to `v0.2.1` because the
+  CLI's own default is older and a bare migration would have *downgraded* the checks.
+  Change it there — that table is the only override layer this repo has, since
+  `.rhiza/.env` is excluded.
 - **A leftover `.rhiza/tests/` directory is inert but noisy.** `rhiza-test` checks for it
   and prints a WARN telling you to `git rm -r .rhiza/tests`; nothing runs whatever is in
   there. A local checkout that predates the v1.3.4 sync keeps the directory alive through
@@ -197,8 +250,10 @@ and the target invokes them with
 
 Everything **not** listed above — notably `pyproject.toml`, `README.md`, `uv.lock`,
 `src/rhiza_hooks/`, your own `tests/`, project-specific docs, and
-`.rhiza/template.yml`. Project-specific Make hooks (`pre-install::`,
-`post-install::`, …) go in the thin root `Makefile` above the `include` line.
+`.rhiza/template.yml`. Since v1.4.0 the root `Makefile` is repo-owned too — it is the
+shim `uvx rhiza-task shim > Makefile` emits. Repo-specific targets go in `local.mk`,
+which the shim `-include`s and which wins over its catch-all rule; that is where a
+fragment under `.rhiza/make.d/` would have to move to.
 
 ## Local-dev gotcha: `TestGitTagVersion` and template-remote tags
 
