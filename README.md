@@ -19,7 +19,7 @@ Add to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/Jebel-Quant/rhiza-hooks
-    rev: v1.2.0  # Use the latest release
+    rev: v1.3.0  # Use the latest release
     hooks:
       # Migrated from rhiza
       - id: check-rhiza-workflow-names
@@ -36,15 +36,8 @@ repos:
       - id: check-managed-files
       - id: check-workflow-make-targets
       - id: check-license-metadata
+      - id: check-test-layout
 ```
-
-> **`check-test-layout` is not in `v1.2.0` yet.** It is built, tested and published in
-> `.pre-commit-hooks.yaml` on `main`, but the newest release predates it, and pre-commit
-> resolves hook ids *at the rev you pin* — so adding it to the block above today fails
-> with `No hook with id 'check-test-layout'`. It becomes available in the next release,
-> at which point `bump-my-version` updates the `rev:` above and this note goes away.
-> `tests/meta/test_readme_pinned_rev_parity.py` fails if this snippet ever documents a
-> hook the pinned rev does not define. See #366.
 
 Then install the hooks:
 
