@@ -51,8 +51,10 @@ def test_oversized_unicode_escape_returns_invalid(tmp_path: Path) -> None:
 
     PyYAML's scanner raises a bare ``OverflowError`` (not a
     ``yaml.YAMLError``) on such input; the loader must catch it and report
-    it as invalid rather than let it escape. Regression test for the
-    ClusterFuzzLite ``fuzz_bundles_validate`` crash.
+    it as invalid rather than let it escape. Regression test for a crash found by
+    the ClusterFuzzLite ``fuzz_bundles_validate`` harness, which has since been
+    retired along with the fuzzing workflow (#359, #367) — this test is what
+    survives of it, and the reason the finding is not lost with the harness.
     """
     path = tmp_path / "overflow.yml"
     path.write_bytes(b'- "\\U' + b"F" * 130 + b"A1e |\n")
