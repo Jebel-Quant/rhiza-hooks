@@ -53,15 +53,18 @@ rather than synced into the repo.
 ### `.github/`
 - Workflows: `rhiza_benchmark.yml`, `rhiza_book.yml`, `rhiza_ci.yml`,
   `rhiza_codeql.yml`, `rhiza_marimo.yml`, `rhiza_release.yml`,
-  `rhiza_weekly.yml`, `rhiza_fuzzing.yml`, `rhiza_scorecard.yml`
-  (`rhiza_mutation.yml` is excluded — see the `exclude:` block in
-  [`.rhiza/template.yml`](.rhiza/template.yml))
-- `CONFIG.md`, `dependabot.yml`, `release.yml`, `secret_scanning.yml`
-- `DISCUSSION_TEMPLATE/`, `ISSUE_TEMPLATE/`, `rulesets/`
+  `rhiza_weekly.yml`, `rhiza_scorecard.yml`
+  (`rhiza_mutation.yml` and `rhiza_fuzzing.yml` are excluded — see the `exclude:`
+  block in [`.rhiza/template.yml`](.rhiza/template.yml))
+- `dependabot.yml`, `release.yml`, `secret_scanning.yml`
+- `rulesets/`
+
+(`CONFIG.md`, `DISCUSSION_TEMPLATE/` and `ISSUE_TEMPLATE/` **used to be** on this
+list and are now excluded — see [Excluded from sync](#excluded-from-sync).)
 
 > This snapshot reflects the files synced at the pinned `ref:` (currently
-> `v1.3.4`); the `files:` block of `.rhiza/template.lock` is the authoritative
-> list, and it *is* what is on disk. The two excluded paths are not in it — the
+> `v1.4.2`); the `files:` block of `.rhiza/template.lock` is the authoritative
+> list, and it *is* what is on disk. The excluded paths are not in it — the
 > lock records them under its own top-level `exclude:` key instead — so a path's
 > absence from `files:` does not by itself mean the template never offered it.
 > Cross-check `exclude:` in [`.rhiza/template.yml`](.rhiza/template.yml).
@@ -85,12 +88,17 @@ dependency, not a directory](#the-rhiza-checks-are-a-dependency-not-a-directory)
 
 ### Excluded from sync
 
-`.rhiza/template.yml` excludes four files. If another synced file needs to be
+`.rhiza/template.yml` excludes eight paths. If another synced file needs to be
 dropped locally, add it under `exclude:` there and re-sync.
 
 **`.github/workflows/rhiza_mutation.yml`** — mutation testing is not used here
 (the gate enforces a 100% mutation score, unreachable without suppressing
 equivalent mutants).
+
+**`.github/workflows/rhiza_fuzzing.yml`** — ClusterFuzzLite was retired here: the
+`.clusterfuzzlite/` config it drives is gone, and the reusable workflow needs both
+that directory and an opt-in variable, so the stub could only ever skip while still
+costing a queued job on every PR.
 
 **`.pre-commit-config.yaml`** — this repo *is* rhiza-hooks. The template's copy
 consumes the hooks through a published `rev:`, which is right for the ~26
@@ -115,6 +123,17 @@ deliberately left unset anyway).
 `.rhiza/.env` against the root `.gitignore`'s `.env` line. With `.env` gone it
 carried nothing. Consequence: a future `.rhiza/.env` would be git-ignored, so
 anyone re-adding one must `git add -f` it or restore this file.
+
+**`.github/DISCUSSION_TEMPLATE/` and `.github/ISSUE_TEMPLATE/`** — excluded *and
+deleted*. The generic forms ask for a project version and a reproduction script,
+which is the wrong intake for a hook provider (what matters is the hook id, the
+pinned `rev:` and whether it ran under pre-commit or prek), and a hand-ported second
+copy was not worth maintaining. GitHub now falls back to a free-text issue body and
+unstructured discussions. The `exclude:` entries are what keeps them deleted —
+remove them and the next sync restores the template's forms.
+
+**`.github/CONFIG.md`** — repo metadata recording which secrets and variables CI
+wants; excluded so this repo owns the wording.
 
 `tests/meta/test_pre_commit_template_parity.py` enforces that port: it fetches the
 template's `.pre-commit-config.yaml` **at the `ref:` this repo pins** and fails when a
