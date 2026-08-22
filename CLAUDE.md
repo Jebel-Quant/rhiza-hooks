@@ -37,10 +37,28 @@ snapshot:
 
 ### Root
 `.bandit`, `.editorconfig`, `.gitignore`, `.python-version`, `cliff.toml`,
-`LICENSE`, `Makefile`, `SECURITY.md`, `pytest.ini`, `ruff.toml`
+`LICENSE`, `SECURITY.md`, `pytest.ini`, `ruff.toml`
 
 (`.pre-commit-config.yaml` **used to be** on this list and is now excluded — see
-[Excluded from sync](#excluded-from-sync).)
+[Excluded from sync](#excluded-from-sync). The root `Makefile` was on it until
+**v1.4.0**; it is now repo-owned — see [The task runner replaced the make
+layer](#the-task-runner-replaced-the-make-layer).)
+
+> **`SECURITY.md` is managed but not verbatim.** It carries ~51 lines this repo wrote
+> and the template does not ship: an `## SBOM Retrieval` section plus its summary
+> bullet, added in #139, with `gh release download` and `curl` examples hard-coded to
+> `Jebel-Quant/rhiza-hooks`. It survives because `.rhiza/template.lock` records
+> `strategy: merge`, which has preserved it across the v0.19.3 (#197) and v1.2.0 (#263)
+> syncs.
+>
+> Nothing enforces that. `check-managed-files` diffs *staged changes* against `HEAD`, so
+> it blocks a new edit but cannot see divergence that is already committed — this
+> arrangement is invisible to every gate, which is why it is written down here.
+> **Check the section is still present after the next sync** (`grep -c 'SBOM Retrieval'
+> SECURITY.md`), and if merge ever drops it, the durable fix is to move `SECURITY.md`
+> into `exclude:` and own it outright, as this repo already does for
+> `.github/CONFIG.md`. Tracked in #368, which also covers the stale ClusterFuzzLite
+> claim the next ref bump removes.
 
 ### `.claude/`
 Nothing. The template no longer syncs `.claude/` at the pinned `ref:` — the lock's
