@@ -42,13 +42,20 @@ exclude:
   # .gitignore's `.env` rule. With .env gone it has no other rule to carry.
   - .rhiza/.gitignore
 
-  # The three entries below are GitHub *repo metadata*, not build machinery: they
-  # shape what a human sees when filing an issue, opening a discussion, or looking
-  # up which secrets CI wants. rhiza-hooks is a pre-commit hook provider consumed by
-  # the other rhiza repos, so its intake needs to ask about hook IDs, prek/uvx
-  # invocation and the `rev:` a reporter pinned — questions the generic template
-  # forms have no field for. Excluded so this repo owns the wording; the cost is
-  # that upstream improvements to these forms must be ported by hand.
+  # .github/CONFIG.md is GitHub *repo metadata*, not build machinery: it records which
+  # secrets and variables CI wants. rhiza-hooks is a pre-commit hook provider consumed
+  # by the other rhiza repos, so its wording is specific to that role. Excluded so this
+  # repo owns it; the cost is that upstream improvements must be ported by hand.
   - .github/CONFIG.md
+
+  # The two form directories below are excluded *and deleted*. The exclude entries are
+  # what keeps them deleted: drop them and the next sync restores the template's forms.
+  #
+  # The generic forms ask a reporter for a project version and a reproduction script,
+  # which is the wrong intake for a hook provider — what matters here is the hook id,
+  # the `rev:` that was pinned and whether it ran under pre-commit or prek. Rather than
+  # maintain a second, hand-ported copy of forms nobody filled in correctly, both
+  # directories are gone: GitHub falls back to a free-text issue body and to
+  # unstructured discussions, which is what people were writing anyway.
   - .github/DISCUSSION_TEMPLATE
   - .github/ISSUE_TEMPLATE

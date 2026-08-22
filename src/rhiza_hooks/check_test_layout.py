@@ -12,6 +12,9 @@ drifts loose from what it covers:
   * no ``Test*`` class lacks a corresponding source class (no orphan test
     classes).
 
+The reverse direction is the one that pays for itself: a renamed or retired
+module leaves its tests behind, and those tests keep passing against nothing.
+
 ``__init__.py`` and ``conftest.py`` are ignored on both sides, and the
 ``tests/benchmarks/`` and ``tests/stress/`` trees are exempt entirely — those
 hold benchmarks and stress tests that need not mirror a source module. Test
@@ -26,19 +29,21 @@ gate) can opt out via a ``[tool.check_test_layout]`` table in ``pyproject.toml``
     reason = "Tests are grouped by behaviour; coverage is enforced by pytest."
 
 ``enforce = false`` requires a non-empty ``reason`` so the deviation is always
-documented. The same table accepts ``exempt_dirs = [...]`` to extend the
-built-in benchmarks/stress exemptions when parity *is* enforced, and
-``exempt_files = [...]`` to exempt individual test files by their path relative
-to the tests root — for a single loose file, ``exempt_dirs`` cannot express it,
-since its first path component is the file itself and exempting that reads as a
-directory that does not exist.
+documented — an undocumented opt-out is indistinguishable from neglect. The same
+table accepts ``exempt_dirs = [...]`` to extend the built-in benchmarks/stress
+exemptions when parity *is* enforced, and ``exempt_files = [...]`` to exempt
+individual test files by their path relative to the tests root — for a single
+loose file, ``exempt_dirs`` cannot express it, since its first path component is
+the file itself and exempting that reads as a directory that does not exist.
 
-Usage:
-  uv run --python 3.12 --no-project python \
-    scripts/check_test_layout.py [--src DIR] [--tests DIR] [--config FILE]
+The configuration lives in ``pyproject.toml`` rather than under ``.rhiza/``
+deliberately: the layout it describes is a property of the Python project, not of
+the template that syncs its infrastructure, and a repo that is not rhiza-managed
+must still be able to configure this hook.
 
-Exits 0 when the layout is clean (or parity is intentionally not enforced),
-1 (listing every violation) otherwise.
+Exit codes:
+  0 - the layout is clean, or parity is intentionally not enforced
+  1 - violations were found (every one is listed), or the opt-out is misconfigured
 """
 
 from __future__ import annotations
@@ -46,16 +51,11 @@ from __future__ import annotations
 import argparse
 import ast
 import sys
+import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
-try:  # py3.11+
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - older interpreters
-    try:
-        import tomli as tomllib  # type: ignore
-    except ModuleNotFoundError:
-        tomllib = None  # type: ignore
+from rhiza_hooks._repo import find_repo_root
 
 _IGNORED = {"__init__.py", "conftest.py"}
 
@@ -65,70 +65,29 @@ _IGNORED = {"__init__.py", "conftest.py"}
 _DEFAULT_EXEMPT_DIRS = {"benchmarks", "stress"}
 
 
-def _coerce_scalar(raw: str) -> object:
-    """Coerce a TOML scalar/array literal to a Python value (fallback reader).
-
-    Handles the narrow subset the ``[tool.check_test_layout]`` table uses:
-    quoted strings, ``true``/``false`` booleans, and single-line arrays of
-    quoted strings. Everything else is returned as its stripped literal.
-    """
-    raw = raw.strip()
-    if raw[:1] in {'"', "'"}:
-        end = raw.find(raw[0], 1)
-        return raw[1:end] if end != -1 else raw[1:]
-    if raw.startswith("["):
-        end = raw.find("]")
-        inner = raw[1 : end if end != -1 else len(raw)]
-        return [v for v in (_coerce_scalar(item) for item in inner.split(",")) if v != ""]
-    literal = raw.split("#", 1)[0].strip()
-    if literal == "true":
-        return True
-    if literal == "false":
-        return False
-    return literal
-
-
-def _parse_flat_section(text: str, header: str) -> dict[str, object]:
-    """Extract a single flat ``[header]`` table from TOML *text*.
-
-    A dependency-free fallback for interpreters without ``tomllib``/``tomli``
-    (the plugin runs under the ambient ``python3``, which may predate 3.11).
-    It recognises only the flat ``key = value`` table this checker reads.
-    """
-    want = f"[{header}]"
-    out: dict[str, object] = {}
-    in_section = False
-    for line in text.splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        if stripped.startswith("["):
-            in_section = stripped == want
-            continue
-        if not in_section or "=" not in stripped:
-            continue
-        key, _, value = stripped.partition("=")
-        out[key.strip()] = _coerce_scalar(value)
-    return out
-
-
 def _read_config(pyproject: Path) -> dict[str, object]:
     """Return the ``[tool.check_test_layout]`` table from *pyproject* (empty if absent).
 
-    Prefers ``tomllib``/``tomli`` when importable; otherwise uses the flat-table
-    fallback so the opt-out is honoured regardless of interpreter version.
+    A missing, malformed or unreadable pyproject.toml is somebody else's error to
+    report — the same lenient stance the other hooks in this package take.
+
+    Args:
+        pyproject: Path to the ``pyproject.toml`` to read.
+
+    Returns:
+        The configuration table, or an empty dict when it cannot be read.
     """
     if not pyproject.is_file():
         return {}
-    text = pyproject.read_text(encoding="utf-8")
-    if tomllib is not None:
-        try:
-            data = tomllib.loads(text)
-        except ValueError:
-            return {}
-        section = data.get("tool", {}).get("check_test_layout", {})
-        return section if isinstance(section, dict) else {}
-    return _parse_flat_section(text, "tool.check_test_layout")
+    try:
+        with pyproject.open("rb") as handle:
+            data = tomllib.load(handle)
+    except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError):
+        # tomllib decodes the stream itself, so invalid UTF-8 surfaces as
+        # UnicodeDecodeError rather than a TOML error.
+        return {}
+    section = data.get("tool", {}).get("check_test_layout", {})
+    return section if isinstance(section, dict) else {}
 
 
 def _exempt_dirs(config: Mapping[str, object]) -> set[str]:
@@ -224,18 +183,32 @@ def check(src: Path, tests: Path, config: Mapping[str, object] | None = None) ->
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Entry point: check the layout and return an exit code."""
+    """Run the hook and return a process exit code.
+
+    ``--src``/``--tests``/``--config`` are resolved against the current working
+    directory (pre-commit runs hooks from the repository root); the defaults are
+    anchored to the repository root itself, so the hook also behaves when invoked
+    from a subdirectory by hand.
+    """
     parser = argparse.ArgumentParser(description="Check test/source layout parity.")
-    parser.add_argument("--src", default="src", help="Source directory (default: src).")
-    parser.add_argument("--tests", default="tests", help="Tests directory (default: tests).")
+    parser.add_argument(
+        "filenames",
+        nargs="*",
+        help="Filenames (ignored: parity is a property of the whole tree, not of one file)",
+    )
+    parser.add_argument("--src", default=None, help="Source directory (default: <repo root>/src).")
+    parser.add_argument("--tests", default=None, help="Tests directory (default: <repo root>/tests).")
     parser.add_argument(
         "--config",
-        default="pyproject.toml",
-        help="pyproject.toml providing [tool.check_test_layout] (default: pyproject.toml).",
+        default=None,
+        help="pyproject.toml providing [tool.check_test_layout] (default: <repo root>/pyproject.toml).",
     )
     args = parser.parse_args(argv)
 
-    config = _read_config(Path(args.config))
+    repo_root = find_repo_root()
+    src = Path(args.src) if args.src else repo_root / "src"
+    tests = Path(args.tests) if args.tests else repo_root / "tests"
+    config = _read_config(Path(args.config) if args.config else repo_root / "pyproject.toml")
 
     if not config.get("enforce", True):
         reason = str(config.get("reason", "")).strip()
@@ -249,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Test layout OK: parity not enforced by request — {reason}")
         return 0
 
-    errors = check(Path(args.src), Path(args.tests), config)
+    errors = check(src, tests, config)
     if errors:
         print("Test-layout check failed:", file=sys.stderr)
         for err in errors:
@@ -259,5 +232,5 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__ == "__main__":  # pragma: no mutate
+    sys.exit(main())

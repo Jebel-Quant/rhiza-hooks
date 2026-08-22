@@ -55,6 +55,7 @@ check-template-bundles = "rhiza_hooks.check_template_bundles:main"
 check-managed-files = "rhiza_hooks.check_managed_files:main"
 check-workflow-make-targets = "rhiza_hooks.check_workflow_make_targets:main"
 check-license-metadata = "rhiza_hooks.check_license_metadata:main"
+check-test-layout = "rhiza_hooks.check_test_layout:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rhiza_hooks"]
@@ -110,10 +111,15 @@ branch = true
 show_missing = true
 fail_under = 100
 
+# Configuration for this repo's own `check-test-layout` hook (src/rhiza_hooks/
+# check_test_layout.py), which is dogfooded through the `repo: local` block in
+# .pre-commit-config.yaml. The table name is the hook's published contract, so it is
+# the same key a downstream consumer writes.
 [tool.check_test_layout]
-# tests/meta/ holds meta-tests for scripts/ utilities (e.g. check_test_layout.py
-# itself). They have no corresponding src/ module, so exempt the subtree from the
-# reverse (orphan) check while keeping forward parity enforced for every source module.
+# tests/meta/ holds meta-tests for repository *metadata* — the pre-commit manifest, the
+# docs nav, encoding hygiene — rather than for a src/ module. They have no counterpart to
+# mirror, so exempt the subtree from the reverse (orphan) check while keeping forward
+# parity enforced for every source module.
 exempt_dirs = ["meta"]
 
 # tests/test_rhiza_packaging.py is delivered by Rhiza's python-core bundle (it arrived

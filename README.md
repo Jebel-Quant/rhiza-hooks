@@ -36,6 +36,7 @@ repos:
       - id: check-managed-files
       - id: check-workflow-make-targets
       - id: check-license-metadata
+      - id: check-test-layout
 ```
 
 Then install the hooks:
@@ -60,6 +61,7 @@ pre-commit install
 | `check-managed-files` | every staged file | ❌ validates only | `1` if a template-owned file is being modified, else `0` |
 | `check-workflow-make-targets` | `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Makefile`, `.rhiza/*.mk` | ❌ validates only | `1` if CI invokes an undefined target, else `0` |
 | `check-license-metadata` | `pyproject.toml` | ❌ validates only | `1` if both licence forms are declared, else `0` |
+| `check-test-layout` | any `*.py` | ❌ validates only | `1` if a source module or class has no mirrored test (or vice versa), else `0` |
 
 Details for each hook follow.
 
@@ -377,6 +379,61 @@ Validating SPDX expression syntax is out of scope; the value here is the rule th
 - Delete the `License :: …` classifier and keep the SPDX expression; that is the direction packaging has moved.
 - rhiza's synced `test_license_classifier_present` still asserts the classifier through template v1.2.1, which is unsatisfiable for a PEP 639 project (filed upstream as jebel-quant/rhiza#1440). Do not "fix" that test by adding the classifier back — it trades a failing test for an unbuildable package.
 
+#### `check-test-layout`
+
+Enforces that the test tree mirrors the source tree 1:1, **in both directions**:
+
+- every source module `<src>/…/xyz.py` has a test file `<tests>/…/test_xyz.py` (nested packages are mirrored);
+- every top-level `class A` in a source module has a matching `TestA` class in that test file;
+- every test file traces back to a source module (no orphan test files);
+- every `Test*` class traces back to a source class (no orphan test classes).
+
+The reverse direction is the one that pays for itself: a renamed or retired module leaves its tests behind, and those orphaned tests keep passing against nothing. Test *functions* are unconstrained — the rules bind files and classes only. `__init__.py` and `conftest.py` are ignored on both sides, and `tests/benchmarks/` and `tests/stress/` are exempt by default.
+
+**Triggers on:** any `*.py` file — parity breaks when either side moves
+
+The check reads the whole tree rather than the staged files (`pass_filenames: false`), because the orphan direction cannot be decided from one file.
+
+**Options:**
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `--src DIR` | `<repo root>/src` | Source directory |
+| `--tests DIR` | `<repo root>/tests` | Tests directory |
+| `--config FILE` | `<repo root>/pyproject.toml` | File providing `[tool.check_test_layout]` |
+
+**Configuration** lives in `pyproject.toml`, so a project that is not rhiza-managed can still configure it:
+
+```toml
+[tool.check_test_layout]
+# Extend the built-in benchmarks/stress exemptions (top-level dirs under tests/)
+exempt_dirs = ["meta", "integration"]
+# Exempt individual test files, by path relative to the tests root
+exempt_files = ["test_packaging.py"]
+```
+
+A repository that organises tests by *behaviour* rather than by module can opt out entirely — but only on the record:
+
+```toml
+[tool.check_test_layout]
+enforce = false
+reason = "Tests are grouped by behaviour; per-module coverage is enforced by a 100% gate."
+```
+
+`reason` is **required**: `enforce = false` without one exits `1`. An undocumented opt-out is indistinguishable from neglect.
+
+**Usage:**
+
+```yaml
+- id: check-test-layout
+  # args: [--src, scripts, --tests, tests]   # Optional: for a non-src/ layout
+```
+
+**Troubleshooting:**
+
+- A reported orphan is usually right: check whether the source module was renamed or deleted and its test left behind.
+- For a whole subtree that legitimately has no counterpart (repository meta-tests, integration suites), use `exempt_dirs`. For one loose file, use `exempt_files` — `exempt_dirs` cannot express it, since the file's first path component is the file itself.
+
 ## 🛠️ Development
 
 ### Prerequisites
@@ -428,7 +485,7 @@ This project enforces **100% line/branch coverage**. The gate runs in CI, but yo
 make test       # Run the suite with coverage (fails under 100%)
 ```
 
-The project test suite **mirrors `src/rhiza_hooks/` 1:1** under `tests/rhiza_hooks/`: each module `src/rhiza_hooks/<module>.py` has a matching `tests/rhiza_hooks/test_<module>.py` (including unit, integration and property-based tests for that module). Repository meta-tests that are not tied to a single package module — such as `tests/test_check_test_layout.py` — stay at the top level of `tests/`. This layout is enforced by `scripts/check_test_layout.py`, which verifies that every module in `src/rhiza_hooks/` is covered by at least one test file that imports it and that every `tests/test_*.py` file maps to a package module (or is an allowed meta-test); it runs as part of the suite via `tests/test_check_test_layout.py`.
+The project test suite **mirrors `src/rhiza_hooks/` 1:1** under `tests/rhiza_hooks/`: each module `src/rhiza_hooks/<module>.py` has a matching `tests/rhiza_hooks/test_<module>.py` (including unit, integration and property-based tests for that module). Repository meta-tests that are not tied to a single package module — the pre-commit manifest, the docs nav, encoding hygiene — live in `tests/meta/`, which `[tool.check_test_layout] exempt_dirs` exempts from the orphan direction. The layout is enforced by this repo's own [`check-test-layout`](#check-test-layout) hook, dogfooded through the `repo: local` block in `.pre-commit-config.yaml` and covered by `tests/rhiza_hooks/test_check_test_layout.py`.
 
 ## 📄 License
 
@@ -436,8 +493,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 💬 Getting help
 
-- Ask questions and get support in [GitHub Discussions](https://github.com/Jebel-Quant/rhiza-hooks/discussions) using the [Q&A template](.github/DISCUSSION_TEMPLATE/q-and-a.yml).
-- Report bugs or request features using the [issue templates](https://github.com/Jebel-Quant/rhiza-hooks/issues/new/choose).
+- Ask questions and get support in [GitHub Discussions](https://github.com/Jebel-Quant/rhiza-hooks/discussions).
+- [Report a bug or request a feature](https://github.com/Jebel-Quant/rhiza-hooks/issues/new). There is no form to fill in — please name the hook id and the `rev:` you pinned.
 
 ## 🙏 Acknowledgments
 

@@ -13,6 +13,7 @@
 | [`check_rhiza_config`](check_rhiza_config.md) | `check-rhiza-config` | Validate `.rhiza/template.yml` |
 | [`check_rust_version`](check_rust_version.md) | `check-rust-version-consistency` | Assert the pinned Rust toolchain is not older than the declared MSRV |
 | [`check_template_bundles`](check_template_bundles.md) | `check-template-bundles` | Validate `template-bundles.yml` structure |
+| [`check_test_layout`](check_test_layout.md) | `check-test-layout` | Assert tests mirror sources 1:1, by module and by `Test*` class, in both directions |
 | [`check_workflow_make_targets`](check_workflow_make_targets.md) | `check-workflow-make-targets` | Assert every make target a CI workflow runs is defined in the Makefile or its includes |
 | [`check_workflow_names`](check_workflow_names.md) | `check-rhiza-workflow-names` | Enforce `(RHIZA)` prefix on GitHub Actions workflow names |
 | [`update_readme_help`](update_readme_help.md) | `update-readme-help` | Embed `make help` output into `README.md` |
