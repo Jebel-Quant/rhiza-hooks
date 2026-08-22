@@ -145,14 +145,13 @@ def _test_files(tests: Path, exempt: set[str] | None = None, exempt_files: set[s
     )
 
 
-def check(src: Path, tests: Path, config: Mapping[str, object] | None = None) -> list[str]:
-    """Return a list of layout violations (empty when the layout is clean)."""
-    config = config or {}
-    exempt = _exempt_dirs(config)
-    exempt_files = _exempt_files(config)
-    errors: list[str] = []
+def _forward_violations(src: Path, tests: Path) -> list[str]:
+    """Return violations where a source module or class has no mirrored test.
 
-    # Forward: every source module needs a mirrored test file + Test* classes.
+    The forward direction takes no exemptions: ``exempt_dirs``/``exempt_files``
+    name paths under the *tests* root, and this pass is keyed by source module.
+    """
+    errors: list[str] = []
     for module in _source_modules(src):
         rel = module.relative_to(src)
         test_path = tests / rel.parent / f"test_{module.stem}.py"
@@ -163,8 +162,16 @@ def check(src: Path, tests: Path, config: Mapping[str, object] | None = None) ->
         for cls in sorted(_top_level_classes(module)):
             if f"Test{cls}" not in test_classes:
                 errors.append(f"missing class Test{cls} in {test_path} for class {cls} in {module}")
+    return errors
 
-    # Reverse: every test file/class must trace back to a source module/class.
+
+def _orphan_violations(src: Path, tests: Path, exempt: set[str], exempt_files: set[str]) -> list[str]:
+    """Return violations where a test file or ``Test*`` class has no source counterpart.
+
+    This is the direction that catches a renamed or retired module whose tests
+    linger and keep passing, and the one the exemptions apply to.
+    """
+    errors: list[str] = []
     for test_file in _test_files(tests, exempt, exempt_files):
         rel = test_file.relative_to(tests)
         source_name = test_file.stem[len("test_") :]
@@ -178,8 +185,21 @@ def check(src: Path, tests: Path, config: Mapping[str, object] | None = None) ->
                 errors.append(
                     f"orphan test class {cls} in {test_file} (no class {cls[len('Test') :]} in {source_path})"
                 )
-
     return errors
+
+
+def check(src: Path, tests: Path, config: Mapping[str, object] | None = None) -> list[str]:
+    """Return a list of layout violations (empty when the layout is clean).
+
+    The two directions are independent passes — see :func:`_forward_violations`
+    and :func:`_orphan_violations` — and this is their concatenation, forward
+    first so a missing test file is reported before its knock-on orphans.
+    """
+    config = config or {}
+    return [
+        *_forward_violations(src, tests),
+        *_orphan_violations(src, tests, _exempt_dirs(config), _exempt_files(config)),
+    ]
 
 
 def main(argv: list[str] | None = None) -> int:
