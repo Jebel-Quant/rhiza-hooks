@@ -55,10 +55,22 @@ layer](#the-task-runner-replaced-the-make-layer).)
 > it blocks a new edit but cannot see divergence that is already committed — this
 > arrangement is invisible to every gate, which is why it is written down here.
 > **Check the section is still present after the next sync** (`grep -c 'SBOM Retrieval'
-> SECURITY.md`), and if merge ever drops it, the durable fix is to move `SECURITY.md`
-> into `exclude:` and own it outright, as this repo already does for
-> `.github/CONFIG.md`. Tracked in #368, which also covers the stale ClusterFuzzLite
-> claim the next ref bump removes.
+> SECURITY.md`), and if merge ever drops it, the fix suggested in #368 is to move
+> `SECURITY.md` into `exclude:` and own it outright, as this repo does for
+> `.github/CONFIG.md` — but **verify such an entry actually bites before relying on it.**
+> The sync matches `exclude:` against a file's *source* path inside the template clone,
+> and this file is bundle-sourced (`bundles/legal/SECURITY.md`), so source != destination.
+> `.github/CONFIG.md` is bundle-sourced too (`bundles/github/.github/CONFIG.md`), so it
+> is not by itself evidence that the mechanism works on a file upstream is actively
+> editing.
+>
+> **The stale ClusterFuzzLite bullet is gone**, forward-ported out rather than waiting on
+> a ref bump: upstream #1568 deleted it on 2026-08-20, and no rhiza release past `v1.4.2`
+> (2026-08-19) carries that change yet. This file is now upstream `main` plus the local
+> SBOM lines above, so the eventual bump is a no-op on that line. It was committed with a
+> one-off `SKIP=check-managed-files`; since that hook diffs *staged* changes against
+> `HEAD`, the committed state needs no waiver and CI is unaffected. Prefer that to a
+> `--allow` entry, which would waive the file indefinitely. Tracked in #368.
 
 ### `.claude/`
 Nothing. The template no longer syncs `.claude/` at the pinned `ref:` — the lock's
