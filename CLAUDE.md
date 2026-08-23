@@ -36,20 +36,21 @@ The authoritative, machine-generated list is the `files:` block of
 snapshot:
 
 ### Root
-`.bandit`, `.editorconfig`, `.gitignore`, `.python-version`, `cliff.toml`,
+`.bandit`, `.editorconfig`, `.gitignore`, `Makefile`, `.python-version`, `cliff.toml`,
 `LICENSE`, `SECURITY.md`, `pytest.ini`, `ruff.toml`
 
 (`.pre-commit-config.yaml` **used to be** on this list and is now excluded — see
-[Excluded from sync](#excluded-from-sync). The root `Makefile` was on it until
-**v1.4.0**; it is now repo-owned — see [The task runner replaced the make
+[Excluded from sync](#excluded-from-sync). The root `Makefile` left this list at
+**v1.4.0** and came back at **v1.5.1**: it is template-owned again, and `local.mk` is
+where repo-specific targets go — see [The task runner replaced the make
 layer](#the-task-runner-replaced-the-make-layer).)
 
 > **`SECURITY.md` is managed but not verbatim.** It carries ~51 lines this repo wrote
 > and the template does not ship: an `## SBOM Retrieval` section plus its summary
 > bullet, added in #139, with `gh release download` and `curl` examples hard-coded to
 > `Jebel-Quant/rhiza-hooks`. It survives because `.rhiza/template.lock` records
-> `strategy: merge`, which has preserved it across the v0.19.3 (#197) and v1.2.0 (#263)
-> syncs.
+> `strategy: merge`, which has preserved it across the v0.19.3 (#197), v1.2.0 (#263) and
+> v1.5.1 (#373) syncs.
 >
 > Nothing enforces that. `check-managed-files` diffs *staged changes* against `HEAD`, so
 > it blocks a new edit but cannot see divergence that is already committed — this
@@ -64,29 +65,23 @@ layer](#the-task-runner-replaced-the-make-layer).)
 > is not by itself evidence that the mechanism works on a file upstream is actively
 > editing.
 >
-> **The stale ClusterFuzzLite bullet is gone**, forward-ported out in #371 rather than
-> waiting on a ref bump: upstream #1568 deleted it on 2026-08-20, and no rhiza release past
-> `v1.4.2` (2026-08-19) carries that change yet. This file is now upstream `main` plus the
-> local SBOM lines above, so the eventual bump is a no-op on that line. It was committed
-> with a one-off `SKIP=check-managed-files`; since that hook diffs *staged* changes against
-> `HEAD`, the committed state needs no waiver and CI is unaffected. Prefer that to a
-> `--allow` entry, which would waive the file indefinitely.
+> **The stale ClusterFuzzLite bullet is gone**, forward-ported out in #371 ahead of the
+> ref bump (upstream #1568 deleted it on 2026-08-20) with a one-off
+> `SKIP=check-managed-files`. Since that hook diffs *staged* changes against `HEAD`, the
+> committed state needed no waiver and CI was unaffected — prefer that to a `--allow`
+> entry, which would waive the file indefinitely.
 >
-> **The ref bump itself is still pending, and #368 was closed without it.** The false
-> claim was the defect and it is fixed; bumping the ref is ordinary `/rhiza:update` work,
-> and no issue tracks it. Two things to know when it happens. Upstream sat **24 commits
-> ahead of `v1.4.2`** as of 2026-08-22, so the first sync past that tag is a large one —
-> the Makefile shim rework, the retired mutation workflow, `rhiza-task` 1.1.0,
-> `pytest-rhiza` 0.3.0 — not the one-line `SECURITY.md` change #368 was named for. And
-> #1568 also retires the template's issue and discussion forms, so the
-> `.github/DISCUSSION_TEMPLATE` and `.github/ISSUE_TEMPLATE` entries in `exclude:` become
-> redundant once it lands (harmless to leave in place).
+> **The bump has since happened**: #373 synced to `v1.5.1`, which carried the same
+> deletion, so the forward-port was the no-op it was designed to be. The SBOM section
+> survived it (`grep -c 'SBOM Retrieval' SECURITY.md` → 2), which is one more data point
+> for `strategy: merge` and none at all for the `exclude:` route above — still verify that
+> actually bites before relying on it. Keep re-running the grep after each sync.
 
 ### `.claude/`
-Nothing. The template no longer syncs `.claude/` at the pinned `ref:` — the lock's
-`files:` block lists no path under it, and the only file here is the untracked,
-developer-local `settings.local.json`. The `commands/rhiza_*.md` files this section used
-to list are gone; that functionality now lives in the `rhiza-claude` plugin as skills
+There is no `.claude/` directory. The template does not sync one at the pinned `ref:` —
+the lock's `files:` block lists no path under it — and nothing local has recreated it
+(the untracked `settings.local.json` this section used to mention is gone too). The
+`commands/rhiza_*.md` files it once listed are gone; that functionality now lives in the `rhiza-claude` plugin as skills
 (`/rhiza:update`, `/rhiza:quality`, `/rhiza:book`), which are installed per-developer
 rather than synced into the repo.
 
@@ -94,16 +89,17 @@ rather than synced into the repo.
 - Workflows: `rhiza_benchmark.yml`, `rhiza_book.yml`, `rhiza_ci.yml`,
   `rhiza_codeql.yml`, `rhiza_marimo.yml`, `rhiza_release.yml`,
   `rhiza_weekly.yml`, `rhiza_scorecard.yml`
-  (`rhiza_mutation.yml` and `rhiza_fuzzing.yml` are excluded — see the `exclude:`
-  block in [`.rhiza/template.yml`](.rhiza/template.yml))
+  (`rhiza_mutation.yml` and `rhiza_fuzzing.yml` are absent because the template
+  retired both; the `exclude:` entries that used to keep them out were pruned in #375)
 - `dependabot.yml`, `release.yml`, `secret_scanning.yml`
 - `rulesets/`
 
-(`CONFIG.md`, `DISCUSSION_TEMPLATE/` and `ISSUE_TEMPLATE/` **used to be** on this
-list and are now excluded — see [Excluded from sync](#excluded-from-sync).)
+(`CONFIG.md` **used to be** on this list and is now excluded — see [Excluded from
+sync](#excluded-from-sync). `DISCUSSION_TEMPLATE/` and `ISSUE_TEMPLATE/` were excluded
+too until #374; the template stopped shipping them, so nothing restores them now.)
 
 > This snapshot reflects the files synced at the pinned `ref:` (currently
-> `v1.4.2`); the `files:` block of `.rhiza/template.lock` is the authoritative
+> `v1.5.1`); the `files:` block of `.rhiza/template.lock` is the authoritative
 > list, and it *is* what is on disk. The excluded paths are not in it — the
 > lock records them under its own top-level `exclude:` key instead — so a path's
 > absence from `files:` does not by itself mean the template never offered it.
@@ -135,17 +131,17 @@ dependency, not a directory](#the-rhiza-checks-are-a-dependency-not-a-directory)
 
 ### Excluded from sync
 
-`.rhiza/template.yml` excludes eight paths. If another synced file needs to be
+`.rhiza/template.yml` excludes four paths. If another synced file needs to be
 dropped locally, add it under `exclude:` there and re-sync.
 
-**`.github/workflows/rhiza_mutation.yml`** — mutation testing is not used here
-(the gate enforces a 100% mutation score, unreachable without suppressing
-equivalent mutants).
-
-**`.github/workflows/rhiza_fuzzing.yml`** — ClusterFuzzLite was retired here: the
-`.clusterfuzzlite/` config it drives is gone, and the reusable workflow needs both
-that directory and an opt-in variable, so the stub could only ever skip while still
-costing a queued job on every PR.
+> It excluded eight until #374 and #375 pruned the four the template had stopped
+> shipping: `.github/workflows/rhiza_mutation.yml` and `.github/workflows/rhiza_fuzzing.yml`
+> (both retired upstream), and `.github/DISCUSSION_TEMPLATE/` and `.github/ISSUE_TEMPLATE/`
+> (the generic forms are gone upstream, so nothing restores them any more — GitHub falls
+> back to a free-text issue body and unstructured discussions, which is what this repo
+> wanted). **`.rhiza/template.lock` still lists all eight** under its own `exclude:` key:
+> it records the state at the last sync (2026-08-22), and those commits landed after it.
+> `template.yml` is the authority; the lock catches up at the next `/rhiza:update`.
 
 **`.pre-commit-config.yaml`** — this repo *is* rhiza-hooks. The template's copy
 consumes the hooks through a published `rev:`, which is right for the ~26
@@ -176,13 +172,13 @@ and note it would be git-ignored (see the next entry).
 carried nothing. Consequence: a future `.rhiza/.env` would be git-ignored, so
 anyone re-adding one must `git add -f` it or restore this file.
 
-**`.github/DISCUSSION_TEMPLATE/` and `.github/ISSUE_TEMPLATE/`** — excluded *and
-deleted*. The generic forms ask for a project version and a reproduction script,
-which is the wrong intake for a hook provider (what matters is the hook id, the
-pinned `rev:` and whether it ran under pre-commit or prek), and a hand-ported second
-copy was not worth maintaining. GitHub now falls back to a free-text issue body and
-unstructured discussions. The `exclude:` entries are what keeps them deleted —
-remove them and the next sync restores the template's forms.
+(**`.github/DISCUSSION_TEMPLATE/` and `.github/ISSUE_TEMPLATE/`** were the fourth and
+fifth entries until #374. They were excluded *and deleted*: the generic forms ask for a
+project version and a reproduction script, which is the wrong intake for a hook provider
+— what matters is the hook id, the pinned `rev:` and whether it ran under pre-commit or
+prek — and a hand-ported second copy was not worth maintaining. Upstream then retired the
+forms itself, so the entries had nothing left to suppress. GitHub still falls back to a
+free-text issue body and unstructured discussions, which is the intended state.)
 
 **`.github/CONFIG.md`** — repo metadata recording which secrets and variables CI
 wants; excluded so this repo owns the wording.
@@ -201,9 +197,10 @@ checks in both directions.
 
 Note that the `mutation` task (now from `rhiza-task`, not the deleted
 `.rhiza/make.d/test.mk`) and the mutation section of `docs/development/TESTS.md`
-still exist. The task ships inside the pinned CLI and the doc is Rhiza-owned, so
-neither can be excluded here — removing them would require an upstream change in
-`jebel-quant/rhiza`. Only the *workflow* is excluded.
+still exist — `make help` lists `mutation` under *Testing extras*. The task ships inside
+the pinned CLI and the doc is Rhiza-owned, so neither can be excluded here; removing them
+would require an upstream change in `jebel-quant/rhiza`. The *workflow* is simply gone,
+retired upstream rather than excluded here.
 
 > Tests owned by bundles this repo does **not** select (e.g. `gh-aw`, `lfs`)
 > are never synced in the first place, so they need no `exclude:` entry.
@@ -214,12 +211,23 @@ Up to **v1.3.x** the template synced a makefile layer: `.rhiza/rhiza.mk` plus te
 fragments under `.rhiza/make.d/`, ~1023 lines, and a template-owned root `Makefile` that
 included them. **v1.4.0 deleted all of it.** The gates now come from the
 [`rhiza-task`](https://pypi.org/project/rhiza-task/) CLI, and the root `Makefile` is a
-repo-owned shim that `uvx rhiza-task shim > Makefile` emits.
+71-line shim in front of it.
 
 `make` is still the front door — every target this file and the README document works
-unchanged — but it no longer *contains* anything. A catch-all `%:` rule forwards each
-target to `uvx $(RHIZA_TASK) $@`, and `RHIZA_TASK ?= rhiza-task@0.3.1` in the Makefile is
-the entire version contract, in place of a template ref plus eleven synced `.mk` files.
+unchanged — but it no longer *contains* anything. A catch-all `%: $(UVX) FORCE` rule
+forwards each target to `uvx $(RHIZA_TASK) $@`, and `RHIZA_TASK ?= rhiza-task@1.1.0` in
+the Makefile is the entire version contract, in place of a template ref plus eleven
+synced `.mk` files.
+
+**v1.5.1 (#373) moved the shim back under template ownership.** For one release the file
+was repo-owned and printed by `uvx rhiza-task shim > Makefile`; that put a template inside
+the task runner (the CLI had to know about `local.mk`, the `##` help convention and the
+`./bin/uvx` bootstrap) and, worse, the generator wrote the version of whichever CLI
+happened to print it — so moving a repo's gates forward was a per-repo hand edit
+`/rhiza:update` could not make, and every consumer silently lagged. The template owns the
+front door again, `RHIZA_TASK` travels with the sync the way `RHIZA_CHECKS_VERSION` used
+to, and the file's own header says all of this. **Consequence: do not edit `Makefile` here**
+— `check-managed-files` will reject it, and the next sync would overwrite it anyway.
 
 **Consequences worth knowing before you go looking for something:**
 
@@ -239,8 +247,17 @@ the entire version contract, in place of a template ref plus eleven synced `.mk`
   `make -n <target>` always succeeds, because the catch-all resolves any name. Neither
   tells you anything. Use `.rhiza/template.lock` for the first and `make help` for the
   second. (`/rhiza:quality` 0.9.0 gets both wrong: Jebel-Quant/rhiza-claude#212, #213.)
+- **The shim bootstraps `uv` itself.** `$(UVX)` is a *file* target: when `uvx` is not on
+  PATH the Makefile curls the astral installer into `./bin` and prepends that directory to
+  `PATH` (exported, so task bodies reaching for bare `uv` find it too). `UV` resolves the
+  same way, with an empty recipe so the catch-all does not mistake the path for a task
+  name. Nothing else needs installing first — `make <anything>` works on a bare checkout.
 - **`make <typo>` is forwarded, not caught.** The CLI's "unknown task" error is the
-  backstop, so a mistyped target fails there rather than at make.
+  backstop, so a mistyped target fails there rather than at make. This is also why
+  `check-makefile-targets` and `check-workflow-make-targets` stand down on a makefile
+  carrying a catch-all: the literal target list is `help`, `FORCE` and `Makefile`, so
+  comparing anything against it reports every real task as missing. Both hooks detect
+  the `%:` rule and say nothing rather than block the commit.
 
 ## The rhiza checks are a dependency, not a directory
 
@@ -290,10 +307,15 @@ authoritative in a way this list cannot be.
 
 Everything **not** listed above — notably `pyproject.toml`, `README.md`, `uv.lock`,
 `src/rhiza_hooks/`, your own `tests/`, project-specific docs, and
-`.rhiza/template.yml`. Since v1.4.0 the root `Makefile` is repo-owned too — it is the
-shim `uvx rhiza-task shim > Makefile` emits. Repo-specific targets go in `local.mk`,
-which the shim `-include`s and which wins over its catch-all rule; that is where a
-fragment under `.rhiza/make.d/` would have to move to.
+`.rhiza/template.yml`. The root `Makefile` is **not** in this list: it was repo-owned for
+the v1.4.x releases and is template-owned again since v1.5.1. Repo-specific *targets* go
+in `local.mk`, which the shim `-include`s and which wins over its catch-all rule (an
+explicit rule beats a pattern rule); anything with a `##` comment there is listed by
+`make help` under "Repo-owned targets". That is where a fragment under `.rhiza/make.d/`
+would have to move to. Repo-specific *tasks* — as opposed to make targets — go in a
+`rhiza_task.tasks` entry point. Nothing goes below the shim in `Makefile` itself: the file
+is synced, so the next `/rhiza:update` overwrites whatever was appended to it. There is no
+`local.mk` in this repo today.
 
 ## Local-dev gotcha: `TestGitTagVersion` and template-remote tags
 
