@@ -198,15 +198,99 @@ def test_no_ci_definitions_at_all(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# summarize
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    ("files", "invocations", "expected_count"),
+    [
+        (0, {}, 0),
+        (8, {}, 0),
+        (1, {"ci.yml": {"test"}}, 1),
+        (1, {"ci.yml": {"fmt", "test"}}, 2),
+        (2, {"ci.yml": {"test"}, ".gitlab-ci.yml": {"test"}}, 2),
+    ],
+)
+def test_summarize_counts_file_target_pairs(files: int, invocations: dict[str, set[str]], expected_count: int) -> None:
+    """The summary counts (file, target) pairs — what the check actually compares."""
+    assert cwmt.summarize(files, invocations) == (
+        f"inspected {files} CI file(s), found {expected_count} resolvable `make` target invocation(s)"
+    )
+
+
+# ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
 def test_main_passes(tmp_path: Path, monkeypatch, capsys) -> None:
-    """A sound repo exits 0 silently."""
+    """A sound repo exits 0, writing only the summary, and that to stderr."""
     _write(tmp_path, "Makefile", "test:\n\techo hi\n")
     _workflow(tmp_path, "make test")
     monkeypatch.setattr(cwmt, "find_repo_root", lambda: tmp_path)
     assert cwmt.main([]) == 0
-    assert capsys.readouterr().out == ""
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "inspected 1 CI file(s), found 1 resolvable `make` target invocation(s)\n"
+
+
+def test_main_summarizes_a_vacuous_run(tmp_path: Path, monkeypatch, capsys) -> None:
+    """A repo whose CI delegates to a reusable workflow passes, but says it compared nothing.
+
+    This is the shape of every rhiza-managed repo: `uses:` keeps the commands in
+    another repository, so there is nothing here for the hook to read.
+    """
+    _write(tmp_path, "Makefile", "test:\n\techo hi\n")
+    _write(
+        tmp_path,
+        ".github/workflows/ci.yml",
+        "name: CI\njobs:\n  ci:\n    uses: org/repo/.github/workflows/ci.yml@v1\n",
+    )
+    monkeypatch.setattr(cwmt, "find_repo_root", lambda: tmp_path)
+    assert cwmt.main([]) == 0
+    assert "found 0 resolvable `make` target invocation(s)" in capsys.readouterr().err
+
+
+def test_require_invocations_fails_a_vacuous_run(tmp_path: Path, monkeypatch, capsys) -> None:
+    """With the flag, CI files that yield no invocation are an error rather than a silent pass."""
+    _write(tmp_path, "Makefile", "test:\n\techo hi\n")
+    _write(
+        tmp_path,
+        ".github/workflows/ci.yml",
+        "name: CI\njobs:\n  ci:\n    uses: org/repo/.github/workflows/ci.yml@v1\n",
+    )
+    monkeypatch.setattr(cwmt, "find_repo_root", lambda: tmp_path)
+    assert cwmt.main(["--require-invocations"]) == 1
+    err = capsys.readouterr().err
+    assert "ERROR: no CI file invokes `make`" in err
+    assert "found 0 resolvable `make` target invocation(s)" in err
+
+
+def test_require_invocations_passes_when_ci_invokes_make(tmp_path: Path, monkeypatch) -> None:
+    """The flag is satisfied by a single resolvable invocation."""
+    _write(tmp_path, "Makefile", "test:\n\techo hi\n")
+    _workflow(tmp_path, "make test")
+    monkeypatch.setattr(cwmt, "find_repo_root", lambda: tmp_path)
+    assert cwmt.main(["--require-invocations"]) == 0
+
+
+def test_require_invocations_spares_a_repo_with_no_ci(tmp_path: Path, monkeypatch) -> None:
+    """A repo shipping no CI file is not claiming to have invocations, so the flag is silent.
+
+    Only a repo that ships CI and yields nothing from it is what the flag is for;
+    failing on an absent CI directory would report a state the flag cannot speak to.
+    """
+    _write(tmp_path, "Makefile", "test:\n\techo hi\n")
+    monkeypatch.setattr(cwmt, "find_repo_root", lambda: tmp_path)
+    assert cwmt.main(["--require-invocations"]) == 0
+
+
+def test_require_invocations_still_reports_an_undefined_target(tmp_path: Path, monkeypatch, capsys) -> None:
+    """The flag adds a check; it does not replace the one the hook exists for."""
+    _write(tmp_path, "Makefile", "test:\n\techo hi\n")
+    _workflow(tmp_path, "make validate")
+    monkeypatch.setattr(cwmt, "find_repo_root", lambda: tmp_path)
+    assert cwmt.main(["--require-invocations"]) == 1
+    err = capsys.readouterr().err
+    assert "`make validate`" in err
+    assert "--require-invocations" not in err
 
 
 def test_main_reports_and_fails(tmp_path: Path, monkeypatch, capsys) -> None:
@@ -215,7 +299,10 @@ def test_main_reports_and_fails(tmp_path: Path, monkeypatch, capsys) -> None:
     _workflow(tmp_path, "make validate")
     monkeypatch.setattr(cwmt, "find_repo_root", lambda: tmp_path)
     assert cwmt.main(["ignored.yml"]) == 1
-    assert "ERROR: .github/workflows/ci.yml runs `make validate`" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "ERROR: .github/workflows/ci.yml runs `make validate`" in err
+    # The summary is context for the errors, so it comes first.
+    assert err.index("inspected 1 CI file(s)") < err.index("ERROR:")
 
 
 def test_module_executes_main(tmp_path: Path, monkeypatch) -> None:
@@ -232,3 +319,41 @@ def test_module_executes_main(tmp_path: Path, monkeypatch) -> None:
             warnings.filterwarnings("ignore", message=r".*found in sys\.modules.*", category=RuntimeWarning)
             runpy.run_module("rhiza_hooks.check_workflow_make_targets", run_name="__main__")
         mock_exit.assert_called_once_with(0)
+
+
+# ---------------------------------------------------------------------------
+# catch-all rules (#376)
+# ---------------------------------------------------------------------------
+def test_catch_all_rule_resolves_every_invocation(tmp_path: Path) -> None:
+    """A `%:` rule defines every name, so no invocation can be reported missing.
+
+    Honest rather than lenient: with a catch-all, make cannot tell a typo from a real
+    target either, which is why the rhiza-task shim leaves that to the CLI.
+    """
+    _write(tmp_path, "Makefile", "help:\n\t@echo help\n\n%: FORCE\n\t@uvx rhiza-task $@\n")
+    _workflow(tmp_path, "make anything-at-all")
+    assert cwmt.check_workflow_make_targets(tmp_path) == []
+
+
+def test_suffix_rule_does_not_resolve_an_invocation(tmp_path: Path) -> None:
+    """`%.o: %.c` is a pattern rule but not a catch-all, so reporting continues."""
+    _write(tmp_path, "Makefile", "%.o: %.c\n\t$(CC) -c $<\ntest:\n\techo hi\n")
+    _workflow(tmp_path, "make validate")
+    assert len(cwmt.check_workflow_make_targets(tmp_path)) == 1
+
+
+def test_main_reports_that_a_catch_all_skipped_the_comparison(tmp_path: Path, monkeypatch, capsys) -> None:
+    """The summary says why nothing was compared, so a silenced check is not a silent one."""
+    _write(tmp_path, "Makefile", "help:\n\t@echo help\n\n%: FORCE\n\t@uvx rhiza-task $@\n")
+    _workflow(tmp_path, "make test")
+    monkeypatch.setattr(cwmt, "find_repo_root", lambda: tmp_path)
+    assert cwmt.main([]) == 0
+    assert "a catch-all rule (`%:`) defines every name, so none was compared" in capsys.readouterr().err
+
+
+def test_summarize_notes_a_catch_all() -> None:
+    """The catch-all clause is appended to the counts, not substituted for them."""
+    assert cwmt.summarize(2, {"ci.yml": {"test"}}, catch_all=True) == (
+        "inspected 2 CI file(s), found 1 resolvable `make` target invocation(s); "
+        "a catch-all rule (`%:`) defines every name, so none was compared"
+    )
