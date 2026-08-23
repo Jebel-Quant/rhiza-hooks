@@ -91,7 +91,10 @@
 
 - id: check-workflow-make-targets
   name: Check make targets invoked by CI exist
-  description: Ensures every make target a workflow or .gitlab-ci.yml runs is defined in the Makefile or its includes
+  # Quoted for the `uses:` colon, and narrowed deliberately: only the inline shell steps
+  # of a CI file are read, so a job that delegates to a reusable workflow contributes
+  # nothing. --require-invocations turns that silence into a failure where it is unexpected.
+  description: "Ensures every make target invoked by an inline CI shell step is defined in the Makefile or its includes; a reusable workflow (`uses:`) is not followed"
   entry: check-workflow-make-targets
   language: python
   files: (^\.github/workflows/.*\.ya?ml$|^\.gitlab-ci\.yml$|^Makefile$|^\.rhiza/.*\.mk$)

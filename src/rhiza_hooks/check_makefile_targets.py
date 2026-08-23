@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Check that Makefile contains expected targets for rhiza projects."""
+"""Check that Makefile contains expected targets for rhiza projects.
+
+A catch-all rule satisfies every recommended target at once. Since rhiza v1.4.0 the
+root Makefile is a ``rhiza-task`` shim that defines only ``help`` and forwards every
+other goal through ``%:``, so ``make test`` works with no ``test:`` rule in sight;
+reporting ``fmt``, ``install`` and ``test`` missing there is a false report on a
+Makefile that is correct, and under ``--strict`` it blocks the commit. The rule is
+applied by :meth:`rhiza_hooks._makefile.MakefileTargets.defines`, shared with
+``check-workflow-make-targets`` so the two agree on what "defined" means.
+"""
 
 from __future__ import annotations
 
@@ -39,7 +48,7 @@ def check_makefile(filepath: Path, recommended: set[str] = RECOMMENDED_TARGETS) 
 
     # Only check the main Makefile for recommended targets
     if filepath.name == "Makefile":
-        missing = recommended - targets
+        missing = {target for target in recommended if not targets.defines(target)}
         if missing:
             warnings.append(f"Missing recommended targets: {', '.join(sorted(missing))}")
 
