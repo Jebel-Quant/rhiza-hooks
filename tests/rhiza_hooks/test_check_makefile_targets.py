@@ -294,3 +294,23 @@ def test_module_python_importable() -> None:
         check=False,
     )
     assert result.returncode == 0, f"Failed to import rhiza_hooks.check_makefile_targets: {result.stderr}"
+
+
+def test_catch_all_rule_satisfies_every_recommended_target(tmp_path: Path) -> None:
+    """A `%:` rule defines every name, so nothing is missing (#376).
+
+    The rhiza-task shim that rhiza v1.4.0 introduced names only `help` and forwards
+    the rest. Reading names alone reported `fmt`, `install` and `test` missing on a
+    Makefile where all three work — noise by default, and a blocked commit under
+    `--strict`.
+    """
+    makefile = tmp_path / "Makefile"
+    makefile.write_text("help:\n\t@echo help\n\n%: FORCE\n\t@uvx rhiza-task $@\n")
+    assert check_makefile(makefile) == []
+
+
+def test_catch_all_does_not_excuse_a_suffix_rule(tmp_path: Path) -> None:
+    """`%.o: %.c` is not a catch-all, so the recommended targets are still required."""
+    makefile = tmp_path / "Makefile"
+    makefile.write_text("%.o: %.c\n\t$(CC) -c $<\nhelp:\n\t@echo help\n")
+    assert check_makefile(makefile) == ["Missing recommended targets: fmt, install, test"]

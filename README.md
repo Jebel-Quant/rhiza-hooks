@@ -59,7 +59,7 @@ pre-commit install
 | `check-bumpversion-config` | `pyproject.toml`, `.bumpversion.toml`, `.bumpversion.cfg`, `setup.cfg`, `.rhiza/.cfg.toml` | ❌ validates only | `1` if no discoverable config or a drifted `current_version`, else `0` |
 | `check-template-bundles` | `.rhiza/template.yml` | ❌ validates only (network) | `1` on validation failure, else `0`; `0` when `--offline` |
 | `check-managed-files` | every staged file | ❌ validates only | `1` if a template-owned file is being modified, else `0` |
-| `check-workflow-make-targets` | `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Makefile`, `.rhiza/*.mk` | ❌ validates only | `1` if CI invokes an undefined target, else `0` |
+| `check-workflow-make-targets` | `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Makefile`, `.rhiza/*.mk` | ❌ validates only | `1` if CI invokes an undefined target, or nothing was inspected with `--require-invocations`; else `0` |
 | `check-license-metadata` | `pyproject.toml` | ❌ validates only | `1` if both licence forms are declared, else `0` |
 | `check-test-layout` | any `*.py` | ❌ validates only | `1` if a source module or class has no mirrored test (or vice versa), else `0` |
 
@@ -141,6 +141,15 @@ Checks that your Makefile contains recommended targets for rhiza-based projects:
 - `help` - Show available targets
 
 By default, this hook only warns about missing targets. Use `--strict` to fail on missing targets.
+
+**A catch-all rule satisfies all of them.** A Makefile containing
+
+```make
+%: FORCE
+	@uvx rhiza-task $@
+```
+
+can build any name, so nothing is reported missing even though only `help` has a rule of its own. This is the shape rhiza v1.4.0 introduced — the root Makefile became a `rhiza-task` shim — and without the rule the hook reported `fmt`, `install` and `test` missing on a Makefile where all three work. A *suffix* rule (`%.o: %.c`) matches only names ending in `.o` and does not count.
 
 The expected set can be customised:
 
@@ -338,7 +347,13 @@ The check is path-based: `template.lock` records paths, not content hashes. A re
 
 #### `check-workflow-make-targets`
 
-Checks that every `make` target your CI invokes is actually defined. Targets are collected from the root `Makefile` plus everything it `include`s, transitively, with globs expanded (rhiza's own layout is `Makefile` → `.rhiza/rhiza.mk` → `.rhiza/make.d/*.mk`). Invocations are read from the shell snippets of every CI definition: `run:` in GitHub workflows, `script:`/`before_script:`/`after_script:` in `.gitlab-ci.yml`.
+Checks that every `make` target your CI invokes is actually defined. Targets are collected from the root `Makefile` plus everything it `include`s, transitively, with globs expanded (rhiza's own layout is `Makefile` → `local.mk`, and was `Makefile` → `.rhiza/rhiza.mk` → `.rhiza/make.d/*.mk` before v1.4.0). Invocations are read from the shell snippets of every CI definition: `run:` in GitHub workflows, `script:`/`before_script:`/`after_script:` in `.gitlab-ci.yml`.
+
+**A catch-all rule (`%:`) silences the comparison**, and honestly so: with one in the Makefile every name resolves, so an invocation of a target that does not exist stops being distinguishable from one that does — make itself cannot tell either. The run says so rather than implying it checked:
+
+```text
+inspected 2 CI file(s), found 1 resolvable `make` target invocation(s); a catch-all rule (`%:`) defines every name, so none was compared
+```
 
 `check-makefile-targets` asserts that a few *recommended* targets exist; this hook checks the opposite direction — that the targets actually invoked are defined — which is what catches a removal or a rename. The template has produced exactly that failure: `make validate` existed up to rhiza v1.1.3 and was removed by v1.2.1.
 
@@ -346,10 +361,42 @@ Checks that every `make` target your CI invokes is actually defined. Targets are
 
 Invocations are parsed out of the YAML rather than the raw text, so `name: make sure the cache is warm` is not mistaken for an invocation. An invocation whose target comes from a variable or matrix expression (`make ${{ matrix.task }}`) cannot be resolved and is skipped rather than reported — a false positive here would block every commit. A repo with no Makefile reports nothing.
 
+**Only inline shell steps are read.** A job that delegates to a reusable workflow —
+
+```yaml
+jobs:
+  ci:
+    uses: jebel-quant/rhiza/.github/workflows/rhiza_ci.yml@v1.5.1
+```
+
+— keeps every command in another repository, behind a pinned ref, where this hook cannot reach it. Such a repo has nothing for the check to compare, and it will pass while inspecting nothing.
+
+So every run reports what it worked from, on stderr:
+
+```text
+inspected 8 CI file(s), found 0 resolvable `make` target invocation(s)
+```
+
+pre-commit hides a passing hook's output unless you set `verbose: true` on it, which is why `--require-invocations` exists as well: it turns that zero into a failure, for a repo that believes it has inline invocations to check. It is opt-in because zero is the correct and permanent answer for a repo whose CI is entirely delegated — failing by default would report every such repo as broken.
+
+**Options:**
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `--require-invocations` | off | Fail when the repo ships CI files but none of them invokes `make` |
+
+**Usage:**
+
+```yaml
+- id: check-workflow-make-targets
+  # args: [--require-invocations]   # Optional: refuse to pass without inspecting an invocation
+```
+
 **Troubleshooting:**
 
 - If a target genuinely exists but is reported missing, check that the file defining it is reachable through an `include` from the root `Makefile`, and that the include path is not itself variable-driven.
 - Prefer `make -j4 test` to `make -j test`: with a bare `-j` the following word is treated as the flag's value, so the target is not checked.
+- If `--require-invocations` fails on a repo you expected it to pass, read the summary line first: it separates "found no CI files" from "found CI files that invoke nothing". Only the second is what the flag reports.
 
 #### `check-license-metadata`
 
