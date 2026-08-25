@@ -508,7 +508,7 @@ pre-commit install
 make install    # Install dependencies
 make test       # Run tests with coverage
 make fmt        # Format and lint code
-make deptry     # Check for unused/missing dependencies
+make deps       # Check for unused/missing dependencies (deptry)
 make help       # Show all available targets
 ```
 

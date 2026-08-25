@@ -132,10 +132,13 @@ exempt_files = ["test_rhiza_packaging.py"]
 
 [tool.rhiza-task]
 # Settings for the task runner that replaced the synced make layer in rhiza v1.4.0.
-# `.rhiza/rhiza.mk` and the ten fragments under `.rhiza/make.d/` are gone, and so is
-# the template-owned root Makefile; the Makefile here is now the shim
-# `uvx rhiza-task shim > Makefile` emits, so every target CLAUDE.md and the README
-# document still works -- it just delegates to the pinned CLI instead of to synced make.
+# `.rhiza/rhiza.mk` and the ten fragments under `.rhiza/make.d/` are gone; the root
+# Makefile is a 71-line shim whose catch-all rule forwards every target to the pinned
+# CLI, so each target CLAUDE.md and the README document still works. That shim was
+# repo-owned and printed by `uvx rhiza-task shim` for the v1.4.x releases; v1.5.1 (#373)
+# moved it back under template ownership, so its `RHIZA_TASK ?= rhiza-task@1.1.0` pin now
+# travels with the sync and is not edited here. This table is unaffected: settings were
+# never in the Makefile.
 #
 # Read as layer 3 of rhiza-task's resolution order (defaults -> .rhiza/.env ->
 # pyproject.toml -> RHIZA_* environment). This repo has no `.rhiza/.env` (it is in
@@ -163,14 +166,17 @@ typechecker = "both"
 # v0.2.0, so a bare migration would have *downgraded* the conformance checks -- the drift
 # the pin exists to prevent. These are the checks CLAUDE.md's "The rhiza checks are a
 # dependency, not a directory" section describes, still provisioned on the fly, so there
-# is nothing to add to [dependency-groups]. v0.2.2 is out; bumping to it is a separate
-# upgrade decision and not this migration's to make.
+# is nothing to add to [dependency-groups]. Newer releases are out — v0.4.0 as of
+# 2026-08-23 — so this pin is now several behind, deliberately: bumping it is an upgrade
+# decision of its own, to be taken by reading what the newer checks assert, not as a
+# side effect. All four overrides in this table were re-checked against the rhiza-task
+# 1.1.0 defaults and each still differs from them.
 pytest-rhiza = "pytest-rhiza @ git+https://github.com/Jebel-Quant/pytest-rhiza@v0.2.1"
 
 # The old root Makefile carried
 # `MKDOCS_EXTRA_PACKAGES = --with 'mkdocstrings[python]' --with .`.
-# rhiza-task 0.3.1 makes mkdocstrings[python] the default, so only the second half is a
-# real override -- and it is load-bearing: `book` builds the site through
+# rhiza-task has made mkdocstrings[python] the default since 0.3.1, so only the second
+# half is a real override -- and it is load-bearing: `book` builds the site through
 # `uvx zensical`, an isolated environment that does not contain this project, and the
 # ~20 pages under docs/api-reference/ are nothing but `::: rhiza_hooks.*` autodoc blocks.
 # Without `.` mkdocstrings cannot import the package and every one of them renders empty.
