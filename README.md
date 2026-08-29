@@ -540,8 +540,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 💬 Getting help
 
-- Ask questions and get support in [GitHub Discussions](https://github.com/Jebel-Quant/rhiza-hooks/discussions).
-- [Report a bug or request a feature](https://github.com/Jebel-Quant/rhiza-hooks/issues/new). There is no form to fill in — please name the hook id and the `rev:` you pinned.
+- [Open an issue](https://github.com/Jebel-Quant/rhiza-hooks/issues/new) — questions, bug reports and feature requests all go here; Discussions are not enabled on this repo. There is no form to fill in — please name the hook id and the `rev:` you pinned.
 
 ## 🙏 Acknowledgments
 

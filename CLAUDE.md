@@ -159,8 +159,9 @@ force at the last sync kept its file out of `files:`. See #378.
 > shipping: `.github/workflows/rhiza_mutation.yml` and `.github/workflows/rhiza_fuzzing.yml`
 > (both retired upstream), and `.github/DISCUSSION_TEMPLATE/` and `.github/ISSUE_TEMPLATE/`
 > (the generic forms are gone upstream, so nothing restores them any more — GitHub falls
-> back to a free-text issue body and unstructured discussions, which is what this repo
-> wanted). The new test then found two more — `.rhiza/.env` and `.rhiza/.gitignore`, neither
+> back to a free-text issue body, which is what this repo wanted; Discussions are *not*
+> enabled here, so issues are the only intake — see [Discussions are
+> off](#discussions-are-off)). The new test then found two more — `.rhiza/.env` and `.rhiza/.gitignore`, neither
 > of which exists anywhere in the template at `v1.7.1` — and #378 pruned those.
 > **`.rhiza/template.lock` lags by design.** It caught up with #374/#375 at the `v1.7.1`
 > sync and now lists four entries under its own `exclude:` key, two of them already pruned
@@ -202,7 +203,8 @@ project version and a reproduction script, which is the wrong intake for a hook 
 — what matters is the hook id, the pinned `rev:` and whether it ran under pre-commit or
 prek — and a hand-ported second copy was not worth maintaining. Upstream then retired the
 forms itself, so the entries had nothing left to suppress. GitHub still falls back to a
-free-text issue body and unstructured discussions, which is the intended state.)
+free-text issue body, which is the intended state. Discussions are a different matter —
+they are off, see [Discussions are off](#discussions-are-off).)
 
 **`.github/CONFIG.md`** — repo metadata recording which secrets and variables CI
 wants; excluded so this repo owns the wording.
@@ -326,6 +328,20 @@ authoritative in a way this list cannot be.
   It is in the lock's `files:` list (it was before v1.3.4 too), so `check-managed-files`
   rejects a commit that edits it. Deliberately fixture-free, so it does not depend on
   anything `pytest-rhiza` contributes.
+
+## Discussions are off
+
+`gh repo view --json hasDiscussionsEnabled` reports `false`: this repo has no Discussions
+tab, and it never has. Issues are the only intake, which is why README's *Getting help*
+section points questions, bug reports and feature requests all at `issues/new`.
+
+It said otherwise until the weekly link check caught it. README had advertised GitHub
+Discussions since #156 (a `…/rhiza-hooks/discussions` link, left unlinked here on
+purpose), and this file called them the fallback for the retired `DISCUSSION_TEMPLATE/`.
+Both were aspirational, and the link 404'd for as long as it existed. Only
+`rhiza_weekly.yml` notices — lychee runs over README on a schedule, not on PRs, so
+nothing in the normal gate sequence sees a dead external link. **If Discussions are ever
+enabled, this section and the README bullet both need updating.**
 
 ## Locally owned (safe to edit)
 
