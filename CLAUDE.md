@@ -65,12 +65,14 @@ layer](#the-task-runner-replaced-the-make-layer).)
 > is not by itself evidence that the mechanism works on a file upstream is actively
 > editing.
 >
-> The `v1.7.1` lock does argue the other way, and is now asserted rather than merely
-> noticed: `files:` lists every file the selected bundles own **except** `.github/CONFIG.md`
-> and `.pre-commit-config.yaml`, so at that ref both exclusions bit, matched by their
-> destination path. `test_live_exclusions_kept_their_file_out_of_the_last_sync` in
-> `tests/meta/test_template_exclude_parity.py` re-checks that after every sync, which is
-> the closest a test gets to "does it bite" without running one.
+> The `v1.7.1` lock argues the other way. Its `files:` block lists every file the selected
+> bundles own **except** `.github/CONFIG.md` and `.pre-commit-config.yaml` — so the sync
+> recorded that it did not place either, which it can only have decided from the
+> destination path. That is a behaviour change: the failure mode this warning describes had
+> the excluded paths listed under `files:` and staged into the PR. It is no longer a hand
+> observation — `test_live_exclusions_kept_their_file_out_of_the_last_sync` in
+> `tests/meta/test_template_exclude_parity.py` re-checks it after every sync, which is the
+> closest a test gets to "does it bite" without running one.
 >
 > **The stale ClusterFuzzLite bullet is gone**, forward-ported out in #371 ahead of the
 > ref bump (upstream #1568 deleted it on 2026-08-20) with a one-off
