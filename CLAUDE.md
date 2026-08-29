@@ -65,6 +65,15 @@ layer](#the-task-runner-replaced-the-make-layer).)
 > is not by itself evidence that the mechanism works on a file upstream is actively
 > editing.
 >
+> The `v1.7.1` lock argues the other way. Its `files:` block lists every file the selected
+> bundles own **except** `.github/CONFIG.md` and `.pre-commit-config.yaml` — so the sync
+> recorded that it did not place either, which it can only have decided from the
+> destination path. That is a behaviour change: the failure mode this warning describes had
+> the excluded paths listed under `files:` and staged into the PR. It is no longer a hand
+> observation — `test_live_exclusions_kept_their_file_out_of_the_last_sync` in
+> `tests/meta/test_template_exclude_parity.py` re-checks it after every sync, which is the
+> closest a test gets to "does it bite" without running one.
+>
 > **The stale ClusterFuzzLite bullet is gone**, forward-ported out in #371 ahead of the
 > ref bump (upstream #1568 deleted it on 2026-08-20) with a one-off
 > `SKIP=check-managed-files`. Since that hook diffs *staged* changes against `HEAD`, the
@@ -114,8 +123,9 @@ too until #374; the template stopped shipping them, so nothing restores them now
 That is the whole directory — five files, three of them managed. `ls .rhiza/` is the
 quickest way to check this section has not gone stale again.
 
-(`.env` and `.gitignore` **used to be** on this list and are now excluded — see
-[Excluded from sync](#excluded-from-sync).)
+(`.env` and `.gitignore` **used to be** on this list. They were excluded here first, and
+the template has since stopped shipping either, which is why the two `exclude:` entries
+were pruned — see [Excluded from sync](#excluded-from-sync).)
 
 `rhiza.mk` and `make.d/*.mk` were on this list until the **v1.4.0** sync deleted the
 whole synced make layer — see [The task runner replaced the make
@@ -131,17 +141,32 @@ dependency, not a directory](#the-rhiza-checks-are-a-dependency-not-a-directory)
 
 ### Excluded from sync
 
-`.rhiza/template.yml` excludes four paths. If another synced file needs to be
+`.rhiza/template.yml` excludes two paths. If another synced file needs to be
 dropped locally, add it under `exclude:` there and re-sync.
+
+**A dead entry is now a test failure.** `tests/meta/test_template_exclude_parity.py`
+fetches the template at the `ref:` this repo pins, expands `profiles:` + `templates:` to
+their bundles, enumerates the files those bundles own (`bundles/<bundle>/…` in the
+template repo), and fails when an `exclude:` entry matches none of them — the audit #374
+and #375 did by hand. It accepts either spelling of a path, the source
+(`bundles/legal/SECURITY.md`) or the destination (`SECURITY.md`), because the sync has
+been seen matching each; the claim it makes is only that the entry still names a shipped
+file, which is necessary for it to bite but not sufficient. A second test uses
+`.rhiza/template.lock` for the one question the lock does answer — whether an exclusion in
+force at the last sync kept its file out of `files:`. See #378.
 
 > It excluded eight until #374 and #375 pruned the four the template had stopped
 > shipping: `.github/workflows/rhiza_mutation.yml` and `.github/workflows/rhiza_fuzzing.yml`
 > (both retired upstream), and `.github/DISCUSSION_TEMPLATE/` and `.github/ISSUE_TEMPLATE/`
 > (the generic forms are gone upstream, so nothing restores them any more — GitHub falls
 > back to a free-text issue body and unstructured discussions, which is what this repo
-> wanted). **`.rhiza/template.lock` still lists all eight** under its own `exclude:` key:
-> it records the state at the last sync (2026-08-22), and those commits landed after it.
-> `template.yml` is the authority; the lock catches up at the next `/rhiza:update`.
+> wanted). The new test then found two more — `.rhiza/.env` and `.rhiza/.gitignore`, neither
+> of which exists anywhere in the template at `v1.7.1` — and #378 pruned those.
+> **`.rhiza/template.lock` lags by design.** It caught up with #374/#375 at the `v1.7.1`
+> sync and now lists four entries under its own `exclude:` key, two of them already pruned
+> from `template.yml`; that disagreement is normal between a hand edit and the next
+> `/rhiza:update`. `template.yml` is the authority, which is why the parity test reads it
+> and the remote rather than the lock.
 
 **`.pre-commit-config.yaml`** — this repo *is* rhiza-hooks. The template's copy
 consumes the hooks through a published `rev:`, which is right for the ~26
@@ -153,24 +178,23 @@ run against the working tree rather than the last release. **Consequence: this
 file is now yours.** Upstream improvements to the shared hook list (ruff,
 bandit, markdownlint, …) no longer arrive by sync and must be ported by hand.
 
-**`.rhiza/.env`** — it set only `SOURCE_FOLDER=src` and
-`MARIMO_FOLDER=docs/notebooks`, which were exactly the `?=` defaults in the
-then-synced `.rhiza/rhiza.mk`. Its sole effect was that a makefile assignment
-outranks an exported environment variable, so the two values could not be
-overridden except on the `make` command line.
+(**`.rhiza/.env` and `.rhiza/.gitignore`** were entries until #378, and the reason they
+are gone is not the reason the two above are listed. `.env` only ever set
+`SOURCE_FOLDER=src` and `MARIMO_FOLDER=docs/notebooks` — exactly the `?=` defaults in the
+then-synced `.rhiza/rhiza.mk`, so its sole effect was that a makefile assignment outranks
+an exported environment variable and neither value could be overridden except on the
+`make` command line. `.rhiza/.gitignore` was a single `!.env` rule, there only to
+re-include `.env` against the root `.gitignore`'s `.env` line. The template stopped
+shipping both — upstream's `core` bundle now says in as many words that it ships no
+`.rhiza/.env` — so the entries suppressed nothing and the new parity test flagged them.
 
-Since v1.4.0 the file has a different job — it is **layer 2 of rhiza-task's
-resolution order** (defaults → `.rhiza/.env` → `pyproject.toml` → `RHIZA_*`
-environment), so it is now outranked by `[tool.rhiza-task]` in `pyproject.toml`
-rather than the reverse. Because this repo excludes it, that table is the only
-override layer available here — which is why it carries every setting that differs
-from a CLI default. Re-add `.env` only to set something `pyproject.toml` cannot,
-and note it would be git-ignored (see the next entry).
-
-**`.rhiza/.gitignore`** — a single `!.env` rule, there only to re-include
-`.rhiza/.env` against the root `.gitignore`'s `.env` line. With `.env` gone it
-carried nothing. Consequence: a future `.rhiza/.env` would be git-ignored, so
-anyone re-adding one must `git add -f` it or restore this file.
+The file itself is still *supported*: it is **layer 2 of rhiza-task's resolution order**
+(defaults → `.rhiza/.env` → `pyproject.toml` → `RHIZA_*` environment), outranked by
+`[tool.rhiza-task]` in `pyproject.toml` rather than the reverse. There simply is not one
+here, which is why that table is the only override layer and carries every setting
+differing from a CLI default. Add a `.env` only to set something `pyproject.toml` cannot —
+and `git add -f` it, because with `.rhiza/.gitignore` gone the root `.gitignore`'s `.env`
+line matches it.)
 
 (**`.github/DISCUSSION_TEMPLATE/` and `.github/ISSUE_TEMPLATE/`** were the fourth and
 fifth entries until #374. They were excluded *and deleted*: the generic forms ask for a
@@ -235,8 +259,8 @@ to, and the file's own header says all of this. **Consequence: do not edit `Make
   document tells you to read `rhiza.mk` or a `make.d/*.mk` fragment, that document is
   stale (this one was; see #361).
 - **Settings live in `[tool.rhiza-task]` in `pyproject.toml`.** Resolution order is
-  defaults → `.rhiza/.env` → `pyproject.toml` → `RHIZA_*` environment. This repo excludes
-  `.rhiza/.env`, so that table is the only override layer, and every key in it is
+  defaults → `.rhiza/.env` → `pyproject.toml` → `RHIZA_*` environment. There is no
+  `.rhiza/.env` here, so that table is the only override layer, and every key in it is
   annotated with why it differs from the CLI default. `uvx rhiza-task print <setting>`
   shows what one resolves to.
 - **`make help` is not a static list.** It runs `uvx rhiza-task list`, so it reports what
@@ -291,8 +315,8 @@ authoritative in a way this list cannot be.
   `RHIZA_CHECKS_VERSION ?= 0.2.1` in the managed `quality.mk`; it is now the
   `pytest-rhiza` key in `pyproject.toml`, which this repo sets to `v0.2.1` because the
   CLI's own default is older and a bare migration would have *downgraded* the checks.
-  Change it there — that table is the only override layer this repo has, since
-  `.rhiza/.env` is excluded.
+  Change it there — that table is the only override layer this repo has, there being no
+  `.rhiza/.env`.
 - **A leftover `.rhiza/tests/` directory is inert but noisy.** `rhiza-test` checks for it
   and prints a WARN telling you to `git rm -r .rhiza/tests`; nothing runs whatever is in
   there. A local checkout that predates the v1.3.4 sync keeps the directory alive through
