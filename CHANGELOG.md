@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com),
 and entries are generated from [Conventional Commits](https://www.conventionalcommits.org).
 
+## [1.3.1] - 2026-09-09
+
+### Bug Fixes
+- Teach the makefile hooks about catch-all rules and vacuous CI (#381)
+- Trigger the makefile hooks on local.mk, not just .rhiza/*.mk (#392)
+
+### Documentation
+- Drop the retired ClusterFuzzLite claim from SECURITY.md (#368) (#371)
+- Record the pending rhiza ref bump as #368 closes (#372)
+- Correct CLAUDE.md for the v1.5.1 sync and the exclude prunes (#382)
+- Point Getting help at issues, Discussions are not enabled (#386)
+
+### Maintenance
+- Update rhiza to v1.5.1 (#373)
+- Prune exclude entries the template no longer ships (#374)
+- Drop the exclude entries for the retired mutation/fuzzing workflows (#375)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#383)
+- Update rhiza to v1.7.1 (#384)
+- Detect dead exclude: entries instead of auditing them by hand (#385)
+- Update rhiza to v1.7.2 (#387)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#388)
+- Update rhiza to v1.8.0 (#390)
+- Derive the version from the git tag (#391)
+
 ## [1.3.0] - 2026-08-22
 
 ### New Features
