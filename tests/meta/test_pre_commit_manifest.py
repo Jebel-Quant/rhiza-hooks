@@ -100,6 +100,25 @@ def test_every_hook_declares_the_documented_fields() -> None:
             assert field in hook, f"{hook.get('id', '<unknown>')}: missing required field {field!r}"
 
 
+# Every location a rhiza-managed repo can keep makefile targets in. Up to rhiza v1.3.x the
+# synced layer was `.rhiza/rhiza.mk` plus `.rhiza/make.d/*.mk`; v1.4.0 deleted all of it and
+# repo-specific targets moved to `local.mk`. `check-workflow-make-targets` collects targets
+# from the root Makefile *plus its includes*, so a `files:` pattern naming only the retired
+# location means a target removed from `local.mk` never re-runs the check that would have
+# caught it. `check-makefile-targets` reports on the root Makefile alone, so a fragment
+# only ever triggers it; the pattern is kept in step so the two agree on what a makefile is.
+_MAKEFILE_TRIGGERS = ("Makefile", "local.mk", ".rhiza/rhiza.mk", ".rhiza/make.d/test.mk")
+
+
+@pytest.mark.parametrize("hook_id", ["check-makefile-targets", "check-workflow-make-targets"])
+def test_makefile_hooks_trigger_on_every_include_location(hook_id: str) -> None:
+    """The makefile hooks fire for `local.mk` as well as the retired `.rhiza/*.mk` layer."""
+    hook = next(h for h in _manifest() if h["id"] == hook_id)
+    pattern = hook["files"]
+    for path in _MAKEFILE_TRIGGERS:
+        assert re.search(pattern, path), f"{hook_id}: files pattern {pattern!r} does not match {path!r}"
+
+
 # ---------------------------------------------------------------------------
 # End-to-end through pre-commit (issues #184, #295)
 # ---------------------------------------------------------------------------

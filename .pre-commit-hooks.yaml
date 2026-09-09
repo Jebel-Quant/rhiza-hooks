@@ -35,7 +35,10 @@
   description: Ensures required Makefile targets exist
   entry: check-makefile-targets
   language: python
-  files: (^Makefile$|^\.rhiza/.*\.mk$)
+  # Any `.mk`, not `.rhiza/*.mk`: since rhiza v1.4.0 the synced make layer is gone and
+  # repo-specific targets live in `local.mk`, so a pattern naming only the old location
+  # would stop matching the one makefile fragment a modern rhiza repo actually has.
+  files: (^Makefile$|\.mk$)
   types: [makefile]
 
 - id: check-python-version-consistency
@@ -97,7 +100,11 @@
   description: "Ensures every make target invoked by an inline CI shell step is defined in the Makefile or its includes; a reusable workflow (`uses:`) is not followed"
   entry: check-workflow-make-targets
   language: python
-  files: (^\.github/workflows/.*\.ya?ml$|^\.gitlab-ci\.yml$|^Makefile$|^\.rhiza/.*\.mk$)
+  # The makefile half is any `.mk`, not `.rhiza/*.mk`. Targets are collected from the root
+  # Makefile plus its includes transitively, so a removal in an included fragment must
+  # re-run the check -- and since rhiza v1.4.0 that fragment is `local.mk`, not the deleted
+  # `.rhiza/rhiza.mk`/`.rhiza/make.d/*.mk` layer the old pattern named.
+  files: (^\.github/workflows/.*\.ya?ml$|^\.gitlab-ci\.yml$|^Makefile$|\.mk$)
   pass_filenames: false
 
 - id: check-license-metadata

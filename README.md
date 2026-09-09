@@ -52,14 +52,14 @@ pre-commit install
 | `check-rhiza-workflow-names` | `.github/workflows/rhiza_*.yml` | ✅ rewrites a wrong `name:` | `1` if any file was changed or has an error, else `0` |
 | `update-readme-help` | `Makefile` | ✅ rewrites `README.md` between markers | `1` if `README.md` was changed, else `0` (never fails when `make help` is unavailable) |
 | `check-rhiza-config` | `.rhiza/template.yml` | ❌ validates only | `1` if invalid, else `0` |
-| `check-makefile-targets` | `Makefile`, `.rhiza/*.mk` | ❌ warns only | `0` by default (warn-only); `1` on missing targets **only** with `--strict` |
+| `check-makefile-targets` | `Makefile`, any `*.mk` | ❌ warns only | `0` by default (warn-only); `1` on missing targets **only** with `--strict` |
 | `check-python-version-consistency` | `.python-version`, `pyproject.toml` | ❌ validates only | `1` on mismatch, else `0` |
 | `check-rust-version-consistency` | `rust-toolchain`, `rust-toolchain.toml`, `Cargo.toml` | ❌ validates only | `1` on mismatch, else `0` |
 | `check-go-version-consistency` | `.go-version`, `go.mod` | ❌ validates only | `1` on mismatch, else `0` |
 | `check-bumpversion-config` | `pyproject.toml`, `.bumpversion.toml`, `.bumpversion.cfg`, `setup.cfg`, `.rhiza/.cfg.toml` | ❌ validates only | `1` if no discoverable config or a drifted `current_version`, else `0` |
 | `check-template-bundles` | `.rhiza/template.yml` | ❌ validates only (network) | `1` on validation failure, else `0`; `0` when `--offline` |
 | `check-managed-files` | every staged file | ❌ validates only | `1` if a template-owned file is being modified, else `0` |
-| `check-workflow-make-targets` | `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Makefile`, `.rhiza/*.mk` | ❌ validates only | `1` if CI invokes an undefined target, or nothing was inspected with `--require-invocations`; else `0` |
+| `check-workflow-make-targets` | `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Makefile`, any `*.mk` | ❌ validates only | `1` if CI invokes an undefined target, or nothing was inspected with `--require-invocations`; else `0` |
 | `check-license-metadata` | `pyproject.toml` | ❌ validates only | `1` if both licence forms are declared, else `0` |
 | `check-test-layout` | any `*.py` | ❌ validates only | `1` if a source module or class has no mirrored test (or vice versa), else `0` |
 
@@ -141,6 +141,11 @@ Checks that your Makefile contains recommended targets for rhiza-based projects:
 - `help` - Show available targets
 
 By default, this hook only warns about missing targets. Use `--strict` to fail on missing targets.
+
+**Only the root `Makefile` is held to the set.** The hook triggers on any `*.mk` so that a
+change to an included fragment (`local.mk` since rhiza v1.4.0, `.rhiza/make.d/*.mk` before it)
+re-runs it, but the recommended-target comparison is applied to the file named `Makefile`
+alone — a fragment on its own reports nothing.
 
 **A catch-all rule satisfies all of them.** A Makefile containing
 
@@ -357,7 +362,7 @@ inspected 2 CI file(s), found 1 resolvable `make` target invocation(s); a catch-
 
 `check-makefile-targets` asserts that a few *recommended* targets exist; this hook checks the opposite direction — that the targets actually invoked are defined — which is what catches a removal or a rename. The template has produced exactly that failure: `make validate` existed up to rhiza v1.1.3 and was removed by v1.2.1.
 
-**Triggers on:** `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Makefile`, `.rhiza/*.mk` — a target *removal* must re-run the check, not just a workflow edit
+**Triggers on:** `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Makefile`, any `*.mk` — a target *removal* must re-run the check, not just a workflow edit, and the fragment it was removed from is `local.mk` on rhiza v1.4.0 and later
 
 Invocations are parsed out of the YAML rather than the raw text, so `name: make sure the cache is warm` is not mistaken for an invocation. An invocation whose target comes from a variable or matrix expression (`make ${{ matrix.task }}`) cannot be resolved and is skipped rather than reported — a false positive here would block every commit. A repo with no Makefile reports nothing.
 

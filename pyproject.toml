@@ -150,16 +150,15 @@ exempt_files = ["test_rhiza_packaging.py"]
 [tool.rhiza-task]
 # Settings for the task runner that replaced the synced make layer in rhiza v1.4.0.
 # `.rhiza/rhiza.mk` and the ten fragments under `.rhiza/make.d/` are gone; the root
-# Makefile is a 71-line shim whose catch-all rule forwards every target to the pinned
-# CLI, so each target CLAUDE.md and the README document still works. That shim was
-# repo-owned and printed by `uvx rhiza-task shim` for the v1.4.x releases; v1.5.1 (#373)
-# moved it back under template ownership, so its `RHIZA_TASK ?= rhiza-task@1.1.0` pin now
-# travels with the sync and is not edited here. This table is unaffected: settings were
-# never in the Makefile.
+# Makefile is a 71-line template-owned shim whose catch-all rule forwards every target to
+# the pinned CLI, so each target CLAUDE.md and the README document still works. Its
+# `RHIZA_TASK ?= rhiza-task@1.7.0` pin travels with the sync and is not edited here. This
+# table is unaffected: settings were never in the Makefile.
 #
 # Read as layer 3 of rhiza-task's resolution order (defaults -> .rhiza/.env ->
-# pyproject.toml -> RHIZA_* environment). This repo has no `.rhiza/.env` (it is in
-# `exclude:`), so this table is the only place an override can live. Only entries that
+# pyproject.toml -> RHIZA_* environment). There is no `.rhiza/.env` here -- the template
+# stopped shipping one, and the `exclude:` entry that used to suppress it was pruned in
+# #378 as dead -- so this table is the only place an override can live. Only entries that
 # differ from the CLI's defaults belong here; `uvx rhiza-task print <setting>` shows
 # what one resolves to.
 
@@ -179,25 +178,25 @@ coverage-fail-under = 100
 # where the CLI raises on each run.
 typechecker = "both"
 
-# The retired quality.mk pinned `RHIZA_CHECKS_VERSION ?= 0.2.1`; the CLI defaults to
-# v0.2.0, so a bare migration would have *downgraded* the conformance checks -- the drift
-# the pin exists to prevent. These are the checks CLAUDE.md's "The rhiza checks are a
-# dependency, not a directory" section describes, still provisioned on the fly, so there
-# is nothing to add to [dependency-groups]. Newer releases are out — v0.4.0 as of
-# 2026-08-23 — so this pin is now several behind, deliberately: bumping it is an upgrade
-# decision of its own, to be taken by reading what the newer checks assert, not as a
-# side effect. All four overrides in this table were re-checked against the rhiza-task
-# 1.1.0 defaults and each still differs from them.
+# The conformance checks CLAUDE.md's "The rhiza checks are a dependency, not a directory"
+# section describes, still provisioned on the fly, so there is nothing to add to
+# [dependency-groups]. The CLI's own default is v0.2.0, behind this pin, so leaving the
+# key unset would *downgrade* the checks -- the drift the pin exists to prevent.
 #
 # 0.6.0 is required by this repo's dynamic [project].version, not merely available: it is
 # the first release whose test_pyproject accepts a version derived from the VCS. Under
 # 0.2.1 three of its assertions read `[project].version` as the empty string and fail --
 # the required-field check, the semver shape, and the tag-agreement one -- because they
 # predate `dynamic = ["version"]` being a thing a rhiza project could do. 0.6.0 skips each
-# with a reason instead. jquantstats, which made this move first, pins the same version.
+# with a reason instead, six skips in all. jquantstats, which made this move first, pins
+# the same version.
 #
 # This also swaps the git ref this repo used for the released wheel on PyPI, which is
 # what the rest of the fleet pins. Same code at the same tag, resolved without a clone.
+#
+# All four overrides in this table were re-checked against the rhiza-task 1.7.0 defaults
+# (coverage_fail_under 90, typechecker "ty", mkdocs_extra_packages without `.`,
+# pytest_rhiza at the v0.2.0 git ref) and each still differs from them.
 pytest-rhiza = "pytest-rhiza==0.6.0"
 
 # The old root Makefile carried
@@ -213,7 +212,7 @@ mkdocs-extra-packages = ["mkdocstrings[python]", "."]
 # Not set, on purpose:
 #   source-folder / tests-folder -- the defaults `src` and `tests` are this repo's layout.
 #   marimo-folder      -- the default `docs/notebooks` is what the retired `.rhiza/.env`
-#       set before it was excluded, so the default already matches.
+#       used to set, so the default already matches.
 #   layers             -- `python` is detected from pyproject.toml, and there is no second
 #       language layer for the inference to get wrong.
 #   uv-sync-args       -- `--all-extras --all-groups` is both the CLI default and what the
@@ -227,8 +226,9 @@ mkdocs-extra-packages = ["mkdocstrings[python]", "."]
 #
 # The block used to live in .rhiza/.cfg.toml, where it was inert for exactly that
 # reason. Rhiza v1.3.0 deleted that file and now enforces the rule from the other
-# side: .rhiza/tests/test_pyproject.py::TestBumpversionConfigIsDiscoverable fails
-# if no discoverable config declares one.
+# side: pytest_rhiza.checks.test_pyproject::TestBumpversionConfigIsDiscoverable fails
+# if no discoverable config declares one. (v1.3.4 then moved that check out of
+# .rhiza/tests/ and into the installed pytest-rhiza package pinned above.)
 #
 # Deliberately no `current_version` and no [[tool.bumpversion.files]] entry for the
 # project version: `[project].version` is dynamic, derived from the git tag by
