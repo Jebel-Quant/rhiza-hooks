@@ -1,10 +1,27 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+# Supplies the `version` that [project] declares dynamic, from `git describe`. Two
+# consequences worth knowing:
+#   * The build needs the tag to be visible. hatch-vcs does not fail without it -- it
+#     falls back to a dev version like 1.3.1.dev3+g<sha> -- so rhiza_release.yml checks
+#     the built distribution's filename against the tag, and its checkout uses
+#     fetch-depth: 0. An sdist carries the resolved number in PKG-INFO, so building from
+#     one needs no git.
+#   * Between tags the local version is the *next* patch as a dev release
+#     (guess-next-dev, the default), which is why nothing pins a fallback-version here:
+#     a wrong-looking version must surface as a release failure, not as a plausible
+#     constant.
+[tool.hatch.version]
+source = "vcs"
 
 [project]
 name = "rhiza-hooks"
-version = "1.3.0"
+# Derived from the git tag by hatch-vcs (see [tool.hatch.version]) rather than written
+# here, so the tag is the single source of truth and a release is `git tag` alone -- no
+# bump commit, and no way for a number in this file to disagree with what was tagged.
+dynamic = ["version"]
 description = "Pre-commit hooks for rhiza projects"
 readme = "README.md"
 license = "MIT"
@@ -171,7 +188,17 @@ typechecker = "both"
 # decision of its own, to be taken by reading what the newer checks assert, not as a
 # side effect. All four overrides in this table were re-checked against the rhiza-task
 # 1.1.0 defaults and each still differs from them.
-pytest-rhiza = "pytest-rhiza @ git+https://github.com/Jebel-Quant/pytest-rhiza@v0.2.1"
+#
+# 0.6.0 is required by this repo's dynamic [project].version, not merely available: it is
+# the first release whose test_pyproject accepts a version derived from the VCS. Under
+# 0.2.1 three of its assertions read `[project].version` as the empty string and fail --
+# the required-field check, the semver shape, and the tag-agreement one -- because they
+# predate `dynamic = ["version"]` being a thing a rhiza project could do. 0.6.0 skips each
+# with a reason instead. jquantstats, which made this move first, pins the same version.
+#
+# This also swaps the git ref this repo used for the released wheel on PyPI, which is
+# what the rest of the fleet pins. Same code at the same tag, resolved without a clone.
+pytest-rhiza = "pytest-rhiza==0.6.0"
 
 # The old root Makefile carried
 # `MKDOCS_EXTRA_PACKAGES = --with 'mkdocstrings[python]' --with .`.
@@ -203,12 +230,18 @@ mkdocs-extra-packages = ["mkdocstrings[python]", "."]
 # side: .rhiza/tests/test_pyproject.py::TestBumpversionConfigIsDiscoverable fails
 # if no discoverable config declares one.
 #
-# Deliberately no `current_version` and no [[tool.bumpversion.files]] entry:
-# bump-my-version reads and rewrites PEP 621 `[project].version` natively once it
-# treats this file as its config, so that field stays the single source of truth.
-# Adding either one would duplicate the version string. A [[files]] entry IS needed
-# for any *additional* location (e.g. a self-referencing CI stub pin) — anchor its
-# search to a table, since search/replace applies to every match in the file.
+# Deliberately no `current_version` and no [[tool.bumpversion.files]] entry for the
+# project version: `[project].version` is dynamic, derived from the git tag by
+# hatch-vcs, so no file carries a number for a bump to rewrite. bump-my-version
+# resolves the current version from the newest reachable tag instead — the
+# `git describe` fallback this comment's opening warns about, which with the tag as
+# the single source of truth is now the right answer rather than the trap. Adding
+# either one back would break rather than duplicate: a stale `current_version` drifts
+# silently, and a `search` pattern that occurs zero times is an error.
+#
+# A [[files]] entry IS still needed for any *additional* location that must carry the
+# number literally — the README `rev:` pin below is exactly that — anchored to a
+# prefix, since search/replace applies to every match in the file.
 #
 # /release drives the commit and tag itself, hence commit/tag = false.
 [tool.bumpversion]
