@@ -143,8 +143,7 @@ def test_quick_start_does_not_pin_a_stale_rev() -> None:
     if newest is None:
         pytest.skip("no release tags in this checkout")
     assert _release_ordinal(_pinned_rev()) >= _release_ordinal(newest), (
-        f"README pins {_pinned_rev()} but {newest} is already released — "
-        "every install snippet we publish is stale"
+        f"README pins {_pinned_rev()} but {newest} is already released — every install snippet we publish is stale"
     )
 
 
