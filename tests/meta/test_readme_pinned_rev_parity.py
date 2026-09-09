@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import re
 import subprocess  # nosec B404
-import tomllib
 from pathlib import Path
 
 import pytest
@@ -35,7 +34,6 @@ import yaml
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _README = _REPO_ROOT / "README.md"
-_PYPROJECT = _REPO_ROOT / "pyproject.toml"
 
 # The Quick Start block, up to the heading that begins the per-hook reference. Scoping the
 # search matters: the per-hook sections further down carry `- id:` lines of their own, in
@@ -69,9 +67,22 @@ def _documented_ids() -> set[str]:
     return ids
 
 
-def _project_version() -> str:
-    """Return ``[project].version`` from pyproject.toml."""
-    return str(tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))["project"]["version"])
+def _newest_tag() -> str | None:
+    """Return the newest reachable release tag, or None in a tagless checkout.
+
+    This replaced a read of ``[project].version``, which no longer exists: the version is
+    derived from the git tag by hatch-vcs, so the tag is what the README's ``rev:`` has to
+    agree with. It is also what ``bump-my-version`` itself resolves the current version
+    from when it rewrites that line, so the two now read the same source.
+    """
+    result = subprocess.run(  # nosec B603 B607
+        ["git", "describe", "--tags", "--abbrev=0"],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout.strip() or None if result.returncode == 0 else None
 
 
 def _manifest_at(rev: str) -> set[str] | None:
@@ -92,16 +103,48 @@ def _manifest_at(rev: str) -> set[str] | None:
     return {hook["id"] for hook in yaml.safe_load(result.stdout)}
 
 
-def test_quick_start_pins_the_project_version() -> None:
-    """The documented rev matches ``[project].version``.
+def _release_ordinal(rev: str) -> tuple[int, ...]:
+    """Return a sortable key for a ``vX.Y.Z`` release tag.
+
+    Deliberately hand-rolled rather than ``packaging.version.Version``: this repo does not
+    depend on ``packaging``, and reaching for it here would mean asserting through a
+    transitive dependency -- which deptry and the lowest-deps job would both be right to
+    call out -- for a single ``>=``. Every tag this repo has ever cut is three integers,
+    and :func:`test_every_documented_hook_exists_at_the_pinned_rev` is what checks that a
+    rev names a real tag; this only has to order two of them.
+    """
+    parts = rev.lstrip("v").split(".")
+    try:
+        return tuple(int(part) for part in parts)
+    except ValueError:  # pragma: no cover - a non-numeric tag is its own bug
+        pytest.fail(f"cannot order release tag {rev!r}: expected vX.Y.Z")
+
+
+def test_quick_start_does_not_pin_a_stale_rev() -> None:
+    """The documented rev is not *behind* the newest release tag.
 
     `bump-my-version` rewrites this line on release (the `[[tool.bumpversion.files]]`
-    entry for `rev: v{current_version}`), so a mismatch means either the bump did not run
-    or the line was hand-edited — and every published install snippet is then stale. This
-    half needs no tags, so it holds in a shallow checkout too.
+    entry for `rev: v{current_version}`), so a rev behind the newest tag means either the
+    bump did not run or the line was hand-edited — and every published install snippet is
+    then stale. That is #366 exactly: the README sat at `v1.2.0` through later releases.
+
+    Not-behind rather than equal, which is what this asserted while the version was
+    written in `[project].version`. With the version derived from the tag, a release
+    commits the rewritten README *before* the tag it names exists, so for the life of that
+    commit the rev is legitimately one release ahead of the newest tag. Requiring equality
+    would fail every release PR; requiring not-behind still catches the staleness this
+    file was written for, and
+    :func:`test_every_documented_hook_exists_at_the_pinned_rev` covers the other
+    direction by resolving the rev against real tags.
+
+    Skips in a tagless checkout, which is a local-clone condition: CI fetches tags.
     """
-    assert _pinned_rev() == f"v{_project_version()}", (
-        f"README pins {_pinned_rev()} but [project].version is {_project_version()}"
+    newest = _newest_tag()
+    if newest is None:
+        pytest.skip("no release tags in this checkout")
+    assert _release_ordinal(_pinned_rev()) >= _release_ordinal(newest), (
+        f"README pins {_pinned_rev()} but {newest} is already released — "
+        "every install snippet we publish is stale"
     )
 
 
@@ -123,7 +166,7 @@ def test_every_documented_hook_exists_at_the_pinned_rev() -> None:
     released = _manifest_at(rev)
     if released is None:
         reason = f"{rev} is not tagged in this checkout"
-        if rev == f"v{_project_version()}":
+        if rev != _newest_tag():
             reason += " (expected during a release PR: the version is bumped before the tag exists)"
         pytest.skip(reason)
 
