@@ -81,7 +81,9 @@ def _load_toml(path: Path) -> dict[str, Any] | None:
     try:
         with path.open("rb") as handle:
             return tomllib.load(handle)
-    except (tomllib.TOMLDecodeError, OSError):
+    except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError):
+        # tomllib decodes the stream itself, so invalid UTF-8 surfaces as
+        # UnicodeDecodeError rather than a TOML error.
         return None
 
 

@@ -270,8 +270,18 @@ def test_unreadable_file_returns_none(tmp_path: Path) -> None:
     assert get_pyproject_requires_python(tmp_path) is None
 
 
+def test_undecodable_file_returns_none(tmp_path: Path) -> None:
+    """Invalid UTF-8 in pyproject.toml is treated as unspecified rather than crashing (#396).
+
+    tomllib decodes the stream itself, so the bad bytes surface as
+    UnicodeDecodeError rather than TOMLDecodeError.
+    """
+    (tmp_path / "pyproject.toml").write_bytes(b"\xff\xfe\x00[project]")
+    assert get_pyproject_requires_python(tmp_path) is None
+
+
 def test_unexpected_error_propagates(tmp_path: Path) -> None:
-    """Errors other than TOMLDecodeError/OSError are no longer swallowed (issue #174)."""
+    """Errors other than TOMLDecodeError/OSError/UnicodeDecodeError are not swallowed (issue #174)."""
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text('[project]\nrequires-python = ">=3.11"\n')
 

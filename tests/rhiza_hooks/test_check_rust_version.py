@@ -111,8 +111,24 @@ def test_load_toml_unreadable_returns_none(tmp_path: Path) -> None:
     assert _load_toml(tmp_path / "Cargo.toml") is None
 
 
+def test_load_toml_undecodable_returns_none(tmp_path: Path) -> None:
+    """Invalid UTF-8 is treated as unspecified rather than crashing (#396).
+
+    tomllib decodes the stream itself, so the bad bytes surface as
+    UnicodeDecodeError rather than TOMLDecodeError.
+    """
+    (tmp_path / "Cargo.toml").write_bytes(b"\xff\xfe\x00[package]")
+    assert _load_toml(tmp_path / "Cargo.toml") is None
+
+
+def test_toolchain_channels_ignore_undecodable_toolchain_toml(tmp_path: Path) -> None:
+    """A non-UTF-8 rust-toolchain.toml declares no channel (#396)."""
+    (tmp_path / "rust-toolchain.toml").write_bytes(b"\xff\xfe\x00[toolchain]")
+    assert get_toolchain_channels(tmp_path) == {}
+
+
 def test_load_toml_unexpected_error_propagates(tmp_path: Path) -> None:
-    """Errors other than TOMLDecodeError/OSError are not swallowed."""
+    """Errors other than TOMLDecodeError/OSError/UnicodeDecodeError are not swallowed."""
     _write(tmp_path, "Cargo.toml", '[package]\nrust-version = "1.75"\n')
 
     def boom(_handle: object) -> None:
