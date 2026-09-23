@@ -32,5 +32,6 @@ These modules hold shared logic used by the hooks above. They have no `main()` e
 | [`_makefile`](_makefile.md) | Shared Makefile parsing: target extraction and `include` expansion |
 | [`_managed`](_managed.md) | Resolve the template-owned paths — `.rhiza/template.lock`'s `files:` minus `template.yml`'s `exclude:` |
 | [`_repo`](_repo.md) | Shared helpers (e.g. locating the repository root) |
+| [`_toml`](_toml.md) | Shared lenient TOML loader: a missing, malformed or non-UTF-8 file reads as absent |
 | [`_version`](_version.md) | Shared dotted-numeric version parsing and comparison, used by the Rust and Go hooks |
 | [`_yaml`](_yaml.md) | Shared helper for loading a YAML file into a top-level mapping |

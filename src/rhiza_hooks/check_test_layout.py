@@ -51,11 +51,11 @@ from __future__ import annotations
 import argparse
 import ast
 import sys
-import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 
 from rhiza_hooks._repo import find_repo_root
+from rhiza_hooks._toml import load_toml
 
 _IGNORED = {"__init__.py", "conftest.py"}
 
@@ -77,14 +77,8 @@ def _read_config(pyproject: Path) -> dict[str, object]:
     Returns:
         The configuration table, or an empty dict when it cannot be read.
     """
-    if not pyproject.is_file():
-        return {}
-    try:
-        with pyproject.open("rb") as handle:
-            data = tomllib.load(handle)
-    except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError):
-        # tomllib decodes the stream itself, so invalid UTF-8 surfaces as
-        # UnicodeDecodeError rather than a TOML error.
+    data = load_toml(pyproject)
+    if data is None:
         return {}
     section = data.get("tool", {}).get("check_test_layout", {})
     return section if isinstance(section, dict) else {}

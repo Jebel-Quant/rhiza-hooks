@@ -47,10 +47,10 @@ from rhiza_hooks._bumpversion_config import (
     SEARCHED_FILENAMES,
     BumpversionTarget,
     find_config,
-    load_toml,
 )
 from rhiza_hooks._managed import managed_paths
 from rhiza_hooks._repo import find_repo_root
+from rhiza_hooks._toml import load_toml
 
 # Looks authoritative, is never auto-discovered. Named explicitly so the error can
 # point at the actual cause rather than just reporting an absence.
@@ -114,7 +114,7 @@ def _occurrence_errors(path: Path, filename: str, needle: str) -> list[str]:
     """Report a pattern that appears in ``path`` zero times, or more than once.
 
     An unreadable or binary file yields no error: that is somebody else's problem to
-    report, the same lenient stance :func:`~rhiza_hooks._bumpversion_config.load_toml`
+    report, the same lenient stance :func:`~rhiza_hooks._toml.load_toml`
     takes.
     """
     try:
