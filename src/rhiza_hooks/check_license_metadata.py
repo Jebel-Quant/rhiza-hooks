@@ -33,11 +33,11 @@ from __future__ import annotations
 
 import argparse
 import sys
-import tomllib
 from pathlib import Path
 from typing import Any
 
 from rhiza_hooks._repo import find_repo_root
+from rhiza_hooks._toml import load_toml
 
 _CLASSIFIER_PREFIX = "License :: "
 
@@ -48,15 +48,8 @@ def _load_project_table(repo_root: Path) -> dict[str, Any] | None:
     A missing, malformed or unreadable pyproject.toml is somebody else's error to
     report — the same lenient stance the other hooks in this package take.
     """
-    path = repo_root / "pyproject.toml"
-    if not path.exists():
-        return None
-    try:
-        with path.open("rb") as handle:
-            data = tomllib.load(handle)
-    except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError):
-        # tomllib decodes the stream itself, so invalid UTF-8 surfaces as
-        # UnicodeDecodeError rather than a TOML error.
+    data = load_toml(repo_root / "pyproject.toml")
+    if data is None:
         return None
     project = data.get("project")
     return project if isinstance(project, dict) else None

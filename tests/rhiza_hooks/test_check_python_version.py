@@ -290,7 +290,7 @@ def test_unexpected_error_propagates(tmp_path: Path) -> None:
         raise RuntimeError("unexpected")
 
     with (
-        patch("rhiza_hooks.check_python_version.tomllib.load", side_effect=boom),
+        patch("rhiza_hooks._toml.tomllib.load", side_effect=boom),
         pytest.raises(RuntimeError, match="unexpected"),
     ):
         get_pyproject_requires_python(tmp_path)

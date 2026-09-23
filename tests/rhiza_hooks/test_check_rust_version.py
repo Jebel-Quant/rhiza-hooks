@@ -18,7 +18,6 @@ from hypothesis import strategies as st
 
 from rhiza_hooks.check_rust_version import (
     _check_channel_satisfies_msrv,
-    _load_toml,
     _string_value,
     _table,
     check_version_consistency,
@@ -86,60 +85,20 @@ def test_string_value_blank_returns_none() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests: _load_toml
+# Regression: non-UTF-8 TOML is treated as unspecified (#396)
 # ---------------------------------------------------------------------------
-def test_load_toml_reads_document(tmp_path: Path) -> None:
-    """A valid TOML file is parsed into a dict."""
-    _write(tmp_path, "Cargo.toml", '[package]\nrust-version = "1.75"\n')
-    assert _load_toml(tmp_path / "Cargo.toml") == {"package": {"rust-version": "1.75"}}
-
-
-def test_load_toml_missing_returns_none(tmp_path: Path) -> None:
-    """A missing file yields None."""
-    assert _load_toml(tmp_path / "Cargo.toml") is None
-
-
-def test_load_toml_malformed_returns_none(tmp_path: Path) -> None:
-    """Malformed TOML is treated as unspecified rather than crashing."""
-    _write(tmp_path, "Cargo.toml", "this is not toml {{{{")
-    assert _load_toml(tmp_path / "Cargo.toml") is None
-
-
-def test_load_toml_unreadable_returns_none(tmp_path: Path) -> None:
-    """An OSError on open (path is a directory) is treated as unspecified."""
-    (tmp_path / "Cargo.toml").mkdir()
-    assert _load_toml(tmp_path / "Cargo.toml") is None
-
-
-def test_load_toml_undecodable_returns_none(tmp_path: Path) -> None:
-    """Invalid UTF-8 is treated as unspecified rather than crashing (#396).
-
-    tomllib decodes the stream itself, so the bad bytes surface as
-    UnicodeDecodeError rather than TOMLDecodeError.
-    """
+# Loader behaviour itself is tested in test__toml.py; these pin that both of this
+# hook's TOML inputs still go through it.
+def test_cargo_versions_ignore_undecodable_cargo_toml(tmp_path: Path) -> None:
+    """A non-UTF-8 Cargo.toml declares no MSRV rather than crashing the hook."""
     (tmp_path / "Cargo.toml").write_bytes(b"\xff\xfe\x00[package]")
-    assert _load_toml(tmp_path / "Cargo.toml") is None
+    assert get_cargo_rust_versions(tmp_path) == {}
 
 
 def test_toolchain_channels_ignore_undecodable_toolchain_toml(tmp_path: Path) -> None:
     """A non-UTF-8 rust-toolchain.toml declares no channel (#396)."""
     (tmp_path / "rust-toolchain.toml").write_bytes(b"\xff\xfe\x00[toolchain]")
     assert get_toolchain_channels(tmp_path) == {}
-
-
-def test_load_toml_unexpected_error_propagates(tmp_path: Path) -> None:
-    """Errors other than TOMLDecodeError/OSError/UnicodeDecodeError are not swallowed."""
-    _write(tmp_path, "Cargo.toml", '[package]\nrust-version = "1.75"\n')
-
-    def boom(_handle: object) -> None:
-        """Raise a RuntimeError to simulate an unexpected tomllib failure."""
-        raise RuntimeError("unexpected")
-
-    with (
-        patch("rhiza_hooks.check_rust_version.tomllib.load", side_effect=boom),
-        pytest.raises(RuntimeError, match="unexpected"),
-    ):
-        _load_toml(tmp_path / "Cargo.toml")
 
 
 # ---------------------------------------------------------------------------

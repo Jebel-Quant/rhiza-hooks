@@ -1,6 +1,6 @@
 """Tests for the bumpversion config readers.
 
-Covers ``rhiza_hooks._bumpversion_config`` — the lenient TOML/INI loaders, the
+Covers ``rhiza_hooks._bumpversion_config`` — the lenient INI loader, the
 candidate search order bump-my-version itself uses, and the normalisation of both
 on-disk formats into a single :class:`BumpversionConfig`. Judging that result
 (discoverability, version agreement, target rewritability) is tested in
@@ -20,7 +20,6 @@ from rhiza_hooks._bumpversion_config import (
     BumpversionTarget,
     _load_ini,
     find_config,
-    load_toml,
 )
 
 
@@ -37,42 +36,8 @@ BUMP_TABLE = "\n[tool.bumpversion]\nallow_dirty = false\n"
 
 
 # ---------------------------------------------------------------------------
-# load_toml / _load_ini
+# _load_ini (load_toml is tested in test__toml.py)
 # ---------------------------------------------------------------------------
-def test_loads_a_well_formed_toml_file(tmp_path: Path) -> None:
-    """A parseable file is returned as its mapping."""
-    _write(tmp_path, "pyproject.toml", PYPROJECT)
-    assert load_toml(tmp_path / "pyproject.toml") == {"project": {"name": "demo", "version": "1.2.3"}}
-
-
-def test_missing_toml_reads_none(tmp_path: Path) -> None:
-    """A missing TOML file yields None from the loader."""
-    assert load_toml(tmp_path / "pyproject.toml") is None
-
-
-def test_malformed_toml_loads_none(tmp_path: Path) -> None:
-    """Malformed TOML is treated as absent, not raised."""
-    _write(tmp_path, "pyproject.toml", "[project\nversion =")
-    assert load_toml(tmp_path / "pyproject.toml") is None
-
-
-def test_unreadable_toml_reads_none(tmp_path: Path) -> None:
-    """An OSError while opening is treated as absent."""
-    _write(tmp_path, "pyproject.toml", PYPROJECT)
-    with patch("pathlib.Path.open", side_effect=OSError("boom")):
-        assert load_toml(tmp_path / "pyproject.toml") is None
-
-
-def test_binary_toml_reads_none(tmp_path: Path) -> None:
-    """A file that is not valid UTF-8 is treated as absent, not a traceback.
-
-    tomllib decodes the byte stream itself, so invalid UTF-8 arrives as
-    UnicodeDecodeError rather than TOMLDecodeError.
-    """
-    (tmp_path / "pyproject.toml").write_bytes(b"\xff\xfe\x00[project]")
-    assert load_toml(tmp_path / "pyproject.toml") is None
-
-
 def test_missing_ini_reads_none(tmp_path: Path) -> None:
     """A missing INI file yields None from the loader."""
     assert _load_ini(tmp_path / "setup.cfg") is None
