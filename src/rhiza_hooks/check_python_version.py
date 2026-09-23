@@ -7,11 +7,11 @@ import argparse
 import operator
 import re
 import sys
-import tomllib
 from collections.abc import Callable
 from pathlib import Path
 
 from rhiza_hooks._repo import find_repo_root
+from rhiza_hooks._toml import load_toml
 
 # Version comparison is a table lookup keyed by the specifier operator. A bare
 # specifier ("") is treated as equality, matching `_parse_specifier`, which
@@ -50,6 +50,15 @@ def get_python_version_file(repo_root: Path) -> str | None:
 
 def parse_version(version_str: str) -> tuple[int, int]:
     """Parse a version string into a tuple of (major, minor).
+
+    This is deliberately not :func:`rhiza_hooks._version.parse_version`, which the
+    Rust and Go hooks share. That one is lenient: it accepts any number of
+    components, reads the leading digits of ``"1.21rc1"``, and returns None for
+    text with no version in it. This one has a narrower contract: the comparators
+    in ``_COMPARATORS`` are typed on ``tuple[int, int]`` and compare exactly
+    ``major.minor``, the granularity ``requires-python`` is checked at, so it
+    returns a pair and raises on anything else rather than returning a sentinel
+    that every comparison would need to handle.
 
     Args:
         version_str: Version string like "3.11" or "3.12"
@@ -111,20 +120,10 @@ def get_pyproject_requires_python(repo_root: Path) -> list[tuple[str, str]] | No
         unparseable. A compound specifier yields one entry per comma-separated
         clause, e.g. ">=3.11,<3.14" -> [(">=", "3.11"), ("<", "3.14")].
     """
-    pyproject_file = repo_root / "pyproject.toml"
-    if not pyproject_file.exists():
-        return None
-
-    try:
-        with pyproject_file.open("rb") as f:
-            data = tomllib.load(f)
-    except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError):
-        # Malformed TOML, or filesystem-level access/open errors (for example:
-        # path is a directory, permission denied, or the file disappears between
-        # exists() and open()), are treated as "unspecified" rather than
-        # crashing the hook. tomllib decodes the stream itself, so invalid UTF-8
-        # surfaces as UnicodeDecodeError rather than a TOML error. Anything else
-        # (e.g. a genuine bug) is left to surface.
+    # A missing, malformed, unreadable or non-UTF-8 pyproject.toml is treated as
+    # "unspecified" rather than crashing the hook; see :mod:`rhiza_hooks._toml`.
+    data = load_toml(repo_root / "pyproject.toml")
+    if data is None:
         return None
 
     requires_python = data.get("project", {}).get("requires-python")

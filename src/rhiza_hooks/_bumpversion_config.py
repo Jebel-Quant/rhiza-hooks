@@ -24,10 +24,11 @@ is missing, malformed, or unreadable reads as absent rather than raising. A brok
 from __future__ import annotations
 
 import configparser
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from rhiza_hooks._toml import load_toml
 
 # The only filenames bump-my-version auto-discovers, in its own search order. It
 # stops at the first file carrying a bumpversion section. Any other path — however
@@ -67,32 +68,6 @@ class BumpversionConfig:
     filename: str
     current_version: str | None
     targets: list[BumpversionTarget]
-
-
-def load_toml(path: Path) -> dict[str, Any] | None:
-    """Parse a TOML file, treating unreadable or malformed input as absent.
-
-    Part of this module's cross-module surface: :mod:`check_bumpversion_config`
-    reads ``[project].version`` and probes the undiscovered ``.rhiza/.cfg.toml``
-    with it, so both go through the same lenient parse as the candidate search.
-
-    Args:
-        path: File to parse.
-
-    Returns:
-        The parsed mapping, or None if the file is missing, malformed, or cannot
-        be opened.
-    """
-    if not path.exists():
-        return None
-    try:
-        with path.open("rb") as handle:
-            return tomllib.load(handle)
-    except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError):
-        # tomllib decodes the stream itself, so invalid UTF-8 surfaces as
-        # UnicodeDecodeError rather than a TOML error — without this the hook
-        # crashed with a traceback on a binary pyproject.toml.
-        return None
 
 
 def _load_ini(path: Path) -> configparser.ConfigParser | None:

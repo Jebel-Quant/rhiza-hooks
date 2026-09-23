@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from rhiza_hooks._repo import find_repo_root
+from rhiza_hooks._toml import load_toml
 from rhiza_hooks._version import parse_version, same_version, version_at_least
 
 CARGO_FILE = "Cargo.toml"
@@ -63,28 +64,6 @@ def _string_value(table: dict[str, Any], key: str) -> str | None:
     if not isinstance(value, str):
         return None
     return value.strip() or None
-
-
-def _load_toml(path: Path) -> dict[str, Any] | None:
-    """Parse a TOML file.
-
-    Args:
-        path: File to read.
-
-    Returns:
-        The parsed document, or None when the file is missing, unreadable, or
-        malformed. As in the Python-version hook, an unusable file is treated as
-        "unspecified" rather than crashing the commit.
-    """
-    if not path.exists():
-        return None
-    try:
-        with path.open("rb") as handle:
-            return tomllib.load(handle)
-    except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError):
-        # tomllib decodes the stream itself, so invalid UTF-8 surfaces as
-        # UnicodeDecodeError rather than a TOML error.
-        return None
 
 
 def read_legacy_toolchain(path: Path) -> str | None:
@@ -132,7 +111,7 @@ def get_toolchain_channels(repo_root: Path) -> dict[str, str]:
     """
     channels: dict[str, str] = {}
 
-    data = _load_toml(repo_root / TOOLCHAIN_FILE)
+    data = load_toml(repo_root / TOOLCHAIN_FILE)
     if data is not None:
         channel = _string_value(_table(data, "toolchain"), "channel")
         if channel is not None:
@@ -155,7 +134,7 @@ def get_cargo_rust_versions(repo_root: Path) -> dict[str, str]:
         Mapping of table label (``package`` / ``workspace.package``) to the
         ``rust-version`` string declared there.
     """
-    data = _load_toml(repo_root / CARGO_FILE)
+    data = load_toml(repo_root / CARGO_FILE)
     if data is None:
         return {}
 

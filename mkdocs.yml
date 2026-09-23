@@ -34,6 +34,7 @@ nav:
           - _makefile: api-reference/_makefile.md
           - _managed: api-reference/_managed.md
           - _repo: api-reference/_repo.md
+          - _toml: api-reference/_toml.md
           - _version: api-reference/_version.md
           - _yaml: api-reference/_yaml.md
   - Reports:
