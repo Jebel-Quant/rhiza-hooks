@@ -35,17 +35,36 @@ def get_python_version_file(repo_root: Path) -> str | None:
     Args:
         repo_root: Root directory of the repository
 
+    The first ``major.minor`` anywhere in the file is used, so interpreter-prefixed
+    forms that uv and pyenv accept are checked too. Content naming no version at
+    all — or that is not UTF-8 — is treated as unspecified, like a missing file.
+
+    Args:
+        repo_root: Root directory of the repository
+
     Returns:
-        Python version string or None if file doesn't exist
+        ``major.minor`` string, or None if the file is missing or names no version
+
+    >>> import tempfile
+    >>> with tempfile.TemporaryDirectory() as d:
+    ...     _ = (Path(d) / ".python-version").write_text("pypy3.10")
+    ...     get_python_version_file(Path(d))
+    '3.10'
+    >>> with tempfile.TemporaryDirectory() as d:
+    ...     _ = (Path(d) / ".python-version").write_text("system")
+    ...     get_python_version_file(Path(d)) is None
+    True
     """
     version_file = repo_root / ".python-version"
     if not version_file.exists():
         return None
 
-    content = version_file.read_text(encoding="utf-8").strip()
-    # Extract major.minor version
-    match = re.match(r"(\d+\.\d+)", content)
-    return match.group(1) if match else content
+    try:
+        content = version_file.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return None
+    match = re.search(r"\d+\.\d+", content)
+    return match.group(0) if match else None
 
 
 def parse_version(version_str: str) -> tuple[int, int]:
