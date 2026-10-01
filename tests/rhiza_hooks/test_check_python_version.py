@@ -464,50 +464,52 @@ def test_no_git_dir_returns_cwd(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Unit tests: main
 # ---------------------------------------------------------------------------
-def test_main_consistent_returns_zero(tmp_path: Path) -> None:
+def test_main_consistent_returns_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Returns 0 when versions are consistent."""
     (tmp_path / ".python-version").write_text("3.12\n")
     (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11"\n')
     (tmp_path / ".git").mkdir()
 
-    with patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path):
-        result = main([])
-        assert result == 0
+    monkeypatch.chdir(tmp_path)
+    result = main([])
+    assert result == 0
 
 
-def test_main_inconsistent_returns_one(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_main_inconsistent_returns_one(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Returns 1 when versions are inconsistent."""
     (tmp_path / ".python-version").write_text("3.10\n")
     (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.11"\n')
     (tmp_path / ".git").mkdir()
 
-    with patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path):
-        result = main([])
-        assert result == 1
-        captured = capsys.readouterr()
-        # Exact stderr pins the "ERROR: {error}" print format; stdout stays clean.
-        assert captured.err == (
-            "ERROR: Python version mismatch: .python-version has 3.10, but pyproject.toml requires-python is >=3.11\n"
-        )
-        assert captured.out == ""
+    monkeypatch.chdir(tmp_path)
+    result = main([])
+    assert result == 1
+    captured = capsys.readouterr()
+    # Exact stderr pins the "ERROR: {error}" print format; stdout stays clean.
+    assert captured.err == (
+        "ERROR: Python version mismatch: .python-version has 3.10, but pyproject.toml requires-python is >=3.11\n"
+    )
+    assert captured.out == ""
 
 
-def test_main_no_files_returns_zero(tmp_path: Path) -> None:
+def test_main_no_files_returns_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Returns 0 when no version files exist."""
     (tmp_path / ".git").mkdir()
 
-    with patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path):
-        result = main([])
-        assert result == 0
+    monkeypatch.chdir(tmp_path)
+    result = main([])
+    assert result == 0
 
 
-def test_main_accepts_filenames_argument(tmp_path: Path) -> None:
+def test_main_accepts_filenames_argument(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Main accepts filenames argument (ignored)."""
     (tmp_path / ".git").mkdir()
 
-    with patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path):
-        result = main(["some_file.py", "another.py"])
-        assert result == 0
+    monkeypatch.chdir(tmp_path)
+    result = main(["some_file.py", "another.py"])
+    assert result == 0
 
 
 def test_unknown_flag_exits() -> None:
@@ -531,12 +533,12 @@ def test_help_text(capsys: pytest.CaptureFixture[str]) -> None:
 # ---------------------------------------------------------------------------
 # Unit tests: module execution via if __name__ == '__main__'
 # ---------------------------------------------------------------------------
-def test_module_executes_main(tmp_path: Path) -> None:
+def test_module_executes_main(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Module execution calls main and exits with its return value."""
     (tmp_path / ".git").mkdir()
 
+    monkeypatch.chdir(tmp_path)
     with (
-        patch("rhiza_hooks.check_python_version.find_repo_root", return_value=tmp_path),
         patch("rhiza_hooks.check_python_version.sys.argv", ["check_python_version"]),
         patch("rhiza_hooks.check_python_version.sys.exit") as mock_exit,
     ):

@@ -181,26 +181,31 @@ def test_drifted_current_version_is_an_error(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
-def test_main_returns_zero_when_sound(tmp_path: Path) -> None:
+def test_main_returns_zero_when_sound(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """main() exits 0 for a sound configuration."""
     _write(tmp_path, "pyproject.toml", PYPROJECT + BUMP_TABLE)
-    with patch("rhiza_hooks.check_bumpversion_config.find_repo_root", return_value=tmp_path):
-        assert main([]) == 0
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
+    assert main([]) == 0
 
 
-def test_main_returns_one_and_prints(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_main_returns_one_and_prints(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     """main() exits 1 and reports the problem on stdout."""
     _write(tmp_path, "pyproject.toml", PYPROJECT)
-    with patch("rhiza_hooks.check_bumpversion_config.find_repo_root", return_value=tmp_path):
-        assert main([]) == 1
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
+    assert main([]) == 1
     assert "ERROR:" in capsys.readouterr().err
 
 
-def test_main_ignores_passed_filenames(tmp_path: Path) -> None:
+def test_main_ignores_passed_filenames(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Filenames supplied by pre-commit are consumed and ignored."""
     _write(tmp_path, "pyproject.toml", PYPROJECT + BUMP_TABLE)
-    with patch("rhiza_hooks.check_bumpversion_config.find_repo_root", return_value=tmp_path):
-        assert main(["pyproject.toml", "setup.cfg"]) == 0
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
+    assert main(["pyproject.toml", "setup.cfg"]) == 0
 
 
 def test_module_is_executable() -> None:
@@ -214,13 +219,13 @@ def test_module_is_executable() -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_module_executes_main(tmp_path: Path) -> None:
+def test_module_executes_main(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Module execution calls main and exits with its return value."""
     (tmp_path / ".git").mkdir()
     _write(tmp_path, "pyproject.toml", PYPROJECT + BUMP_TABLE)
 
+    monkeypatch.chdir(tmp_path)
     with (
-        patch("rhiza_hooks.check_bumpversion_config.find_repo_root", return_value=tmp_path),
         patch("rhiza_hooks.check_bumpversion_config.sys.argv", ["check_bumpversion_config"]),
         patch("rhiza_hooks.check_bumpversion_config.sys.exit") as mock_exit,
     ):

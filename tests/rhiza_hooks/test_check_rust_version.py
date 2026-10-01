@@ -368,22 +368,26 @@ def test_no_rust_files_is_consistent(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Unit tests: main
 # ---------------------------------------------------------------------------
-def test_main_consistent_returns_zero(tmp_path: Path) -> None:
+def test_main_consistent_returns_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Returns 0 when versions are consistent."""
     _write(tmp_path, "rust-toolchain.toml", '[toolchain]\nchannel = "1.75.0"\n')
     _write(tmp_path, "Cargo.toml", '[package]\nrust-version = "1.75"\n')
 
-    with patch("rhiza_hooks.check_rust_version.find_repo_root", return_value=tmp_path):
-        assert main([]) == 0
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
+    assert main([]) == 0
 
 
-def test_main_inconsistent_returns_one(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_main_inconsistent_returns_one(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Returns 1 and prints each error with the ERROR prefix."""
     _write(tmp_path, "rust-toolchain.toml", '[toolchain]\nchannel = "1.70.0"\n')
     _write(tmp_path, "Cargo.toml", '[package]\nrust-version = "1.75"\n')
 
-    with patch("rhiza_hooks.check_rust_version.find_repo_root", return_value=tmp_path):
-        assert main([]) == 1
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
+    assert main([]) == 1
 
     assert capsys.readouterr().err == (
         "ERROR: Rust version mismatch: rust-toolchain.toml pins channel 1.70.0, "
@@ -392,16 +396,18 @@ def test_main_inconsistent_returns_one(tmp_path: Path, capsys: pytest.CaptureFix
     )
 
 
-def test_main_no_files_returns_zero(tmp_path: Path) -> None:
+def test_main_no_files_returns_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Returns 0 when no Rust version files exist."""
-    with patch("rhiza_hooks.check_rust_version.find_repo_root", return_value=tmp_path):
-        assert main([]) == 0
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
+    assert main([]) == 0
 
 
-def test_main_accepts_filenames_argument(tmp_path: Path) -> None:
+def test_main_accepts_filenames_argument(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Main accepts (and ignores) pre-commit's filename arguments."""
-    with patch("rhiza_hooks.check_rust_version.find_repo_root", return_value=tmp_path):
-        assert main(["Cargo.toml", "rust-toolchain.toml"]) == 0
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
+    assert main(["Cargo.toml", "rust-toolchain.toml"]) == 0
 
 
 def test_unknown_flag_exits() -> None:
@@ -425,10 +431,11 @@ def test_help_text(capsys: pytest.CaptureFixture[str]) -> None:
 # ---------------------------------------------------------------------------
 # Unit tests: module execution via if __name__ == '__main__'
 # ---------------------------------------------------------------------------
-def test_module_executes_main(tmp_path: Path) -> None:
+def test_module_executes_main(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Module execution calls main and exits with its return value."""
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
     with (
-        patch("rhiza_hooks.check_rust_version.find_repo_root", return_value=tmp_path),
         patch("rhiza_hooks.check_rust_version.sys.argv", ["check_rust_version"]),
         patch("rhiza_hooks.check_rust_version.sys.exit") as mock_exit,
     ):
