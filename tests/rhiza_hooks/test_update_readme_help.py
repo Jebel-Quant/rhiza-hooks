@@ -214,43 +214,43 @@ def test_main_no_makefile_returns_zero() -> None:
         assert result == 0
 
 
-def test_main_readme_updated_returns_one(tmp_path: Path) -> None:
+def test_main_readme_updated_returns_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Returns 1 when README was updated."""
     readme = tmp_path / "README.md"
     readme.write_text("<!-- MAKE_HELP_START -->\nold\n<!-- MAKE_HELP_END -->")
     (tmp_path / ".git").mkdir()
 
+    monkeypatch.chdir(tmp_path)
     with (
         patch("rhiza_hooks.update_readme_help.get_make_help_output", return_value="new help\n"),
-        patch("rhiza_hooks.update_readme_help.find_repo_root", return_value=tmp_path),
     ):
         result = main([])
         assert result == 1
 
 
-def test_main_readme_unchanged_returns_zero(tmp_path: Path) -> None:
+def test_main_readme_unchanged_returns_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Returns 0 when README was not changed."""
     readme = tmp_path / "README.md"
     readme.write_text("<!-- MAKE_HELP_START -->\n```text\nsame content\n```\n<!-- MAKE_HELP_END -->")
     (tmp_path / ".git").mkdir()
 
+    monkeypatch.chdir(tmp_path)
     with (
         patch("rhiza_hooks.update_readme_help.get_make_help_output", return_value="same content\n"),
-        patch("rhiza_hooks.update_readme_help.find_repo_root", return_value=tmp_path),
     ):
         result = main([])
         assert result == 0
 
 
-def test_main_no_markers_returns_zero(tmp_path: Path) -> None:
+def test_main_no_markers_returns_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Returns 0 when README has no markers."""
     readme = tmp_path / "README.md"
     readme.write_text("# Just a readme\n\nNo markers here.")
     (tmp_path / ".git").mkdir()
 
+    monkeypatch.chdir(tmp_path)
     with (
         patch("rhiza_hooks.update_readme_help.get_make_help_output", return_value="help output\n"),
-        patch("rhiza_hooks.update_readme_help.find_repo_root", return_value=tmp_path),
     ):
         result = main([])
         assert result == 0

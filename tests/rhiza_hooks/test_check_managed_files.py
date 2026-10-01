@@ -106,7 +106,8 @@ def test_repo_relative_keeps_foreign_absolute_paths(tmp_path: Path):
 def test_main_passes_on_clean_commit(managed_repo, monkeypatch, capsys):
     """A commit touching no managed file exits 0 and says nothing."""
     root = managed_repo("- Makefile\n")
-    monkeypatch.setattr(cmf, "find_repo_root", lambda: root)
+    (root / ".git").mkdir()
+    monkeypatch.chdir(root)
     assert cmf.main(["src/foo.py"]) == 0
     assert capsys.readouterr().out == ""
 
@@ -114,7 +115,8 @@ def test_main_passes_on_clean_commit(managed_repo, monkeypatch, capsys):
 def test_main_fails_and_explains_the_bypass(managed_repo, monkeypatch, capsys):
     """A commit touching a managed file exits 1, prints ERROR: and names the SKIP bypass."""
     root = managed_repo("- Makefile\n")
-    monkeypatch.setattr(cmf, "find_repo_root", lambda: root)
+    (root / ".git").mkdir()
+    monkeypatch.chdir(root)
     assert cmf.main(["Makefile"]) == 1
     captured = capsys.readouterr()
     out = captured.err
@@ -126,14 +128,16 @@ def test_main_fails_and_explains_the_bypass(managed_repo, monkeypatch, capsys):
 def test_main_honours_allow(managed_repo, monkeypatch):
     """--allow is threaded through to the check."""
     root = managed_repo("- Makefile\n")
-    monkeypatch.setattr(cmf, "find_repo_root", lambda: root)
+    (root / ".git").mkdir()
+    monkeypatch.chdir(root)
     assert cmf.main(["Makefile", "--allow", "Makefile"]) == 0
 
 
 def test_module_executes_main(managed_repo, monkeypatch):
     """Module execution calls main and exits with its return value."""
     root = managed_repo("- Makefile\n")
-    monkeypatch.setattr(cmf, "find_repo_root", lambda: root)
+    (root / ".git").mkdir()
+    monkeypatch.chdir(root)
     monkeypatch.setattr(cmf.sys, "argv", ["check_managed_files"])
 
     with patch("rhiza_hooks.check_managed_files.sys.exit") as mock_exit:

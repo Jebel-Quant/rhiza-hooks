@@ -136,7 +136,8 @@ def test_this_repo_is_coherent() -> None:
 def test_main_passes(tmp_path: Path, monkeypatch, capsys) -> None:
     """Coherent metadata exits 0 silently."""
     _pyproject(tmp_path, 'license = "MIT"')
-    monkeypatch.setattr(clm, "find_repo_root", lambda: tmp_path)
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
     assert clm.main([]) == 0
     assert capsys.readouterr().out == ""
 
@@ -144,7 +145,8 @@ def test_main_passes(tmp_path: Path, monkeypatch, capsys) -> None:
 def test_main_reports_and_fails(tmp_path: Path, monkeypatch, capsys) -> None:
     """The conflicting combination exits 1 and prints an ERROR: line."""
     _pyproject(tmp_path, f'license = "MIT"\n{_CLASSIFIER}')
-    monkeypatch.setattr(clm, "find_repo_root", lambda: tmp_path)
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
     assert clm.main(["pyproject.toml"]) == 1
     assert "ERROR: pyproject.toml declares both" in capsys.readouterr().err
 
@@ -152,7 +154,8 @@ def test_main_reports_and_fails(tmp_path: Path, monkeypatch, capsys) -> None:
 def test_main_require_license_flag(tmp_path: Path, monkeypatch) -> None:
     """--require-license is threaded through to the check."""
     _pyproject(tmp_path, 'description = "demo"')
-    monkeypatch.setattr(clm, "find_repo_root", lambda: tmp_path)
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
     assert clm.main([]) == 0
     assert clm.main(["--require-license"]) == 1
 
@@ -160,7 +163,8 @@ def test_main_require_license_flag(tmp_path: Path, monkeypatch) -> None:
 def test_module_executes_main(tmp_path: Path, monkeypatch) -> None:
     """Module execution calls main and exits with its return value."""
     _pyproject(tmp_path, 'license = "MIT"')
-    monkeypatch.setattr(clm, "find_repo_root", lambda: tmp_path)
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(clm.sys, "argv", ["check_license_metadata"])
 
     with patch("rhiza_hooks.check_license_metadata.sys.exit") as mock_exit:
