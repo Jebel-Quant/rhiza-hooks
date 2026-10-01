@@ -188,6 +188,51 @@ def test_missing_file_returns_none(tmp_path: Path) -> None:
     assert get_python_version_file(tmp_path) is None
 
 
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        ("pypy3.10\n", "3.10"),
+        ("cpython@3.12\n", "3.12"),
+        ("pypy3.10-7.3.12\n", "3.10"),
+    ],
+)
+def test_extracts_version_after_interpreter_prefix(tmp_path: Path, content: str, expected: str) -> None:
+    """An interpreter-prefixed version is read from wherever it appears (issue #400)."""
+    (tmp_path / ".python-version").write_text(content)
+    assert get_python_version_file(tmp_path) == expected
+
+
+@pytest.mark.parametrize("content", ["system\n", "3\n", ""])
+def test_content_without_a_version_is_unspecified(tmp_path: Path, content: str) -> None:
+    """Content naming no major.minor is treated like a missing file (issue #400)."""
+    (tmp_path / ".python-version").write_text(content)
+    assert get_python_version_file(tmp_path) is None
+
+
+def test_non_utf8_version_file_is_unspecified(tmp_path: Path) -> None:
+    """A .python-version that is not UTF-8 is unspecified rather than a crash."""
+    (tmp_path / ".python-version").write_bytes(b"\xff\xfe3.12")
+    assert get_python_version_file(tmp_path) is None
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        ("pypy3.10\n", []),
+        ("system\n", []),
+        (
+            "pypy3.9\n",
+            ["Python version mismatch: .python-version has 3.9, but pyproject.toml requires-python is >=3.10"],
+        ),
+    ],
+)
+def test_non_numeric_version_file_never_raises(tmp_path: Path, content: str, expected: list[str]) -> None:
+    """End to end: pypy3.10 is checked, system is skipped, neither raises (issue #400)."""
+    (tmp_path / ".python-version").write_text(content)
+    (tmp_path / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.10"\n')
+    assert check_version_consistency(tmp_path) == expected
+
+
 # ---------------------------------------------------------------------------
 # Unit tests: get_pyproject_requires_python
 # ---------------------------------------------------------------------------
