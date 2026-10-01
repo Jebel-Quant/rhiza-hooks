@@ -83,7 +83,7 @@ layer](#the-task-runner-replaced-the-make-layer).)
 >
 > **The bump has since happened**: #373 synced to `v1.5.1`, which carried the same
 > deletion, so the forward-port was the no-op it was designed to be. The SBOM section has
-> survived every sync since, up to and including `v1.8.0`
+> survived every sync since, up to and including `v1.9.0`
 > (`grep -c 'SBOM Retrieval' SECURITY.md` → 2). That is a run of data points for
 > `strategy: merge` and none at all for the `exclude:` route above — still verify that
 > actually bites before relying on it. Keep re-running the grep after each sync.
@@ -110,7 +110,7 @@ sync](#excluded-from-sync). `DISCUSSION_TEMPLATE/` and `ISSUE_TEMPLATE/` were ex
 too until #374; the template stopped shipping them, so nothing restores them now.)
 
 > This snapshot reflects the files synced at the pinned `ref:` (currently
-> `v1.8.0`); the `files:` block of `.rhiza/template.lock` is the authoritative
+> `v1.9.0`); the `files:` block of `.rhiza/template.lock` is the authoritative
 > list, and it *is* what is on disk. The excluded paths are not in it — the
 > lock records them under its own top-level `exclude:` key instead — so a path's
 > absence from `files:` does not by itself mean the template never offered it.
@@ -174,7 +174,7 @@ force at the last sync kept its file out of `files:`. See #378.
 > **`.rhiza/template.lock` lags by design**: it records the `exclude:` list as it stood at
 > the last sync, so it disagrees with `template.yml` for as long as a hand edit sits there
 > unsynced. The two agree today — both name the same two paths, the lock having caught up
-> at the `v1.8.0` sync — but that is timing, not an invariant. `template.yml` is the
+> at the `v1.9.0` sync — but that is timing, not an invariant. `template.yml` is the
 > authority, which is why the parity test reads it and the remote rather than the lock.
 
 **`.pre-commit-config.yaml`** — this repo *is* rhiza-hooks. The template's copy
