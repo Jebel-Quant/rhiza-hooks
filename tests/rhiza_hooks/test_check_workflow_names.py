@@ -74,7 +74,7 @@ def test_missing_name_field_returns_false(tmp_path: Path, capsys: pytest.Capture
 
 
 def test_invalid_yaml_returns_false(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """Invalid YAML returns False with the exact error prefix (no mutated wrapper)."""
+    """Invalid YAML returns False with the exact error prefix."""
     workflow = tmp_path / "workflow.yml"
     workflow.write_text('name: "unterminated\non: push\n')
 

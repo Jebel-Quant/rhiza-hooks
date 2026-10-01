@@ -104,10 +104,7 @@ def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
     content = readme_path.read_text(encoding="utf-8")
 
     # Check if markers exist
-    # pragma below: equivalent mutant — with only one marker present the substitution
-    # pattern (START.*?END) cannot match either way, so `or`->`and` changes no observable
-    # behaviour (return value and file contents are identical).
-    if START_MARKER not in content or END_MARKER not in content:  # pragma: no mutate
+    if START_MARKER not in content or END_MARKER not in content:
         # No markers, nothing to update
         return False
 
@@ -146,7 +143,7 @@ def update_readme_with_help(readme_path: Path, help_output: str) -> bool:
 def main(argv: list[str] | None = None) -> int:
     """Execute the script."""
     # This hook doesn't use filenames, it always operates on the repo root
-    _ = argv  # Unused  # pragma: no mutate  # equivalent: value is never read
+    _ = argv  # Unused
 
     repo_root = find_repo_root()
     readme_path = repo_root / "README.md"
@@ -169,5 +166,5 @@ def _run() -> None:
     sys.exit(main())
 
 
-if __name__ == "__main__":  # pragma: no cover  # pragma: no mutate
+if __name__ == "__main__":  # pragma: no cover
     _run()

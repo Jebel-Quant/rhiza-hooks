@@ -269,5 +269,5 @@ def main(argv: list[str] | None = None) -> int:
     return 1 if errors else 0
 
 
-if __name__ == "__main__":  # pragma: no mutate
+if __name__ == "__main__":
     sys.exit(main())
