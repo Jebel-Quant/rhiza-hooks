@@ -152,7 +152,8 @@ def test_main_defaults_to_the_repo_root(tmp_path: Path, monkeypatch: pytest.Monk
     """
     _write(tmp_path / "src" / "foo.py", "class Bar:\n    pass\n")
     _write(tmp_path / "tests" / "test_foo.py", "def test_x():\n    pass\n")
-    monkeypatch.setattr(ctl, "find_repo_root", lambda: tmp_path)
+    (tmp_path / ".git").mkdir()
+    monkeypatch.chdir(tmp_path)
     assert ctl.main([]) == 1
 
 
