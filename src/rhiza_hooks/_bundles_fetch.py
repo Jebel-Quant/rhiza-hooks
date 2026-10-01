@@ -197,10 +197,7 @@ def fetch_remote_bundles(
     # suppression on this line.
     url = f"https://raw.githubusercontent.com/{repo}/{branch}/.rhiza/template-bundles.yml"
 
-    # pragma below: equivalent mutant — the final `return BundlesDoc(None, errors)` is only
-    # reached after a transient-error iteration has reassigned `errors` (success and HTTP
-    # errors return early), so for attempts >= 1 this initial value is never the one returned.
-    errors: list[str] = []  # pragma: no mutate
+    errors: list[str] = []
     for attempt in range(attempts):
         outcome = _fetch_once(url, timeout, repo, branch, opener)
         if isinstance(outcome, BundlesDoc):

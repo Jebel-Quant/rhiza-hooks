@@ -144,7 +144,7 @@ def check_file(filepath: str) -> bool:
 def main(argv: list[str] | None = None) -> int:
     """Execute the script."""
     files = argv if argv is not None else sys.argv[1:]
-    failed = False  # pragma: no mutate  # equivalent: only ever read via `if failed`
+    failed = False
     for f in files:
         if not check_file(f):
             failed = True
@@ -157,5 +157,5 @@ def _run() -> None:
     sys.exit(main())
 
 
-if __name__ == "__main__":  # pragma: no cover  # pragma: no mutate
+if __name__ == "__main__":  # pragma: no cover
     _run()

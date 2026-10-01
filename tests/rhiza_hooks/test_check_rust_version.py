@@ -416,7 +416,7 @@ def test_help_text(capsys: pytest.CaptureFixture[str]) -> None:
         main(["--help"])
     assert exc_info.value.code == 0
     out = capsys.readouterr().out
-    assert "XX" not in out  # no mutated literal survived into the rendered help
+    assert "XX" not in out  # no placeholder literal leaked into the rendered help
     assert "Check Rust version consistency" in out
     assert "Filenames (ignored, checks repo root)" in out
     assert "filenames" in out
