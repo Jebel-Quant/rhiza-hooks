@@ -454,7 +454,7 @@ def test_help_text(capsys: pytest.CaptureFixture[str]) -> None:
         main(["--help"])
     assert exc_info.value.code == 0
     out = capsys.readouterr().out
-    assert "XX" not in out  # no mutated literal survived into the rendered help
+    assert "XX" not in out  # no placeholder literal leaked into the rendered help
     assert "Validate .rhiza/template.yml configuration" in out
     assert "Filenames to check" in out
 

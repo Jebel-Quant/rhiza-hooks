@@ -259,5 +259,5 @@ def main(argv: list[str] | None = None, fetcher: Fetcher = fetch_remote_bundles)
     return _run_remote_validation(config, templates_set, config_path, args.retries, args.timeout, fetcher)
 
 
-if __name__ == "__main__":  # pragma: no mutate
+if __name__ == "__main__":
     sys.exit(main())
