@@ -5,6 +5,34 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com),
 and entries are generated from [Conventional Commits](https://www.conventionalcommits.org).
 
+## [1.3.2] - 2026-11-02
+
+### Bug Fixes
+- Treat non-UTF-8 TOML as unspecified in the python and rust version hooks (#396) (#398)
+- Remove dead '# pragma: no mutate' markers (#403) (#406)
+- Read the version from an interpreter-prefixed .python-version (#400) (#408)
+
+### Documentation
+- Refresh CLAUDE.md's pinned-ref snapshot to v1.9.0 (#404) (#407)
+
+### Dependencies
+- *(deps)* Update all dependencies (#418)
+
+### Maintenance
+- Chore(deps-dev)(deps-dev): bump types-pyyaml (#395)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#394)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#401)
+- Update rhiza to v1.9.0 (#402)
+- Chdir into a repo instead of patching find_repo_root (#405) (#409)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#410)
+- Chore(deps)(deps): bump the github-actions group with 2 updates (#412)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#411)
+- Update rhiza to v1.10.0 (#413)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#414)
+- Chore(deps)(deps): bump the github-actions group with 3 updates (#415)
+- Chore(deps-dev)(deps-dev): bump hypothesis (#416)
+- Chore(deps)(deps): bump the github-actions group with 10 updates (#417)
+
 ## [1.3.1] - 2026-09-09
 
 ### Bug Fixes
