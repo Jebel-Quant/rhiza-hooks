@@ -51,7 +51,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "pyyaml>=6.0.1"
+    "pyyaml>=6.0.3"
 ]
 
 [project.urls]
@@ -85,8 +85,8 @@ pyyaml = "yaml"
 
 [dependency-groups]
 test = [
-    "pytest>=9.1.1",
-    "hypothesis>=6.165.9",
+    "pytest>=9.2.0",
+    "hypothesis>=6.170.14",
 ]
 # mypy, ruff, interrogate and pre-commit are deliberately absent: nothing resolves the
 # *tools* from the project environment. ruff and the hook suite run through uvx (`fmt` in
@@ -113,7 +113,7 @@ test = [
 # name is otherwise inert — UV_SYNC_ARGS in .rhiza/make.d/python.mk is `--all-groups`,
 # so nothing selects this group by name.
 types = [
-    "types-pyyaml>=6.0.12.20260815",
+    "types-pyyaml>=6.0.12.20261030",
 ]
 
 [tool.mypy]
@@ -183,13 +183,12 @@ typechecker = "both"
 # [dependency-groups]. The CLI's own default is v0.2.0, behind this pin, so leaving the
 # key unset would *downgrade* the checks -- the drift the pin exists to prevent.
 #
-# 0.6.0 is required by this repo's dynamic [project].version, not merely available: it is
-# the first release whose test_pyproject accepts a version derived from the VCS. Under
-# 0.2.1 three of its assertions read `[project].version` as the empty string and fail --
-# the required-field check, the semver shape, and the tag-agreement one -- because they
-# predate `dynamic = ["version"]` being a thing a rhiza project could do. 0.6.0 skips each
-# with a reason instead, six skips in all. jquantstats, which made this move first, pins
-# the same version.
+# At least 0.6.0 is required by this repo's dynamic [project].version, not merely
+# available: 0.6.0 is the first release whose test_pyproject accepts a version derived
+# from the VCS. Under 0.2.1 three of its assertions read `[project].version` as the empty
+# string and fail -- the required-field check, the semver shape, and the tag-agreement
+# one -- because they predate `dynamic = ["version"]` being a thing a rhiza project could
+# do. From 0.6.0 on it skips each with a reason instead. jquantstats made this move first.
 #
 # This also swaps the git ref this repo used for the released wheel on PyPI, which is
 # what the rest of the fleet pins. Same code at the same tag, resolved without a clone.
@@ -197,7 +196,7 @@ typechecker = "both"
 # All four overrides in this table were re-checked against the rhiza-task 1.7.0 defaults
 # (coverage_fail_under 90, typechecker "ty", mkdocs_extra_packages without `.`,
 # pytest_rhiza at the v0.2.0 git ref) and each still differs from them.
-pytest-rhiza = "pytest-rhiza==0.6.0"
+pytest-rhiza = "pytest-rhiza==0.7.0"
 
 # The old root Makefile carried
 # `MKDOCS_EXTRA_PACKAGES = --with 'mkdocstrings[python]' --with .`.

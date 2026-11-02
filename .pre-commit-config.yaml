@@ -9,7 +9,7 @@
 # system node. Some npm-based hooks (markdownlint-cli) pull transitive deps that
 # reject odd-numbered current node releases (e.g. v25), failing on EBADENGINE.
 default_language_version:
-  node: "24.12.0"
+  node: "24.22.2"
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -35,7 +35,7 @@ repos:
         pass_filenames: false
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 'v0.16.0'
+    rev: 'v0.17.3'
     hooks:
       - id: ruff
         args: [ --fix, --exit-non-zero-on-fix, --unsafe-fixes ]
@@ -44,13 +44,13 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.49.0
+    rev: v0.50.0
     hooks:
       - id: markdownlint
         args: ["--disable", "MD013"]
 
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.37.4
+    rev: 0.39.0
     hooks:
       - id: check-renovate
         args: [ "--verbose" ]
@@ -64,7 +64,7 @@ repos:
       - id: actionlint
 
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.25
+    rev: v0.27
     hooks:
       - id: validate-pyproject
 
@@ -75,18 +75,18 @@ repos:
         args: ["--ini", ".bandit", "--exclude", ".venv,tests,.git,.pytest_cache"]
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.11.0.1
+    rev: v0.11.0.1-1
     hooks:
       - id: shellcheck
         files: '\.sh$'
 
   - repo: https://github.com/betterleaks/betterleaks
-    rev: v1.7.2
+    rev: v1.9.0
     hooks:
       - id: betterleaks
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.0
+    rev: 0.13.6
     hooks:
       - id: uv-lock
 
