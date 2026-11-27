@@ -83,7 +83,7 @@ layer](#the-task-runner-replaced-the-make-layer).)
 >
 > **The bump has since happened**: #373 synced to `v1.5.1`, which carried the same
 > deletion, so the forward-port was the no-op it was designed to be. The SBOM section has
-> survived every sync since, up to and including `v1.9.0`
+> survived every sync since, up to and including `v1.14.1`
 > (`grep -c 'SBOM Retrieval' SECURITY.md` → 2). That is a run of data points for
 > `strategy: merge` and none at all for the `exclude:` route above — still verify that
 > actually bites before relying on it. Keep re-running the grep after each sync.
@@ -98,19 +98,21 @@ rather than synced into the repo.
 
 ### `.github/`
 - Workflows: `rhiza_benchmark.yml`, `rhiza_book.yml`, `rhiza_ci.yml`,
-  `rhiza_codeql.yml`, `rhiza_marimo.yml`, `rhiza_release.yml`,
-  `rhiza_weekly.yml`, `rhiza_scorecard.yml`
+  `rhiza_codeql.yml`, `rhiza_conda_recipe.yml`, `rhiza_marimo.yml`,
+  `rhiza_release.yml`, `rhiza_scorecard.yml`, `rhiza_sync.yml`, `rhiza_weekly.yml`
   (`rhiza_mutation.yml` and `rhiza_fuzzing.yml` are absent because the template
   retired both; the `exclude:` entries that used to keep them out were pruned in #375)
 - `dependabot.yml`, `release.yml`, `secret_scanning.yml`
-- `rulesets/`
+- `PULL_REQUEST_TEMPLATE.md` (the template dropped the lowercase
+  `pull_request_template.md` at v1.3.4 and has since shipped this one again)
+- `rulesets/main-branch-protection.json`, `rulesets/tag-protection.json`
 
 (`CONFIG.md` **used to be** on this list and is now excluded — see [Excluded from
 sync](#excluded-from-sync). `DISCUSSION_TEMPLATE/` and `ISSUE_TEMPLATE/` were excluded
 too until #374; the template stopped shipping them, so nothing restores them now.)
 
 > This snapshot reflects the files synced at the pinned `ref:` (currently
-> `v1.9.0`); the `files:` block of `.rhiza/template.lock` is the authoritative
+> `v1.14.1`); the `files:` block of `.rhiza/template.lock` is the authoritative
 > list, and it *is* what is on disk. The excluded paths are not in it — the
 > lock records them under its own top-level `exclude:` key instead — so a path's
 > absence from `files:` does not by itself mean the template never offered it.
@@ -119,11 +121,17 @@ too until #374; the template stopped shipping them, so nothing restores them now
 ### `.rhiza/` (the sync engine — treat the whole directory as managed)
 - `semgrep.yml`
 - `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`
+- `scripts/conda_recipe.py`, `scripts/release_publish.py` — stdlib-only Python the
+  release workflows run, not build machinery: `release_publish.py` holds the fail-closed
+  publisher guards `rhiza_release.yml` calls before publishing, and `conda_recipe.py`
+  generates and verifies a conda-forge recipe for a published release (from
+  `rhiza_release.yml`'s `conda` job and the hand-dispatched `rhiza_conda_recipe.yml`).
 - **Owned by you:** `.rhiza/template.yml` (and `.rhiza/template.lock`, which the
   tool regenerates).
 
-That is the whole directory — five files, three of them managed. `ls .rhiza/` is the
-quickest way to check this section has not gone stale again.
+That is the whole directory — seven files, five of them managed, two of those under
+`scripts/`. `ls -R .rhiza/` is the quickest way to check this section has not gone stale
+again.
 
 (`.env` and `.gitignore` **used to be** on this list. They were excluded here first, and
 the template has since stopped shipping either, which is why the two `exclude:` entries
@@ -173,8 +181,8 @@ force at the last sync kept its file out of `files:`. See #378.
 > of which exists anywhere in the template — and #378 pruned those.
 > **`.rhiza/template.lock` lags by design**: it records the `exclude:` list as it stood at
 > the last sync, so it disagrees with `template.yml` for as long as a hand edit sits there
-> unsynced. The two agree today — both name the same two paths, the lock having caught up
-> at the `v1.9.0` sync — but that is timing, not an invariant. `template.yml` is the
+> unsynced. The two agree today — both name the same two paths, as of the `v1.14.1`
+> sync — but that is timing, not an invariant. `template.yml` is the
 > authority, which is why the parity test reads it and the remote rather than the lock.
 
 **`.pre-commit-config.yaml`** — this repo *is* rhiza-hooks. The template's copy
@@ -229,7 +237,7 @@ a console script in `[project.scripts]`, which `tests/meta/test_pre_commit_manif
 checks in both directions.
 
 Mutation testing is now gone from every layer, so nothing here needs an `exclude:` entry
-for it: `rhiza_mutation.yml` was retired upstream, `rhiza-task` 1.7.0 defines no `mutation`
+for it: `rhiza_mutation.yml` was retired upstream, `rhiza-task` 1.11.0 defines no `mutation`
 task (`make help` lists none under *Testing extras*), and `docs/development/TESTS.md` —
 which carried the section describing it — is no longer synced.
 
@@ -241,8 +249,8 @@ which carried the section describing it — is no longer synced.
 Up to **v1.3.x** the template synced a makefile layer — `.rhiza/rhiza.mk` plus ten
 fragments under `.rhiza/make.d/`, ~1023 lines. **v1.4.0 deleted all of it.** The gates now
 come from the [`rhiza-task`](https://pypi.org/project/rhiza-task/) CLI, and the root
-`Makefile` is a 71-line template-owned shim in front of it: a catch-all `%: $(UVX) FORCE`
-rule forwards each target to `uvx $(RHIZA_TASK) $@`, and `RHIZA_TASK ?= rhiza-task@1.7.0`
+`Makefile` is a short template-owned shim in front of it: a catch-all `%: $(UVX) FORCE`
+rule forwards each target to `uvx $(RHIZA_TASK) $@`, and `RHIZA_TASK ?= rhiza-task@1.11.0`
 in that file is the entire version contract, in place of a template ref plus eleven synced
 `.mk` files. The pin travels with the sync, so moving a repo's gates forward is a `ref:`
 bump rather than a per-repo hand edit. **Consequence: do not edit `Makefile` here** —
@@ -256,7 +264,8 @@ unchanged. It just no longer *contains* anything.
 
 **Consequences worth knowing before you go looking for something:**
 
-- **`.rhiza/` holds no build machinery at all** — five files, listed above. If a
+- **`.rhiza/` holds no build machinery at all** — the files listed above; its two
+  `scripts/` are release-workflow helpers, not make or task definitions. If a
   document tells you to read `rhiza.mk` or a `make.d/*.mk` fragment, that document is
   stale (this one was; see #361).
 - **Settings live in `[tool.rhiza-task]` in `pyproject.toml`.** Resolution order is
@@ -265,8 +274,8 @@ unchanged. It just no longer *contains* anything.
   annotated with why it differs from the CLI default. `uvx rhiza-task print <setting>`
   shows what one resolves to.
 - **`make help` is not a static list.** It runs `uvx rhiza-task list`, so it reports what
-  the pinned CLI actually defines — 47 tasks across eleven sections under rhiza-task
-  1.7.0, far more than the old makefile exposed. Read it rather than guessing a target
+  the pinned CLI actually defines — 36 tasks across seven sections under rhiza-task
+  1.11.0, far more than the old makefile exposed. Read it rather than guessing a target
   name.
 - **Two probes that used to work now mislead.** `test -f .rhiza/rhiza.mk` is not a test of
   whether the repo is synced — it always fails now — and `make -n <target>` always
@@ -304,16 +313,16 @@ pytest_rhiza.checks.test_readme_validation
 ```
 
 Run `make rhiza-test` and read the echoed command line to see the current set — the task
-prints the full `uv run --with 'pytest-rhiza @ …' pytest --pyargs …` invocation, which is
+prints the full `uv run --with pytest-rhiza==… pytest --pyargs …` invocation, which is
 authoritative in a way this list cannot be.
 
 - **Nothing to add to `pyproject.toml`'s dependencies.** The pin is provisioned on the
   fly, which is also why there is no `.rhiza/tests` carve-out for deptry — there is no
   longer a folder for deptry to resolve against the manifest.
 - **The version is pinned by you, in `[tool.rhiza-task]`.** The `pytest-rhiza` key in
-  `pyproject.toml` sets `pytest-rhiza==0.6.0`. That is not merely newer than the CLI's
-  own default — it is *required* by this repo's dynamic `[project].version` (#391): 0.6.0
-  is the first release whose `test_pyproject` skips the assertions that read a written
+  `pyproject.toml` sets `pytest-rhiza==0.7.0`. That is not merely newer than the CLI's
+  own default — at least 0.6.0 is *required* by this repo's dynamic `[project].version`
+  (#391): 0.6.0 is the first release whose `test_pyproject` skips the assertions that read a written
   version, and under the older pin three of them fail outright. Change it there — that
   table is the only override layer this repo has, there being no `.rhiza/.env`.
 - **A leftover `.rhiza/tests/` directory is inert but noisy.** `rhiza-test` checks for it
@@ -369,7 +378,7 @@ every earlier one) into your local tag namespace, where they outrank this repo's
 **This no longer fails a test.** It used to break
 `pytest_rhiza.checks.test_pyproject::TestGitTagVersion`, which compared the
 highest version-sorted `v*` tag against `[project].version`. Since #391 that version is
-dynamic — derived from the git tag by hatch-vcs — so `pytest-rhiza` 0.6.0 skips the
+dynamic — derived from the git tag by hatch-vcs — so `pytest-rhiza` (0.6.0 onward) skips the
 assertion outright (`[project].version is dynamic — no written version to compare against
 git`), one of six such skips `make rhiza-test` now reports. The one remaining tag check,
 `test_release_tags::test_latest_tag_is_reachable_from_a_branch`, asks about reachability
