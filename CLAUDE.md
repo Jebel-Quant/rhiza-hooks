@@ -32,6 +32,18 @@ change is overwritten on the next sync. To change one of them:
    then syncs, resolves and stages, leaving the commit to you. This step used to name
    `make sync`, which never existed.
 
+**After every sync, update the `rhiza-current` comment just below** (invisible when
+rendered). It records the three pins this file quotes as current — the template `ref:`,
+the `rhiza-task` CLI in `Makefile`, and `pytest-rhiza` in `[tool.rhiza-task]` — and
+`tests/meta/test_claude_md_parity.py` fails when any of them disagrees with its source,
+or when a path in the lock's `files:` block is mentioned nowhere in this file. The
+comment is the only thing the test reads for the pins, so historical mentions in the
+prose ("left this list at v1.4.0") never trip it; the test also requires each pinned
+value to appear somewhere in the prose, so updating the comment alone is not enough.
+This snapshot went stale after six syncs in a row before the test existed (#433).
+
+<!-- rhiza-current: ref=v1.14.1 rhiza-task=1.11.0 pytest-rhiza=0.7.0 -->
+
 The authoritative, machine-generated list is the `files:` block of
 [`.rhiza/template.lock`](.rhiza/template.lock), refreshed on every sync. Current
 snapshot:
