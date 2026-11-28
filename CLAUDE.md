@@ -42,7 +42,7 @@ prose ("left this list at v1.4.0") never trip it; the test also requires each pi
 value to appear somewhere in the prose, so updating the comment alone is not enough.
 This snapshot went stale after six syncs in a row before the test existed (#433).
 
-<!-- rhiza-current: ref=v1.14.1 rhiza-task=1.11.0 pytest-rhiza=0.7.0 -->
+<!-- rhiza-current: ref=v1.14.2 rhiza-task=1.12.0 pytest-rhiza=0.7.0 -->
 
 The authoritative, machine-generated list is the `files:` block of
 [`.rhiza/template.lock`](.rhiza/template.lock), refreshed on every sync. Current
@@ -95,7 +95,7 @@ layer](#the-task-runner-replaced-the-make-layer).)
 >
 > **The bump has since happened**: #373 synced to `v1.5.1`, which carried the same
 > deletion, so the forward-port was the no-op it was designed to be. The SBOM section has
-> survived every sync since, up to and including `v1.14.1`
+> survived every sync since, up to and including `v1.14.2`
 > (`grep -c 'SBOM Retrieval' SECURITY.md` → 2). That is a run of data points for
 > `strategy: merge` and none at all for the `exclude:` route above — still verify that
 > actually bites before relying on it. Keep re-running the grep after each sync.
@@ -124,7 +124,7 @@ sync](#excluded-from-sync). `DISCUSSION_TEMPLATE/` and `ISSUE_TEMPLATE/` were ex
 too until #374; the template stopped shipping them, so nothing restores them now.)
 
 > This snapshot reflects the files synced at the pinned `ref:` (currently
-> `v1.14.1`); the `files:` block of `.rhiza/template.lock` is the authoritative
+> `v1.14.2`); the `files:` block of `.rhiza/template.lock` is the authoritative
 > list, and it *is* what is on disk. The excluded paths are not in it — the
 > lock records them under its own top-level `exclude:` key instead — so a path's
 > absence from `files:` does not by itself mean the template never offered it.
@@ -193,7 +193,7 @@ force at the last sync kept its file out of `files:`. See #378.
 > of which exists anywhere in the template — and #378 pruned those.
 > **`.rhiza/template.lock` lags by design**: it records the `exclude:` list as it stood at
 > the last sync, so it disagrees with `template.yml` for as long as a hand edit sits there
-> unsynced. The two agree today — both name the same two paths, as of the `v1.14.1`
+> unsynced. The two agree today — both name the same two paths, as of the `v1.14.2`
 > sync — but that is timing, not an invariant. `template.yml` is the
 > authority, which is why the parity test reads it and the remote rather than the lock.
 
@@ -249,7 +249,7 @@ a console script in `[project.scripts]`, which `tests/meta/test_pre_commit_manif
 checks in both directions.
 
 Mutation testing is now gone from every layer, so nothing here needs an `exclude:` entry
-for it: `rhiza_mutation.yml` was retired upstream, `rhiza-task` 1.11.0 defines no `mutation`
+for it: `rhiza_mutation.yml` was retired upstream, `rhiza-task` 1.12.0 defines no `mutation`
 task (`make help` lists none under *Testing extras*), and `docs/development/TESTS.md` —
 which carried the section describing it — is no longer synced.
 
@@ -262,7 +262,7 @@ Up to **v1.3.x** the template synced a makefile layer — `.rhiza/rhiza.mk` plus
 fragments under `.rhiza/make.d/`, ~1023 lines. **v1.4.0 deleted all of it.** The gates now
 come from the [`rhiza-task`](https://pypi.org/project/rhiza-task/) CLI, and the root
 `Makefile` is a short template-owned shim in front of it: a catch-all `%: $(UVX) FORCE`
-rule forwards each target to `uvx $(RHIZA_TASK) $@`, and `RHIZA_TASK ?= rhiza-task@1.11.0`
+rule forwards each target to `uvx $(RHIZA_TASK) $@`, and `RHIZA_TASK ?= rhiza-task@1.12.0`
 in that file is the entire version contract, in place of a template ref plus eleven synced
 `.mk` files. The pin travels with the sync, so moving a repo's gates forward is a `ref:`
 bump rather than a per-repo hand edit. **Consequence: do not edit `Makefile` here** —
@@ -287,7 +287,7 @@ unchanged. It just no longer *contains* anything.
   shows what one resolves to.
 - **`make help` is not a static list.** It runs `uvx rhiza-task list`, so it reports what
   the pinned CLI actually defines — 36 tasks across seven sections under rhiza-task
-  1.11.0, far more than the old makefile exposed. Read it rather than guessing a target
+  1.12.0, far more than the old makefile exposed. Read it rather than guessing a target
   name.
 - **Two probes that used to work now mislead.** `test -f .rhiza/rhiza.mk` is not a test of
   whether the repo is synced — it always fails now — and `make -n <target>` always

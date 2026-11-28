@@ -57,6 +57,14 @@ _WAIVED: dict[str, str] = {
         "Only a template repository publishes a bundles document; this repo consumes one, so "
         "the hook would match no files here."
     ),
+    "zizmor": (
+        "the template marks it 'Mother repo only': it audits the template's bundles/ and reads "
+        "its exceptions from the template's .github/zizmor.yml, neither of which this repo has."
+    ),
+    "typos": (
+        "the template marks it 'Mother repo only': its allowed words and exclusions live in the "
+        "template's own [tool.typos] table, which is not synced to consumers."
+    ),
 }
 
 
